@@ -1,0 +1,3167 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Holograph Emulator</name>
+    </assembly>
+    <members>
+        <member name="T:Holo.Encoding">
+            <summary>
+            Provides number encoding/decoding for the Habbo client. Features VL64 and Base64. Class written by Josh Comery. (Jeax)
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Pathfinding.Heap">
+            <summary>
+            The Heap allows to maintain a list sorted as long as needed.
+            If no IComparer interface has been provided at construction, then the list expects the Objects to implement IComparer.
+            If the list is not sorted it behaves like an ordinary list.
+            When sorted, the list's "Add" method will put new objects at the right place.
+            As well the "Contains" and "IndexOf" methods will perform a binary search.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.#ctor">
+            <summary>
+            Default constructor.
+            Since no IComparer is provided here, added objects must implement the IComparer interface.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.#ctor(System.Int32)">
+            <summary>
+            Constructor.
+            Since no IComparer is provided, added objects must implement the IComparer interface.
+            </summary>
+            <param name="Capacity">Capacity of the list (<see cref="P:System.Collections.ArrayList.Capacity">ArrayList.Capacity</see>)</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.#ctor(System.Collections.IComparer)">
+            <summary>
+            Constructor.
+            </summary>
+            <param name="Comparer">Will be used to compare added elements for sort and search operations.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.#ctor(System.Collections.IComparer,System.Int32)">
+            <summary>
+            Constructor.
+            </summary>
+            <param name="Comparer">Will be used to compare added elements for sort and search operations.</param>
+            <param name="Capacity">Capacity of the list (<see cref="P:System.Collections.ArrayList.Capacity">ArrayList.Capacity</see>)</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.Add(System.Object)">
+            <summary>
+            IList implementation.
+            Adds the object at the right place.
+            </summary>
+            <param name="O">The object to add.</param>
+            <returns>The index where the object has been added.</returns>
+            <exception cref="T:System.ArgumentException">The Heap is set to use object's IComparable interface, and the specifed object does not implement this interface.</exception>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.Contains(System.Object)">
+            <summary>
+            IList implementation.
+            Search for a specified object in the list.
+            If the list is sorted, a <see cref="M:System.Collections.ArrayList.BinarySearch(System.Int32,System.Int32,System.Object,System.Collections.IComparer)">BinarySearch</see> is performed using IComparer interface.
+            Else the <see cref="M:Holo.Virtual.Rooms.Pathfinding.Heap.Equals(System.Object)">Object.Equals</see> implementation is used.
+            </summary>
+            <param name="O">The object to look for</param>
+            <returns>true if the object is in the list, otherwise false.</returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.IndexOf(System.Object)">
+            <summary>
+            IList implementation.
+            Returns the index of the specified object in the list.
+            If the list is sorted, a <see cref="M:System.Collections.ArrayList.BinarySearch(System.Int32,System.Int32,System.Object,System.Collections.IComparer)">BinarySearch</see> is performed using IComparer interface.
+            Else the <see cref="M:Holo.Virtual.Rooms.Pathfinding.Heap.Equals(System.Object)">Object.Equals</see> implementation of objects is used.
+            </summary>
+            <param name="O">The object to locate.</param>
+            <returns>
+            If the object has been found, a positive integer corresponding to its position.
+            If the objects has not been found, a negative integer which is the bitwise complement of the index of the next element.
+            </returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.Clear">
+            <summary>
+            IList implementation.
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.Insert(System.Int32,System.Object)">
+            <summary>
+            IList implementation.
+            Cannot be used on a Heap.
+            </summary>
+            <param name="Index">The index before which the object must be added.</param>
+            <param name="O">The object to add.</param>
+            <exception cref="T:System.InvalidOperationException">Insert method cannot be called on a Heap.</exception>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.Remove(System.Object)">
+            <summary>
+            IList implementation.
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+            <param name="Value">The object whose value must be removed if found in the list.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.RemoveAt(System.Int32)">
+            <summary>
+            IList implementation.
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+            <param name="Index">Index of object to remove.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.CopyTo(System.Array,System.Int32)">
+            <summary>
+            IList.ICollection implementation.
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+            <param name="array"></param>
+            <param name="arrayIndex"></param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.GetEnumerator">
+            <summary>
+            IList.IEnumerable implementation.
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+            <returns>Enumerator on the list.</returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.Clone">
+            <summary>
+            ICloneable implementation.
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+            <returns>Cloned object.</returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.ToString">
+            <summary>
+            Object.ToString() override.
+            Build a string to represent the list.
+            </summary>
+            <returns>The string refecting the list.</returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.Equals(System.Object)">
+            <summary>
+            Object.Equals() override.
+            </summary>
+            <returns>true if object is equal to this, otherwise false.</returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.GetHashCode">
+            <summary>
+            Object.GetHashCode() override.
+            </summary>
+            <returns>Hash code for this.</returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.IndexOf(System.Object,System.Int32)">
+            <summary>
+            Idem IndexOf(object), but starting at a specified position in the list
+            </summary>
+            <param name="Object">The object to locate.</param>
+            <param name="Start">The index for start position.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.IndexOf(System.Object,Holo.Virtual.Rooms.Pathfinding.Heap.Equality)">
+            <summary>
+            Idem IndexOf(object), but with a specified equality function
+            </summary>
+            <param name="Object">The object to locate.</param>
+            <param name="AreEqual">Equality function to use for the search.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.IndexOf(System.Object,System.Int32,Holo.Virtual.Rooms.Pathfinding.Heap.Equality)">
+            <summary>
+            Idem IndexOf(object), but with a start index and a specified equality function
+            </summary>
+            <param name="Object">The object to locate.</param>
+            <param name="Start">The index for start position.</param>
+            <param name="AreEqual">Equality function to use for the search.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.AddRange(System.Collections.ICollection)">
+            <summary>
+            The objects will be added at the right place.
+            </summary>
+            <param name="C">The object to add.</param>
+            <returns>The index where the object has been added.</returns>
+            <exception cref="T:System.ArgumentException">The Heap is set to use object's IComparable interface, and the specifed object does not implement this interface.</exception>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.InsertRange(System.Int32,System.Collections.ICollection)">
+            <summary>
+            Cannot be called on a Heap.
+            </summary>
+            <param name="Index">The index before which the objects must be added.</param>
+            <param name="C">The object to add.</param>
+            <exception cref="T:System.InvalidOperationException">Insert cannot be called on a Heap.</exception>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.LimitOccurrences(System.Object,System.Int32)">
+            <summary>
+            Limits the number of occurrences of a specified value.
+            Same values are equals according to the Equals() method of objects in the list.
+            The first occurrences encountered are kept.
+            </summary>
+            <param name="Value">Value whose occurrences number must be limited.</param>
+            <param name="NumberToKeep">Number of occurrences to keep</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.RemoveDuplicates">
+            <summary>
+            Removes all duplicates in the list.
+            Each value encountered will have only one representant.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.IndexOfMin">
+            <summary>
+            Returns the object of the list whose value is minimum
+            </summary>
+            <returns>The minimum object in the list</returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.IndexOfMax">
+            <summary>
+            Returns the object of the list whose value is maximum
+            </summary>
+            <returns>The maximum object in the list</returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.Pop">
+            <summary>
+            Returns the topmost object on the list and removes it from the list
+            </summary>
+            <returns>Returns the topmost object on the list</returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Heap.Push(System.Object)">
+            <summary>
+            Pushes an object on list. It will be inserted at the right spot.
+            </summary>
+            <param name="Object">Object to add to the list</param>
+            <returns></returns>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Pathfinding.Heap.AddDuplicates">
+            <summary>
+            If set to true, it will not be possible to add an object to the list if its value is already in the list.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Pathfinding.Heap.Capacity">
+            <summary>
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Pathfinding.Heap.Item(System.Int32)">
+            <summary>
+            IList implementation.
+            Gets object's value at a specified index.
+            The set operation is impossible on a Heap.
+            </summary>
+            <exception cref="T:System.ArgumentOutOfRangeException">Index is less than zero or Index is greater than Count.</exception>
+            <exception cref="T:System.InvalidOperationException">[] operator cannot be used to set a value on a Heap.</exception>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Pathfinding.Heap.IsFixedSize">
+            <summary>
+            IList implementation.
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Pathfinding.Heap.IsReadOnly">
+            <summary>
+            IList implementation.
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Pathfinding.Heap.Count">
+            <summary>
+            IList.ICollection implementation.
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Pathfinding.Heap.IsSynchronized">
+            <summary>
+            IList.ICollection implementation.
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Pathfinding.Heap.SyncRoot">
+            <summary>
+            IList.ICollection implementation.
+            Idem <see cref="T:System.Collections.ArrayList">ArrayList</see>
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Pathfinding.Heap.Equality">
+            <summary>
+            Defines an equality for two objects
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Items.wallItem">
+            <summary>
+            Represents a virtual wallitem in a virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Items.wallItem.ID">
+            <summary>
+            The ID of the item.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Items.wallItem.templateID">
+            <summary>
+            The template ID of the item.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Items.wallItem.wallPosition">
+            <summary>
+            The position of the item on the wall of the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Items.wallItem.Var">
+            <summary>
+            Optional. The variable/status of the item.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Items.wallItem.#ctor(System.Int32,System.Int32,System.String,System.String)">
+            <summary>
+            Initializes a new instance of a virtual wallitem in a virtual room.
+            </summary>
+            <param name="ID">The ID of this item.</param>
+            <param name="tID">The template ID of this item.</param>
+            <param name="Wallposition">The wallposition of this item. [!Rabbit format]</param>
+            <param name="Var">The variable of this item. [optional, if not supplied then sprite color will be set]</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Items.wallItem.ToString">
+            <summary>
+            Returns the item string of this item.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Items.wallItem.Sprite">
+            <summary>
+            Returns the sprite name of this item by accessing catalogueManager.itemTemplate with the template ID.
+            </summary>
+        </member>
+        <member name="T:Holo.Managers.eventManager">
+            <summary>
+            Provides management for events hosted by virtual users in their virtual rooms.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.eventManager.Events">
+            <summary>
+            Array of hashtables that keeps the virtualEvent structs.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.eventManager.deadEventDropper">
+            <summary>
+            The thread that removes the 'dead events' (virtual events where the hoster has left the virtual room where the event is hosted) from the manager every xx seconds. (configureable in system_config)
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.eventManager.deadEventDropInterval">
+            <summary>
+            The amount of seconds between every 'check dead events' check. Initialized in seconds and multiplied with 1000, so value in milliseconds.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.eventManager.categoryAmount">
+            <summary>
+            The amount of categories where virtual users can create virtual events in. Add and edit category titles in external_texts.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.eventManager.Init">
+            <summary>
+            Initializes or resets the virtual event manager, intializing the amount of categories and starting the 'dead event' collector.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.eventManager.dropDeadEvents">
+            <summary>
+            Ran on a thread with an interval of 2 minutes. Drops 'dead' virtual events (events where the hoster has left the virtual room where the event was hosted) from the manager.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.eventManager.createEvent(System.Int32,System.Int32,System.Int32,System.String,System.String)">
+            <summary>
+            Creates a new virtual event with the details given in the correct category.
+            </summary>
+            <param name="categoryID">The ID of the category to host the event in.</param>
+            <param name="userID">The database ID of the virtual user that hosts the event.</param>
+            <param name="roomID">The database ID of the virtual room where the event is hosted.</param>
+            <param name="Name">The name of the new virtual event.</param>
+            <param name="Description">The description of the new virtual event.</param>
+        </member>
+        <member name="M:Holo.Managers.eventManager.removeEvent(System.Int32)">
+            <summary>
+            Scrolls through all categories to remove a virtual event from the event manager, if the event is removed then the void is exited.
+            </summary>
+            <param name="roomID">The database ID of the virtual room where the event was hosted.</param>
+        </member>
+        <member name="M:Holo.Managers.eventManager.editEvent(System.Int32,System.Int32,System.String,System.String)">
+            <summary>
+            Edits a virtual event and re-inserts it in the category.
+            </summary>
+            <param name="categoryID">The ID of the category where the event is hosted.</param>
+            <param name="roomID">The database ID of the virtual room where the event was hosted.</param>
+            <param name="Name">The (new) name of the virtual event.</param>
+            <param name="Description">The (new) description of the virtual event.</param>
+        </member>
+        <member name="M:Holo.Managers.eventManager.categoryOK(System.Int32)">
+            <summary>
+            Returns a boolean that indicates if there exists a category with the given ID.
+            </summary>
+            <param name="categoryID">The ID of the category to check.</param>
+        </member>
+        <member name="M:Holo.Managers.eventManager.getEvents(System.Int32)">
+            <summary>
+            Returns a string of all the virtual events in a certain category, where the hosting user is inside his/her virtual room. Other events will be ignored.
+            </summary>
+            <param name="categoryID">The category ID to get the events of.</param>
+        </member>
+        <member name="M:Holo.Managers.eventManager.getEvent(System.Int32)">
+            <summary>
+            Returns the information string about a single virtual event. If the event isn't found in a category, or the hoster isn't online, then -1 is returned.
+            </summary>
+            <param name="roomID">The database ID of the virtual room.</param>
+        </member>
+        <member name="T:Holo.Managers.eventManager.virtualEvent">
+            <summary>
+            Represents a virtual event hosted by a virtual user in his/her virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.eventManager.virtualEvent.roomID">
+            <summary>
+            The database ID of the virtual room where this event takes place.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.eventManager.virtualEvent.userID">
+            <summary>
+            The database ID of the virtual user that hosts this user in his/her virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.eventManager.virtualEvent.Name">
+            <summary>
+            The name of this virtual event.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.eventManager.virtualEvent.Description">
+            <summary>
+            The description of this virtual event.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.eventManager.virtualEvent.Started">
+            <summary>
+            The time this virtual event started. (today)
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.eventManager.virtualEvent.#ctor(System.Int32,System.Int32,System.String,System.String)">
+            <summary>
+            Intializes a new virtual event.
+            </summary>
+            <param name="roomID">The database ID of the virtual room where this event is hosted.</param>
+            <param name="Hoster">The database ID of the virtual user that hosts this event in his/her virtual room.</param>
+            <param name="Name">The name of this event.</param>
+            <param name="Description">The description of this event.</param>
+        </member>
+        <member name="T:Holo.Virtual.Users.virtualUser">
+            <summary>
+            Represents a virtual user, with connection and packet handling, access management etc etc. The details about the user are kept separate in a different class.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser.connectionID">
+            <summary>
+            The ID of the connection for this virtual user. Assigned by the game socket server.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser.connectionSocket">
+            <summary>
+            The socket that connects the client with the emulator. Operates asynchronous.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser.dataBuffer">
+            <summary>
+            The byte array where the data is saved in while receiving the data asynchronously.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser.pingOK">
+            <summary>
+            Specifies if the client has sent the 'CD' packet on time. Being checked by the user manager every minute.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser._isDisconnected">
+            <summary>
+            Specifies if the client is disconnected already.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser._isLoggedIn">
+            <summary>
+            Specifies if the client has logged in and the user details are loaded. If false, then the user is just a connected client and shouldn't be able to send 'logged in' packets.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser._tradePartnerRoomUID">
+            <summary>        
+            The room user ID (rUID) of the virtual user where this virtual user is currently trading items with. If not trading, then this value is -1.
+            </summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "F:Holo.Virtual.Users.virtualUser._receivedSpriteIndex" -->
+        <member name="F:Holo.Virtual.Users.virtualUser._handPage">
+            <summary>
+            The number of the page of the Hand (item inventory) the user is currently on.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser.Room">
+            <summary>
+            The virtual room the user is in.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser.roomUser">
+            <summary>
+            The virtualRoomUser that represents this virtual user in room. Contains in-room only objects such as position, rotation and walk related objects.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser.statusManager">
+            <summary>
+            The status manager that keeps status strings for the user in room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser.Messenger">
+            <summary>
+            The messenger that provides instant messaging, friendlist etc for this virtual user.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualUser.gamePlayer">
+            <summary>
+            Variant of virtualRoomUser object. Represents this virtual user in a game arena, aswell as in a game team in the navigator.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.#ctor(System.Int32,System.Net.Sockets.Socket)">
+            <summary>
+            Initializes a new virtual user, and starts packet transfer between client and asynchronous socket server.
+            </summary>
+            <param name="connectionID">The ID of the new connection.</param>
+            <param name="connectionSocket">The socket of the new connection.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.Disconnect">
+            <summary>
+            Immediately completes the current data transfer [if any], disconnects the client and flags the connection slot as free.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.Disconnect(System.Int32)">
+            <summary>
+            Disables receiving on the socket, sleeps for a specified amount of time [ms] and disconnects via normal Disconnect() void. Asynchronous.
+            </summary>
+            <param name="ms"></param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.dataArrival(System.IAsyncResult)">
+            <summary>
+            This void is triggered when a new datapacket arrives at the socket of this user. The packet is separated and processed. On errors, the client is disconnected.
+            </summary>
+            <param name="iAr">The IAsyncResult of this BeginReceive asynchronous action.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.sendData(System.String)">
+            <summary>
+            Sends a single packet to the client via an asynchronous BeginSend action.
+            </summary>
+            <param name="Data">The string of data to send. char[01] is added.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.sentData(System.IAsyncResult)">
+            <summary>
+            Triggered when an asynchronous BeginSend action is completed. Virtual user completes the transfer action and leaves asynchronous action.
+            </summary>
+            <param name="iAr">The IAsyncResult of this BeginSend asynchronous action.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.processPacket(System.String)">
+            <summary>
+            Processes a single packet from the client.
+            </summary>
+            <param name="currentPacket">The packet to process.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.refreshAppearance(System.Boolean,System.Boolean,System.Boolean)">
+             <summary>
+             Refreshes
+             </summary>
+             <param name="Reload">Specifies if the details have to be reloaded from database, or to use current _</param>
+             <param name="refreshSettings">Specifies if the @E packet (which contains username etc) has to be resent.</param>
+            <param name="refreshRoom">Specifies if the user has to be refreshed in room by using the 'poof' animation.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.refreshValueables(System.Boolean,System.Boolean)">
+            <summary>
+            Reloads the valueables (tickets and credits) from database and updates them for client.
+            </summary>
+            <param name="Credits">Specifies if to reload and update the Credit count.</param>
+            <param name="Tickets">Specifies if to reload and update the Ticket count.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.refreshClub">
+            <summary>
+            Refreshes the users Club subscription status.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.refreshBadges">
+            <summary>
+            Refreshes the user's badges.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.refreshGroupStatus">
+            <summary>
+            Refreshes the user's group status.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.refreshHand(System.String)">
+            <summary>
+            Refreshes the Hand, which contains virtual items, with a specified mode.
+            </summary>
+            <param name="Mode">The refresh mode, available: 'next', 'prev', 'update', 'last' and 'new'.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.refreshTradeBoxes">
+            <summary>
+            Refreshes the trade window for the user.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.abortTrade">
+            <summary>
+            Aborts the trade between this user and his/her partner.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.isSpeechCommand(System.String)">
+            <summary>
+            Checks if a certain chat message was a 'speech command', if so, then the action for this command is processed and a 'true' boolean is returned. Otherwise, 'false' is returned.
+            </summary>
+            <param name="Text">The chat message that was used.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualUser.leaveGame">
+            <summary>
+            Checks if the user is involved with a 'BattleBall' or 'SnowStorm' game. If so, then the removal procedure is invoked. If the user is the owner of the game, then the game will be aborted.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Users.virtualUser.connectionRemoteIP">
+            <summary>
+            Returns the IP address of this connection as a string.
+            </summary>
+        </member>
+        <member name="T:Holo.Socketservers.gameSocketServer">
+            <summary>
+            Asynchronous socket server for the game connections.
+            </summary>
+        </member>
+        <member name="M:Holo.Socketservers.gameSocketServer.Init(System.Int32,System.Int32)">
+            <summary> 
+            Initializes the socket listener for game connections and starts listening. 
+            </summary> 
+            <param name="bindPort">The port where the socket listener should be bound to.</param> 
+            <param name="maxConnections">The maximum amount of simultaneous connections.</param> 
+            <remarks></remarks> 
+        </member>
+        <member name="M:Holo.Socketservers.gameSocketServer.freeConnection(System.Int32)">
+            <summary> 
+            Flags a connection as free. 
+            </summary> 
+            <param name="connectionID">The ID of the connection.</param> 
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Pathfinding.gamePathfinder">
+            <summary>
+            Provides a very simple yet fast pathfinder that returns the next step to a coord.
+            </summary>U
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Games.gamePlayer">
+            <summary>
+            A generic player object for a virtual user that plays a 'BattleBall' or 'SnowStorm' game.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gamePlayer.User">
+            <summary>
+            The parent virtualUser object of this player.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gamePlayer.roomUID">
+            <summary>
+            The ID that represents this player in the arena.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gamePlayer.teamID">
+            <summary>
+            The ID of the team that this user has joined.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gamePlayer.X">
+            <summary>
+            The X position of the user in the arena.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gamePlayer.Y">
+            <summary>
+            The Y position of the user in the arena.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gamePlayer.Z">
+            <summary>
+            The rotation of this user in the arena. Range: 0-9
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gamePlayer.H">
+            <summary>
+            The height of this user in the arena.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gamePlayer.Score">
+            <summary>
+            The amount of points that the user has gathered so far.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gamePlayer.goalX">
+            <summary>
+            The X position of the destination at moving in the arena. If not moving, then -1.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gamePlayer.goalY">
+            <summary>
+            The Y position of the destination at moving in the arena.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.gamePlayer.sendData(System.String)">
+            <summary>
+            Sends a single packet to the parent virtual user of this player. On error the action is skipped.
+            </summary>
+            <param name="Data">The packet to send.</param>
+        </member>
+        <member name="T:Holo.Managers.stringManager">
+            <summary>
+            Provides functions for management and manipulation of string objects.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.stringManager.langStrings">
+            <summary>
+            Contains the strings loaded from system_strings.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.stringManager.swearWords">
+            <summary>
+            Contains the array of swearwords to be filtered from chat etc, loaded from system_wordfilter.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.stringManager.filterCensor">
+            <summary>
+            Swearwords in chat etc should be replaced by this censor.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.stringManager.langExt">
+            <summary>
+            The language extension to use for the emulator.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.stringManager.Init(System.String)">
+            <summary>
+            Initializes the string manager with a certain language.
+            </summary>
+            <param name="langExtension">The language to use for the emulator, eg, 'en' for English.</param>
+        </member>
+        <member name="M:Holo.Managers.stringManager.initFilter">
+            <summary>
+            Intializes/reloads the word filter, which filters swearwords etc from texts.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.stringManager.getString(System.String)">
+            <summary>
+            Retrieves a system_strings entry for a certain key. The strings are loaded at the initialization of the string manager.
+            </summary>
+            <param name="stringID">The key of the string to retrieve.</param>
+        </member>
+        <member name="M:Holo.Managers.stringManager.filterSwearwords(System.String)">
+            <summary>
+            Filters the swearwords in an input string and replaces them by the set censor.
+            </summary>
+            <param name="Text">The string to filter.</param>
+        </member>
+        <member name="M:Holo.Managers.stringManager.getStringPart(System.String,System.Int32,System.Int32)">
+            <summary>
+            Retrieves a substring from this instance. The substring starts at a specified character position and has a specified length. If any error occurs, then "" is returned.
+            </summary>
+            <param name="Input">The input string.</param>
+            <param name="startIndex">The zero-based starting character position of a substring in this instance.</param>
+            <param name="Length">The number of characters in the substring.</param>
+        </member>
+        <member name="M:Holo.Managers.stringManager.wrapParameters(System.String[],System.Int32)">
+            <summary>
+            Wraps a string array of parameters to one string, separated by spaces.
+            </summary>
+            <param name="s">The string arrays with parameters.</param>
+            <param name="startIndex">The parameter ID in the array to start off with. Parameters with lower IDs won't be included.</param>
+        </member>
+        <member name="T:Holo.IO">
+            <summary>
+            Provides file, environment and minor string manipulation actions.
+            </summary>
+        </member>
+        <member name="M:Holo.IO.readINI(System.String,System.String,System.String)">
+            <summary>
+            Returns the value of a private profile string in a textfile as a string.
+            </summary>
+            <param name="iniSection">The section where the value is located in.</param>
+            <param name="iniKey">The key of the value.</param>
+            <param name="iniLocation">The location of the textfile.</param>
+        </member>
+        <member name="M:Holo.IO.writeINI(System.String,System.String,System.String,System.String)">
+            <summary>
+            Updates a value of a key in a textfile using WritePrivateProfileString.
+            </summary>
+            <param name="iniSection">The section where the key to update is located in.</param>
+            <param name="iniKey">The key to update.</param>
+            <param name="iniValue">The new value for the key.</param>
+            <param name="iniLocation">The location of the textfile.</param>
+        </member>
+        <member name="M:Holo.IO.fileExists(System.String)">
+            <summary>
+            Returns a bool, which indicates if the specified path leads to a file.
+            </summary>
+            <param name="fileLocation">The full location of the file.</param>
+        </member>
+        <member name="P:Holo.IO.workingDirectory">
+            <summary>
+            Returns the directory of the executeable (without backslash at end) as a string.
+            </summary>
+        </member>
+        <member name="T:Holo.Out">
+            <summary>
+            Provides interface output related functions, such as logging activities.
+            </summary>
+        </member>
+        <member name="F:Holo.Out.minimumImportance">
+            <summary>
+            Flag for minimum importance in logs. Adjust this to don't print less important logs.
+            </summary>
+        </member>
+        <member name="M:Holo.Out.WriteLine(System.String)">
+            <summary>
+            Prints a green line of log, together with timestamp and method name.
+            </summary>
+            <param name="logText">The log line to be printed.</param>
+        </member>
+        <member name="M:Holo.Out.WriteLine(System.String,Holo.Out.logFlags)">
+            <summary>
+            Prints a green line of log, together with timestamp and method name.
+            </summary>
+            <param name="logText">The log line to be printed.</param>
+            <param name="logFlag">The importance flag of this log line.</param>
+        </member>
+        <member name="M:Holo.Out.WriteLine(System.String,Holo.Out.logFlags,System.ConsoleColor,System.ConsoleColor)">
+            <summary>
+            Prints a customizeable line of log, together with timestamp and method name.
+            </summary>
+            <param name="logText">The log line to be printed.</param>
+            <param name="logFlag">The importance flag of this log line.</param>
+            <param name="colorOne">The color to use on the left.</param>
+            <param name="colorTwo">The color to use on the right.</param>
+        </member>
+        <member name="M:Holo.Out.WriteError(System.String)">
+            <summary>
+            Prints a red, error line of log, together with timestamp and method name.
+            </summary>
+            <param name="logText">The log line to be printed.</param>
+        </member>
+        <member name="M:Holo.Out.WriteError(System.String,Holo.Out.logFlags)">
+            <summary>
+            Prints a red,error line of log, together with timestamp and method name.
+            </summary>
+            <param name="logText">The log line to be printed.</param>
+            <param name="logFlag">The importance flag of this error.</param>
+        </member>
+        <member name="M:Holo.Out.WritePlain(System.String)">
+            <summary>
+            Writes a plain text line.
+            </summary>
+            <param name="logText">The log line to be printed.</param>
+        </member>
+        <member name="M:Holo.Out.WriteBlank">
+            <summary>
+            Writes a blank line.
+            </summary>
+        </member>
+        <member name="M:Holo.Out.WriteSpecialLine(System.String,Holo.Out.logFlags,System.ConsoleColor,System.ConsoleColor,System.String,System.Int32,System.ConsoleColor)">
+            <summary>
+            Writes a special line of log, with customizeable colors and header coloring of logText.
+            </summary>
+            <param name="logText">The log line to be printed.</param>
+            <param name="logFlag">The importance flag of this log line.</param>
+            <param name="colorOne">The color to use on the left.</param>
+            <param name="colorTwo">The color to use on the right.</param>
+            <param name="headerHead">The string to use infront of logText.</param>
+            <param name="headerLength">The length of the header to color.</param>
+            <param name="headerColor">The color for the header in the logText.</param>
+        </member>
+        <member name="T:Holo.Out.logFlags">
+            <summary>
+            Enum with flags for log importancies. If 'minimumImportance' flag is higher than the action to be logged, then the action won't be logged.
+            </summary>
+        </member>
+        <member name="T:Holo.Socketservers.musSocketServer">
+            <summary>
+            Asynchronous socket server for the MUS connections.
+            </summary>
+        </member>
+        <member name="M:Holo.Socketservers.musSocketServer.Init(System.Int32,System.String)">
+            <summary> 
+            Initializes the socket listener for MUS connections and starts listening. 
+            </summary> 
+            <param name="bindPort">The port where the socket listener should be bound to.</param> 
+            <remarks></remarks> 
+        </member>
+        <!-- Badly formed XML comment ignored for member "T:Holo.Socketservers.musSocketServer.musConnection" -->
+        <member name="M:Holo.Socketservers.musSocketServer.musConnection.#ctor(System.Net.Sockets.Socket)">
+            <summary>
+            Initializes the musConnection and listens for one single packet, processes it and closes the connection. On any error, the connection is closed.
+            </summary>
+            <param name="Connector">The socket of the musConnection.</param>
+        </member>
+        <member name="M:Holo.Socketservers.musSocketServer.musConnection.dataArrival(System.IAsyncResult)">
+            <summary>
+            Called when a packet is received, the packet will be processed and the connection will be closed (after processing packet) in all cases. No errors will be thrown.
+            </summary>
+            <param name="iAr"></param>
+        </member>
+        <member name="M:Holo.Socketservers.musSocketServer.musConnection.killConnection">
+            <summary>
+            Closes the connection and destroys the object.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Games.gameLobby">
+            <summary>
+            A generic game lobby object for a 'BattleBall' or 'SnowStorm' game lobby.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gameLobby.Room">
+            <summary>
+            The virtualRoom object where this lobby is hosted in.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gameLobby.Rank">
+            <summary>
+            The rankManager.gameRank object for this lobby, containing the rank title and the minimum and maximimum game points for this lobby.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gameLobby.Games">
+            <summary>
+            The collection that contains the games in this lobby.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gameLobby.isBattleBall">
+            <summary>
+            Indicates if this gamelobby hosts 'BattleBall' games. If false, then 'SnowStorm' games are hosted.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.gameLobby.allowedPowerups">
+            <summary>
+            'BattleBall' only. Specifies the IDs of the powerup objects that are allowed in this lobby.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.gameLobby.#ctor(Holo.Virtual.Rooms.virtualRoom,System.Boolean,System.String)">
+            <summary>
+            Intializes the game lobby with a 'BattleBall'/'SnowStorm' mode.
+            </summary>
+            <param name="Room">The minimum amount of points that a virtual user requires to start/join a game here.</param>
+            <param name="isBattleBall">Indicates if this gamelobby hosts 'BattleBall' games. If false, then 'SnowStorm' games are hosted.</param>
+            <param name="rankTitle">The title of the rank for players that are playing in this lobby. The matching minimum and maximum amounts for game points are loaded.</param>
+            <param name="roomID">The ID of the room that the user is currently in.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.gameLobby.Clear">
+            <summary>
+            Clears the games from the game lobby and nulls the virtualRoom object.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.gameLobby.validGamerank(System.Int32)">
+            <summary>
+            Returns a boolean that indicates if a certain amount of gamepoints is (skill level) valid for creating/joining a game in this lobby.
+            </summary>
+            <param name="Points">The amount of gamepoints.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.gameLobby.gameList">
+            <summary>
+            Returns the list with 'BattleBall'/'SnowStorm' games, depending on the mode of this lobby. This list is for usage in the game browser's index.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Games.gameLobby.Type">
+            <summary>
+            The type of the games being played in this game lobby as a two character, lowercase string.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Games.gameLobby.playerRanks">
+            <summary>
+            The ranks and points of the virtual users inside this gamelobby.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.Lobby">
+            <summary>
+            The gameLobby object where this game is hosted in.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.isBattleBall">
+            <summary>
+            Indicates if this game is of the type 'BattleBall'. If false, then the game is of the type 'SnowStorm'.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.ID">
+            <summary>
+            The ID of this game.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.Name">
+            <summary>
+            The display name of this game.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.mapID">
+            <summary>
+            The ID of the map that is played with this game.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.totalTime">
+            <summary>
+            The total amount of gametime in seconds.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.leftTime">
+            <summary>
+            The amount of gametime is seconds that is still left on this game.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.enabledPowerups">
+            <summary>
+            BattleBall only. The numbers of the enabled powerups for this game.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.Owner">
+            <summary>
+            The gamePlayer object (bbPlayer or ssPlayer) of the virtual user that has created this game.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.Subviewers">
+            <summary>
+            Collection with the gamePlayer objects of the virtual users that have 'checked in' to this game sub and should receive updates about team status etc.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.leftCountdownSeconds">
+            <summary>
+            The amount of seconds that the 'loading game' bar still has to be displayed.
+            </summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "F:Holo.Virtual.Rooms.Games.Game.bX" -->
+        <member name="F:Holo.Virtual.Rooms.Games.Game.bY">
+            <summary>
+            The max width of the arena.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Games.Game.Heightmap">
+            <summary>
+            The heightmap of the arena.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.Game.#ctor(Holo.Virtual.Rooms.Games.gameLobby,System.Int32,System.String,System.Int32,System.Int32,System.Int32[],Holo.Virtual.Rooms.Games.gamePlayer)">
+            <summary>
+            Initializes a 'BattleBall' game.
+            </summary>
+            <param name="Lobby">The gameLobby object of the lobby where this game is hosted in.</param>
+            <param name="ID">The ID of this game.</param>
+            <param name="Name">The display name of this game.</param>
+            <param name="mapID">The ID of the map that is played with this game.</param>
+            <param name="teamAmount">The amount of teams that is used with the game.</param>
+            <param name="enabledPowerups">The numbers of the enabled powerups for this game.</param>
+            <param name="Owner">The gamePlayer instance of the virtual user that has created this game.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.Game.#ctor(Holo.Virtual.Rooms.Games.gameLobby,System.Int32,System.String,System.Int32,System.Int32,System.Int32,Holo.Virtual.Rooms.Games.gamePlayer)">
+            <summary>
+            Initializes a 'SnowStorm' game.
+            </summary>
+            <param name="Lobby">The gameLobby object of the lobby where this game is hosted in.</param>
+            <param name="ID">The ID of this game.</param>
+            <param name="Name">The display name of this game.</param>
+            <param name="mapID">The ID of the map that is played with this game.</param>
+            <param name="teamAmount">The amount of teams that is used with the game.</param>
+            <param name="totalTime">The total amount of gametime in seconds.</param>
+            <param name="Owner">The gamePlayer instance of the virtual user that has created this game.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.Game.Abort">
+            <summary>
+            Stops the game, and removes all players and subviewers from the game.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.Game.movePlayer(Holo.Virtual.Rooms.Games.gamePlayer,System.Int32,System.Int32)">
+            <summary>
+            Moves a player to a certain team, or removes a player from the game.
+            </summary>
+            <param name="Player">The gamePlayer object of the player to move.</param>
+            <param name="fromTeamID">The ID of the team where the player was in before. If the player is new to the game, then this parameter should be -1.</param>
+            <param name="toTeamID">The ID of the team where the player is moving to. If the player is leaving the game, then this parameter should be -1.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.Game.teamHasSpace(System.Int32)">
+            <summary>
+            Returns a boolean that indicates if a certain team has space left for new team members. On error, false is returned.
+            </summary>
+            <param name="teamID">The ID of the team to check.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.Game.sendData(System.String)">
+            <summary>
+            Sends a single packet to all players, spectators and subviewers of this game.
+            </summary>
+            <param name="Data">The packet to send.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Games.Game.countDownTicker">
+            <summary>
+            Counts 
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Games.Game.Launchable">
+            <summary>
+            Indicates if the game can be launched. Games are 'launchable' when there are atleast two teams with players.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Games.Game.bbTileState">
+            <summary>
+            Represents the state of a tile on the gamemap in a game of 'BattleBall'.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Games.Game.bbTileColor">
+            <summary>
+            Represents the color of the team that owns a tile on the gamemap in a game of 'BattleBall'.
+            </summary>
+        </member>
+        <member name="T:Holo.Managers.recyclerManager">
+            <summary>
+            Provides functions and tasks for the item Recycler, which allows users to trade in their items for special items.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.recyclerManager.Init">
+            <summary>
+            Initializes the item Recycler, determining the state and creating the setup string.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.recyclerManager.rewardExists(System.Int32)">
+            <summary>
+            Determines if there exists a reward for this amount of brought in items.
+            </summary>
+            <param name="itemCount">The amount of items brought in.</param>
+        </member>
+        <member name="M:Holo.Managers.recyclerManager.createSession(System.Int32,System.Int32)">
+            <summary>
+            Creates a Recycler session for this user in the users_recycler table, with the userid, the timestamp where the session started and the reward template ID matching this amount of brought of items.
+            </summary>
+            <param name="userID">The ID of the user who requests a Recycler session.</param>
+            <param name="itemCount">The amount of items the user brought in.</param>
+        </member>
+        <member name="M:Holo.Managers.recyclerManager.dropSession(System.Int32,System.Boolean)">
+            <summary>
+            Deletes the user's session row in users_recycler, and brings items back to the users hand OR deletes them permanently from the database.
+            </summary>
+            <param name="userID">The ID of the user who owns this session.</param>
+            <param name="dropItems">When true, the items will be deleted from database, else the items will return back to the users Hand.</param>
+        </member>
+        <member name="M:Holo.Managers.recyclerManager.rewardSession(System.Int32)">
+            <summary>
+            Creates the reward for the user and handles special items such as teleporters, so user receives a pair etc.
+            </summary>
+            <param name="userID">The ID of the user to reward the session of.</param>
+        </member>
+        <member name="M:Holo.Managers.recyclerManager.passedMinutes(System.Int32)">
+            <summary>
+            Returns the amount of passed minutes since the user's session started. If the user hasn't got a session or any other error occurs, 0 is returned.
+            </summary>
+            <param name="userID">The user ID of the session to lookup.</param>
+        </member>
+        <member name="M:Holo.Managers.recyclerManager.sessionString(System.Int32)">
+            <summary>
+            Returns the session string for a users session to use with the "Dp" packet.
+            </summary>
+            <param name="userID">The ID of the user to retrieve the session string for.</param>
+        </member>
+        <member name="M:Holo.Managers.recyclerManager.sessionExists(System.Int32)">
+            <summary>
+            Returns a bool that indicates if a user has a session.
+            </summary>
+            <param name="userID">The ID of the user to check for sessions.</param>
+        </member>
+        <member name="M:Holo.Managers.recyclerManager.sessionReady(System.Int32)">
+            <summary>
+            Returns a bool that indicates if a user's session is ready and hasn't expired yet
+            </summary>
+            <param name="userID">The user ID of the user to lookup the session of.</param>
+        </member>
+        <member name="M:Holo.Managers.recyclerManager.sessionRewardID(System.Int32)">
+            <summary>
+            Returns the template ID of reward item of the session of a user.
+            </summary>
+            <param name="userID">The user ID of the session to lookup.</param>
+        </member>
+        <member name="T:Holo.Virtual.Users.virtualRoomUserStatusManager">
+            <summary>
+            Provides management for the statuses of a virtual user.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUserStatusManager.userID">
+            <summary>
+            The ID of the user that uses this status manager.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUserStatusManager.roomID">
+            <summary>
+            The ID of the room the user that uses this status manager is in.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUserStatusManager._Statuses">
+            <summary>
+            Contains the status strings.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUserStatusManager.itemCarrier">
+            <summary>
+            The thread that handles the carrying, drinking and finally vanishing the item in the virtual room.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUserStatusManager.Clear">
+            <summary>
+            Empties the status manager and destructs all inside objects.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUserStatusManager.addStatus(System.String,System.String)">
+            <summary>
+            Adds a status key and a value to the status manager. If the status is already inside, then the previous one will be removed.
+            </summary>
+            <param name="Key">The key of the status.</param>
+            <param name="Value">The value of the status.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUserStatusManager.removeStatus(System.String)">
+            <summary>
+            Removes a certain status from the status manager.
+            </summary>
+            <param name="Key">The key of the status to remove.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUserStatusManager.containsStatus(System.String)">
+            <summary>
+            Returns a bool that indicates if a certain status is in the status manager.
+            </summary>
+            <param name="Key">The key of the status to check.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUserStatusManager.Refresh">
+            <summary>
+            Refreshes the status of the parent virtual user in the virtual room.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUserStatusManager.ToString">
+            <summary>
+            Returns the status string of all the statuses currently in the status manager.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUserStatusManager.carryItem(System.String)">
+            <summary>
+            Makes the user carry a drink/item in the virtual room. Starts a thread that uses config-defined values. The thread will handle the animations of the sips etc, and finally the drop.
+            </summary>
+            <param name="Item">The item to carry.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUserStatusManager.dropCarrydItem">
+            <summary>
+            Immediately stops carrying an item.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUserStatusManager.handleStatus(System.String,System.String,System.Int32)">
+            <summary>
+            Adds a status, keeps it for a specified amount of time [in ms] and removes the status again. Refreshes at add and remove.
+            </summary>
+            <param name="Key"></param>
+            <param name="Value"></param>
+            <param name="Length"></param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUserStatusManager.itemCarrierLoop(System.Object)">
+            <summary>
+            Ran on thread with lowest priority. Handles the carrying and drinking of an item in the virtual room.
+            </summary>
+            <param name="s">The object that will be converted in a string to serve as the item being carryd.</param>
+        </member>
+        <member name="P:Holo.Virtual.Users.virtualRoomUserStatusManager.User">
+            <summary>
+            The parent virtualUser object of this status manager.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Users.virtualRoomUserStatusManager.Room">
+            <summary>
+            The virtualRoom object where the parent virtual user of this status manager is in.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Users.virtualRoomUserStatusManager.roomUser">
+            <summary>
+            The virtualRoomUser object of the parent virtual user of this status manager.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Users.virtualRoomUser">
+            <summary>
+            Represents a virtual user in a virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.userID">
+            <summary>
+            The database ID of the user.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.roomID">
+            <summary>
+            The ID of the virtual room where the user is in.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.roomUID">
+            <summary>
+            The ID of the user in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.X">
+            <summary>
+            The X position of the user in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.Y">
+            <summary>
+            The Y position of the user in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.H">
+            <summary>
+            The height of the user in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.Z1">
+            <summary>
+            The rotation of the user's head in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.Z2">
+            <summary>
+            The rotation of the user's body in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.goalX">
+            <summary>
+            The X position where the user wants to walk to. If not walking, -1.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.goalY">
+            <summary>
+            The Y position where the user wants to walk to. If not walking, -1.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.walkLock">
+            <summary>
+            Specifies if the user can walk.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.walkDoor">
+            <summary>
+            Specifies if the user is on his way of leaving the room after clicking the door.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.hasVoted">
+            <summary>
+            Guestroom only. Specifies if the user has voted on the guestroom already.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.SwimOutfit">
+            <summary>
+            Swimming pools only. Specifies the swimming pool outfit.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.gamePoints">
+            <summary>
+            Gamelobbies only. Specifies the amount of gamepoints that this user has for the game in the current gamelobby.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.User">
+            <summary>
+            The parent virtual user of this room user.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.statusManager">
+            <summary>
+            The status manager of this room user.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.isTyping">
+            <summary>
+            Indicates if the room user is currently typing a chat message.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.petTransform">
+            <summary>
+            Turn the pettransform on or off.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.virtualRoomUser.SPECIAL_TELEPORTABLE">
+            <summary>
+            Indicates if the room user is able to use the special teleport cast, which allows him to teleport around the room.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUser.#ctor(System.Int32,System.Int32,System.Int32,Holo.Virtual.Users.virtualUser,Holo.Virtual.Users.virtualRoomUserStatusManager)">
+            <summary>
+            Initializes a virtual room user.
+            </summary>
+            <param name="userID">The database ID of the virtual user of this room user object.</param>
+            <param name="roomID">The database ID of the room where the room user is in.</param>
+            <param name="roomUID">The ID that identifies the room user in the virtual room.</param>
+            <param name="User">The parent vittual user of this room user.</param>
+            <param name="statusManager">The status manager of this room user.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.virtualRoomUser.Refresh">
+            <summary>
+            Refreshes the status of this room user in the virtual room.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Users.virtualRoomUser.Room">
+            <summary>
+            The virtualRoom object that represents the room where this room user is in.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Users.virtualRoomUser.detailsString">
+            <summary>
+            Returns the details string for this room user, containing username etc.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Users.virtualRoomUser.statusString">
+            <summary>
+            Returns the action string for this room user, containing position, movements, statuses etc.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Users.Items.virtualSongEditor">
+            <summary>
+            Represents the song editor of a virtual soundmachine, containing the active soundsets etc.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Users.Messenger.virtualBuddy">
+            <summary>
+            Represents a virtual buddy used in the virtualMessenger object.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.Messenger.virtualBuddy.userID">
+            <summary>
+            The database ID of this user.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.Messenger.virtualBuddy.Online">
+            <summary>
+            Indicates if this user was online at the moment of the latest ToString request.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.Messenger.virtualBuddy.inRoom">
+            <summary>
+            Indicates if this user was in a room at the moment of the latest ToString request.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.Messenger.virtualBuddy.#ctor(System.Int32)">
+            <summary>
+            Intializes a virtual buddy.
+            </summary>
+            <param name="userID">The database ID of this buddy.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.Messenger.virtualBuddy.ToString(System.Boolean)">
+            <summary>
+            Important to check the 'Updated' bool first. Returns the status string for a virtual buddy based on the statistics of the last call of 'Updated'.
+            </summary>
+            <param name="includeUsername">Specifies if to include the username in the string. Only required at first sending of packet in session of client.</param>
+        </member>
+        <member name="P:Holo.Virtual.Users.Messenger.virtualBuddy.Updated">
+            <summary>
+            Updates the booleans for online and inroom, and returns if there has been changes (so: updates) since the last call to this bool.
+            </summary>
+        </member>
+        <member name="T:Holo.Managers.rankManager">
+            <summary>
+            Provides information about the various user ranks/levels, aswell as ranks for games such as 'BattleBall' and 'SnowStorm'.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.rankManager.Init">
+            <summary>
+            Initializes the various user ranks, aswell as the ranks for games such as 'BattleBall' and 'SnowStorm'.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.rankManager.fuseRights(System.Byte)">
+            <summary>
+            Returns the fuserights string for a certain user rank.
+            </summary>
+            <param name="rankID">The ID of the user rank.</param>
+        </member>
+        <member name="M:Holo.Managers.rankManager.containsRight(System.Byte,System.String)">
+            <summary>
+            Returns a bool that indicates if a certain user rank contains a certain fuseright.
+            </summary>
+            <param name="rankID">The ID of the user rank.</param>
+            <param name="fuseRight">The fuseright to look for.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Holo.Managers.rankManager.getGameRankTitle(System.Boolean,System.Int32)">
+            <summary>
+            Returns the game rank title as a string for a certain game type ('BattleBall' or 'SnowStorm') and score.
+            </summary>
+            <param name="isBattleBall">Specifies if to lookup a 'BattleBall' game. If false, then the rank for a 'SnowStorm' game will be returned.</param>
+            <param name="Score">The score to get the rank for.</param>
+        </member>
+        <member name="T:Holo.Managers.rankManager.userRank">
+            <summary>
+            Represents a user rank.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.rankManager.userRank.#ctor(System.Byte)">
+            <summary>
+            Initializes a user rank.
+            </summary>
+            <param name="rankID">The ID of the rank to initialize.</param>
+        </member>
+        <member name="T:Holo.Managers.rankManager.gameRank">
+            <summary>
+            Represents a game rank, containing the min and max score and the rank name.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.rankManager.gameRank.minPoints">
+            <summary>
+            The minimum amount of points of this rank.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.rankManager.gameRank.maxPoints">
+            <summary>
+            The maximum amount of points of this rank.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.rankManager.gameRank.Title">
+            <summary>
+            The title of this rank.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.rankManager.gameRank.#ctor(System.String,System.Int32,System.Int32)">
+            <summary>
+            Initializes the gamerank with given values.
+            </summary>
+            <param name="Title">The title of this rank.</param>
+            <param name="minPoints">The minimum amount of points of this rank.</param>
+            <param name="maxPoints">The maximum amount of points of this rank.</param>
+        </member>
+        <member name="T:Holo.Virtual.Users.Messenger.virtualMessenger">
+            <summary>
+            Represents the messenger for a virtual user, which provides keeping buddy lists, instant messaging, inviting friends to a user's virtual room and various other features. The virtual messenger object provides voids for updating status of friends, instant messaging and more.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Users.Messenger.virtualMessenger.userID">
+            <summary>
+            The database ID of the parent virtual user.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Users.Messenger.virtualMessenger.#ctor(System.Int32)">
+            <summary>
+            Initializes the virtual messenger for the parent virtual user, generating friendlist, friendrequests etc.
+            </summary>
+            <param name="userID">The database ID of the parent virtual user.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.Messenger.virtualMessenger.removeBuddy(System.Int32)">
+            <summary>
+            Deletes a buddy from the friendlist and virtual messenger of this user, but leaves the database row untouched.
+            </summary>
+            <param name="ID">The database ID of the buddy to delete from the friendlist.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.Messenger.virtualMessenger.containsOnlineBuddy(System.Int32)">
+            <summary>
+            Returns a boolean that indicates if the messenger contains a certain buddy, and this buddy is online.
+            </summary>
+            <param name="userID">The database ID of the buddy to check.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.Messenger.virtualMessenger.hasFriendship(System.Int32)">
+            <summary>
+            Returns a bool that indicates if there is a friendship between the parent virtual user and a certain user.
+            </summary>
+            <param name="userID">The database ID of the user to check.</param>
+        </member>
+        <member name="M:Holo.Virtual.Users.Messenger.virtualMessenger.hasFriendRequests(System.Int32)">
+            <summary>
+            Returns a bool that indicates if there are friend requests hinth and forth between the the parent virtual user and a certain user.
+            </summary>
+            <param name="userID">The database ID of the user to check.</param>
+        </member>
+        <member name="P:Holo.Virtual.Users.Messenger.virtualMessenger.User">
+            <summary>
+            Returns the parent virtual user instance of this virtual messenger.
+            </summary>
+        </member>
+        <member name="T:Holo.DB">
+            <summary> 
+            Provides high speed data access to the MySQL database of Holograph Emulator. It owns eh? 
+            </summary> 
+            <remarks></remarks> 
+        </member>
+        <member name="M:Holo.DB.openConnection(System.String,System.Int32,System.String,System.String,System.String)">
+            <summary> 
+            Opens connection to the MySQL database with the supplied parameters, and returns a 'true' boolean when the connection has succeeded. Requires MySQL ODBC 5.1 driver to be installed. 
+            </summary> 
+            <param name="dbHost">The hostname/IP address where the database server is located.</param> 
+            <param name="dbPort">The port the database server is running on.</param> 
+            <param name="dbName">The name of the database.</param> 
+            <param name="dbUsername">The username for authentication with the database.</param> 
+            <param name="dbPassword">The pasword for authentication with the database.</param> 
+        </member>
+        <member name="M:Holo.DB.closeConnection">
+            <summary> 
+            Closes connection with the MySQL database. Any errors are ignored. 
+            </summary> 
+        </member>
+        <member name="M:Holo.DB.runQuery(System.String)">
+            <summary> 
+            Executes a SQL statement on the database. 
+            </summary> 
+            <param name="Query">The SQL statement to be executed. Default SQL syntax.</param> 
+        </member>
+        <member name="M:Holo.DB.runRead(System.String)">
+            <summary> 
+            Performs a SQL query and returns the first selected field as string. Other fields are ignored. 
+            </summary> 
+            <param name="Query">The SQL query that selects a field.</param> 
+        </member>
+        <member name="M:Holo.DB.runRead(System.String,System.Object)">
+            <summary> 
+            Performs a SQL query and returns the first selected field as integer. Other fields are ignored. 
+            </summary> 
+            <param name="Query">The SQL query that selects a field.</param> 
+            <param name="Tick">Just to differ the runRead functions; supply a null if you want to use this overload.</param> 
+        </member>
+        <member name="M:Holo.DB.runReadColumn(System.String,System.Int32)">
+            <summary> 
+            Performs a SQL query and returns all vertical matching fields as a String array. Only the first supplied columname is looked for. 
+            </summary> 
+            <param name="Query">The SQL query that selects a column.</param> 
+            <param name="maxResults">Adds as LIMIT to the query. Using this, the array will never return more than xx fields in of the column. When maxResults is supplied as 0, then there is no max limit.</param> 
+        </member>
+        <member name="M:Holo.DB.runReadColumn(System.String,System.Int32,System.Object)">
+            <summary> 
+            Performs a SQL query and returns all vertical matching fields as an Integer array. Only the first supplied columname is looked for. 
+            </summary> 
+            <param name="Query">The SQL query that selects a column.</param> 
+            <param name="maxResults">Adds as LIMIT to the query. Using this, the array will never return more than xx fields in of the column. When maxResults is supplied as 0, then there is no max limit.</param> 
+            <param name="Tick">Just to differ the runReadColumn functions; supply a null if you want to use this overload.</param> 
+        </member>
+        <member name="M:Holo.DB.runReadRow(System.String)">
+            <summary> 
+            Performs a SQL query and returns the selected in the first found row as a String array. Useable for only one row. 
+            </summary> 
+            <param name="Query">The SQL query that selects a row and the fields to get. LIMIT 1 is added.</param> 
+        </member>
+        <member name="M:Holo.DB.runReadRow(System.String,System.Object)">
+            <summary> 
+            Performs a SQL query and returns the selected in the first found row as an Integer array. Useable for only one row. 
+            </summary> 
+            <param name="Query">The SQL query that selects a row and the fields to get. LIMIT 1 is added.</param> 
+            <param name="Tick">Just to differ the runReadRow functions; supply a null if you want to use this overload.</param> 
+        </member>
+        <member name="M:Holo.DB.runReadUnsafe(System.String)">
+            <summary>
+            Performs a SQL query and returns the result as a string. On error, no error is reported and "" is returned.
+            </summary>
+            <param name="Query">The SQL query to run. LIMIT 1 is added.</param>
+        </member>
+        <member name="M:Holo.DB.runReadUnsafe(System.String,System.Object)">
+            <summary>
+            Performs a SQL query and returns the result as an integer. On error, no error is reported and 0 is returned.
+            </summary>
+            <param name="Query">The SQL query to run. LIMIT 1 is added.</param>
+            <param name="Tick">Just to differ the runReadUnsafe functions; supply a null if you want to use this overload.</param> 
+        </member>
+        <member name="M:Holo.DB.checkExists(System.String)">
+            <summary> 
+            Tries to find fields matching the query. When there is at least one result, it returns True and stops. 
+            </summary> 
+            <param name="Query">The SQL query that contains the seeked fields and conditions. LIMIT 1 is added.</param> 
+        </member>
+        <member name="M:Holo.DB.Stripslash(System.String)">
+            <summary> 
+            Returns a stripslashed copy of the input string.
+            </summary> 
+            <param name="Query">The string to add stripslashes to.</param>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Pathfinding.PinocchioPathfinder">
+            <summary>
+            Provides crappy pathfinding, hence the class name.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Pathfinding.Coord">
+            <summary>
+            Represents a X,Y coordinate.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Pathfinding.Coord.X">
+            <summary>
+            The X value of the coord.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Pathfinding.Coord.Y">
+            <summary>
+            The Y value of the coord.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Pathfinding.Coord.#ctor(System.Int32,System.Int32)">
+            <summary>
+            Initializes the coord.
+            </summary>
+            <param name="X">The X value of the coord.</param>
+            <param name="Y">The Y value of the coord.</param>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Items.floorItem">
+            <summary>
+            Represents a virtual flooritem in a virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Items.floorItem.ID">
+            <summary>
+            The ID of the item.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Items.floorItem.templateID">
+            <summary>
+            The template ID of the item.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Items.floorItem.X">
+            <summary>
+            The X position of the item in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Items.floorItem.Y">
+            <summary>
+            The Y position of the item in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Items.floorItem.Z">
+            <summary>
+            The rotation of the item in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Items.floorItem.H">
+            <summary>
+            The height of the item in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Items.floorItem.Var">
+            <summary>
+            Optional. The variable/status of the item.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Items.floorItem.#ctor(System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Double,System.String)">
+            <summary>
+            Initializes a new instance of a virtual floor item in a virtual room.
+            </summary>
+            <param name="ID">The ID of this item.</param>
+            <param name="tID">The template ID of this item.</param>
+            <param name="X">The X position of this item.</param>
+            <param name="Y">The Y position of this item.</param>
+            <param name="Z">The Z rotation of this item.</param>
+            <param name="H">The height on which this item is located.</param>
+            <param name="Var">The variable of this item. [optional]</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Items.floorItem.ToString">
+            <summary>
+            Returns the item string of this item.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Items.floorItem.Sprite">
+            <summary>
+            Returns the sprite name of this item by accessing catalogueManager.itemTemplate with the template ID.
+            </summary>
+        </member>
+        <member name="T:Holo.Managers.soundMachineManager">
+            <summary>
+            Provides management for virtual sound machines and virtual songs.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.soundMachineManager.getHandSoundsets(System.Int32)">
+            <summary>
+            Returns the string with all the soundsets in the Hand of a certain user.
+            </summary>
+            <param name="userID">The database ID of the user to get the soundsets of.</param>
+        </member>
+        <member name="M:Holo.Managers.soundMachineManager.calculateSongLength(System.String)">
+            <summary>
+            Returns the length of a song in seconds as an integer. The length is calculated by counting the notes on the four tracks, if an error occurs here, then -1 is returned as length.
+            </summary>
+            <param name="Data">The songdata. (all 4 tracks)</param>
+        </member>
+        <member name="T:Holo.Config">
+            <summary>
+            Contains settings for the emulator. Config class is being initialized at boot of emulator.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.enableChatAnims">
+            <summary>
+            Specifies if chat animations should be used at chat.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.enableWordFilter">
+            <summary>
+            Specifies if the word filter that filters swearwords should be enabled.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.enableWelcomeMessage">
+            <summary>
+            Specifies if the welcome message should be sent at login.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.enableTrading">
+            <summary>
+            Specifies if trading is enabled.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.enableRecycler">
+            <summary>
+            Specifies if the Recycler is enabled.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Moderacy_ReceiveCFHs_minRank">
+            <summary>
+            The minimum rank that a virtual user has to have in order to receive CFH (Call for Help) calls from other virtual users. In most situations 5 and higher.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Statuses_itemCarrying_SipAmount">
+            <summary>
+            Specifies the amount of sips that a virtual user should take from his drink/item before vanishing it.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Statuses_itemCarrying_SipInterval">
+            <summary>
+            Specifies the amount of milliseconds between the sips of the item carrying.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Statuses_itemCarrying_SipDuration">
+            <summary>
+            Specifies the amount of milliseconds that a sip of a drink takes.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Statuses_Wave_waveDuration">
+            <summary>
+            Specifies the amount of milliseconds that the waving animation takes.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Rooms_roomBan_banDuration">
+            <summary>
+            Specifies the amount of minutes until a roomban expires.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Items_Stacking_maxHeight">
+            <summary>
+            Specifies the max height of a stack of virtual items. If this height is overidden, then the height won't increase but stick at the max height. (merging virtual items)
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Navigator_createRoom_maxRooms">
+            <summary>
+            Specifies the max amount of virtual rooms that a virtual user can create.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Navigator_roomSearch_maxResults">
+            <summary>
+            Specifies the max amount of guestrooms to display at the virtual room search engine in the Navigator.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Navigator_openCategory_maxResults">
+            <summary>
+            Specifies the max amount of guestrooms to display at opening a category in the Navigator.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Navigator_Favourites_maxRooms">
+            <summary>
+            Specifies the max amount of virtual rooms that virtual users can have in their 'favorite rooms' list.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Soundmachine_burnToDisk_diskTemplateID">
+            <summary>
+            The template ID of the disk item to be used when burning a virtual song to disk.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Rooms_LoadAvertisement_img">
+            <summary>
+            The link to the image that has to show while loading a room. If blank, then no image is shown.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Rooms_LoadAvertisement_uri">
+            <summary>
+            The url that has to be triggered when clicking the room load advertisement.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Game_Countdown_Seconds">
+            <summary>
+            The amount of seconds that the 'preparing game...' bar has to display before starting the game.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Game_scoreWindow_restartGame_Seconds">
+            <summary>
+            The amount of seconds that it takes (at score window) before the game restarts for people that wished to replay the game.
+            </summary>
+        </member>
+        <member name="F:Holo.Config.Game_BattleBall_gameLength_Seconds">
+            <summary>
+            The amount of seconds that a game of 'BattleBall' takes.
+            </summary>
+        </member>
+        <member name="M:Holo.Config.getTableEntry(System.String)">
+            <summary>
+            Gets the value from a config entry in system_config table.
+            </summary>
+            <param name="strKey">The key of the config entry.</param>
+        </member>
+        <member name="M:Holo.Config.Init">
+            <summary>
+            Initializes settings from system_config table for Config class.
+            </summary>
+        </member>
+        <member name="T:Holo.Eucalypt">
+            <summary>
+            The core of Holograph Emulator codename "Eucalypt", contains Main() void for booting server, plus monitoring thread and shutdown void.
+            </summary>
+        </member>
+        <member name="M:Holo.Eucalypt.Main">
+            <summary>
+            Starts up Holograph Emulator codename "Eucalypt".
+            </summary>
+        </member>
+        <member name="M:Holo.Eucalypt.Boot">
+            <summary>
+            Boots the emulator.
+            </summary>
+        </member>
+        <member name="M:Holo.Eucalypt.Shutdown">
+            <summary>
+            Safely shutdowns Holograph Emulator, closing database and socket connections. Requires key press from user for final abort.
+            </summary>
+        </member>
+        <member name="M:Holo.Eucalypt.printDatabaseStats">
+            <summary>
+            Prints the usercount, guestroomcount and furniturecount in datebase to console.
+            </summary>
+        </member>
+        <member name="M:Holo.Eucalypt.monitorServer">
+            <summary>
+            Threaded void. Ran on background thread at lowest priority, interval = 3500 ms. Updates console title and online users count, active rooms count, peak connections count and peak online users count in database.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.virtualRoom">
+            <summary>
+            Represents a virtual publicroom or guestroom, with management for users, items and the map. Threaded.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.roomID">
+            <summary>
+            The ID of this room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.isPublicroom">
+            <summary>
+            Indicates if this room is a publicroom.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.floorItemManager">
+            <summary>
+            Manages the flooritems inside the room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.wallItemManager">
+            <summary>
+            Manages the wallitems inside the room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.Lobby">
+            <summary>
+            Optional. The lobby manager incase of a game lobby.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.hasSwimmingPool">
+            <summary>
+            Indicates if this room has a swimming pool.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.sqSTATE">
+            <summary>
+            The state of a certain coord on the room map.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.sqITEMROT">
+            <summary>
+            The rotation of the item on a certain coord on the room map.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.sqFLOORHEIGHT">
+            <summary>
+            The floorheight of a certain coord on the room's heightmap.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.sqITEMHEIGHT">
+            <summary>
+            The height of the item on a certain coord on the room map.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.sqUNIT">
+            <summary>
+            Indicates if there is a user/bot/pet on a certain coord of the room map.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.sqSTACK">
+            <summary>
+            The item stack on a certain coord of the room map.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom._Users">
+            <summary>
+            The collection that contains the virtualRoomUser objects for the virtual users in this room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom._Bots">
+            <summary>
+            The collection that contains the virtualBot objects for the bots in this room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom._activeGroups">
+            <summary>
+            The collection that contains the IDs of the virtual user groups that are active in this room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom._statusHandler">
+            <summary>
+            The thread that handles the @b status updating and walking of virtual unit.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom._statusUpdates">
+            <summary>
+            The string that contains the status updates for the next cycle of the _statusHandler thread.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.doorX">
+            <summary>
+            The X position of the room's door.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.doorY">
+            <summary>
+            The Y position of the room's door.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.doorZ">
+            <summary>
+            Publicroom only. The rotation that the user should gain when staying in the room's door.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.doorH">
+            <summary>
+            The height that the user should gain when staying in the room's door.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.specialCastHandler">
+            <summary>
+            Sends timed 'AG' casts to the room, such as disco lights and camera's.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.#ctor(System.Int32,System.Boolean)">
+            <summary>
+            Initializes a new instance of a virtual room. The room is prepared for usage.
+            </summary>
+            <param name="roomID"></param>
+            <param name="isPublicroom"></param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.Finalize">
+            <summary>
+            Invoked by CRL garbage collector. Destroys all the remaining objects if all references to this object have been removed.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.removeUser(System.Int32,System.Boolean,System.String)">
+            <summary>
+            Removes a room user from the virtual room.
+            </summary>
+            <param name="roomUID">The room identifier of the room user to remove.</param>
+            <param name="sendKick">Specifies if the user must be kicked with the @R packet.</param>
+            <param name="moderatorMessage">Specifies a moderator message [B!] packet to be used at kick.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.containsUser(System.Int32)">
+            <summary>
+            Returns a bool that indicates if the room contains a certain room user.
+            </summary>
+            <param name="roomUID">The ID that identifies the user in the virtual room.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.getFreeRoomIdentifier">
+            <summary>
+            Returns a room identifier ID that isn't used by a virtual unit in this virtual room yet.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.getRandomRoomIdentifier">
+            <summary>
+            Returns a room identifier of a virtual unit in this room, by picking a unit at random. If there are no units in the room, then -1 is returned.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.getUser(System.Int32)">
+            <summary>
+            Returns the virtualUser object of a room user.
+            </summary>
+            <param name="roomUID">The room identifier of the user.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.getRoomUser(System.Int32)">
+            <summary>
+            Returns the virtualRoomUser object of a room user.
+            </summary>
+            <param name="roomUID">The room identifier of the user.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendData(System.String)">
+            <summary>
+            Sends a single packet to all users inside the user manager.
+            </summary>
+            <param name="Data">The packet to send.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendDataToRights(System.String)">
+            <summary>
+            Sends a single packet to all users inside the user manager.
+            </summary>
+            <param name="Data">The packet to send.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendData(System.String,System.Int32)">
+            <summary>
+            Sends a single packet to all users inside the user manager, after sleeping (on different thread) for a specified amount of milliseconds.
+            </summary>
+            <param name="Data">The packet to send.</param>
+            <param name="msSleep">The amount of milliseconds to sleep before sending.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendData(System.Int32,System.String)">
+            <summary>
+            Sends a single packet to a user in the usermanager.
+            </summary>
+            <param name="userID">The ID of the user.</param>
+            <param name="Data">The packet to send.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendData(System.String,System.String)">
+            <summary>
+            Sends a single packet to a user in the usermanager.
+            </summary>
+            <param name="Username">The username of the user.</param>
+            <param name="Data">The packet to send.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendSpecialCast(System.String,System.String)">
+            <summary>
+            Sends a special cast to all users in the usermanager.
+            </summary>
+            <param name="Emitter">The objects that emits the cast.</param>
+            <param name="Cast">The cast to emit.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendNewVoteAmount(System.Int32)">
+            <summary>
+            Updates the room votes amount for all users that have voted yet. User's that haven't voted yet are skipped so their vote buttons stay visible.
+            </summary>
+            <param name="voteAmount">The new amount of votes.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.cycleStatuses">
+            <summary>
+            Ran on a thread and handles walking and pathfinding. All status updates are sent to all room users.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.Refresh(Holo.Virtual.Users.virtualRoomUser)">
+            <summary>
+            Updates the status of a virtualRoomUser object in room. If the user is walking, then the user isn't refreshed immediately but processed at the next cycle of the status thread, to prevent double status strings in @b.
+            </summary>
+            <param name="roomUser">The virtualRoomUser object to update.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.Refresh(Holo.Virtual.Rooms.Bots.virtualBot)">
+            <summary>
+            Updates the status of a virtualBot object in room. If the bot is walking, then the bot isn't refreshed immediately but processed at the next cycle of the status thread, to prevent double status strings in @b.
+            </summary>
+            <param name="roomBot">The virtualBot object to update.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.moveUser(Holo.Virtual.Users.virtualRoomUser,System.Int32,System.Int32,System.Boolean)">
+            <summary>
+            Moves a virtual room user one step to a certain coord [the coord has to be one step removed from the room user's current coords], with pauses and handling for seats and rugs.
+            </summary>
+            <param name="roomUser">The virtual room user to move.</param>
+            <param name="toX">The X of the destination coord.</param>
+            <param name="toY">The Y of the destination coord.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.checkEmotion(Holo.Virtual.Users.virtualRoomUser,System.String)">
+            <summary>
+            Filter the emotions in a chat message, and displays it at the face of the virtual user
+            </summary>
+            <param name="sourceUser">The virtualRoomUser object of the sender.</param>
+            <param name="Message">The message being sent.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendSaying(Holo.Virtual.Users.virtualRoomUser,System.String)">
+            <summary>
+            Sends a 'say' chat message from a virtualRoomUser to the room. Users and bots in a range of 5 squares will receive the message and bob their heads. Roombots will check the message and optionally interact to it.
+            </summary>
+            <param name="sourceUser">The virtualRoomUser object that sent the message.</param>
+            <param name="Message">The message that was sent.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendSaying(Holo.Virtual.Rooms.Bots.virtualBot,System.String)">
+            <summary>
+            Sends a 'say' chat message from a virtualBot to the room. Users in a range of 5 squares will receive the message and bob their heads.
+            </summary>
+            <param name="sourceBot">The virtualBot object that sent the message.</param>
+            <param name="Message">The message that was sent.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendShout(Holo.Virtual.Users.virtualRoomUser,System.String)">
+            <summary>
+            Sends a 'shout' chat message from a virtualRoomUser to the room. All users will receive the message and bob their heads. Roombots have a 1/10 chance to react with the 'please don't shout message' set for them.
+            </summary>
+            <param name="sourceUser">The virtualRoomUser object that sent the message.</param>
+            <param name="Message">The message that was sent.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendShout(Holo.Virtual.Rooms.Bots.virtualBot,System.String)">
+            <summary>
+            Sends a 'shout' chat message from a virtualBot to the room. All users will receive the message and bob their heads.
+            </summary>
+            <param name="sourceBot">The virtualRoomBot object that sent the message.</param>
+            <param name="Message">The message that was sent.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.sendWhisper(Holo.Virtual.Users.virtualRoomUser,System.String,System.String)">
+            <summary>
+            Sends a 'whisper' chat message, which is only visible for sender and receiver, from a certain user to a certain user in the virtual room.
+            </summary>
+            <param name="sourceUser">The virtualRoomUser object of the sender.</param>
+            <param name="Receiver">The username of the receiver.</param>
+            <param name="Message">The message being sent.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.kickUsers(System.Byte,System.String)">
+            <summary>
+            Casts a 'roomkick' on the user manager, kicking all users from the room [with message] who have a lower rank than the caster of the roomkick.
+            </summary>
+            <param name="casterRank">The rank of the caster of the 'room kick'.</param>
+            <param name="Message">The message that goes with the 'roomkick'.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.muteUsers(System.Byte,System.String)">
+            <summary>
+            Casts a 'room mute' on the user manager, muting all users in the room who aren't muted yet and have a lower rank than the caster of the room mute. The affected users receive a message with the reason of their muting, and they won't be able to chat anymore until another user unmutes them.
+            </summary>
+            <param name="casterRank">The rank of the caster of the 'room mute'.</param>
+            <param name="Message">The message that goes with the 'room mute'.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.unmuteUsers(System.Byte)">
+            <summary>
+            Casts a 'room unmute' on the user manager, unmuting all users in the room who are muted and have a lower rank than the caster of the room mute. The affected users are notified that they can chat again.
+            </summary>
+            <param name="casterRank">The rank of the caster of the 'room unmute'.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.handleSpecialCasts(System.Object)">
+            <summary>
+            Threaded. Handles special casts such as disco lamps etc in the virtual room.
+            </summary>
+            <param name="o">The room model name as a System.Object.</param>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.Heightmap">
+            <summary>
+            Returns the heightmap of this virtual room.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.Flooritems">
+            <summary>
+            Returns a string with all the virtual flooritems in this room.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.Wallitems">
+            <summary>
+            Returns a string with all the virtual wallitems in this room.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.PublicroomItems">
+            <summary>
+            Returns a string with all the virtual publicroom items in this virtual room.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.Users">
+            <summary>
+            The values of the _Users Hashtable as an ICollection object.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.dynamicUnits">
+            <summary>
+            The details string for all the virtual units in this room.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.dynamicStatuses">
+            <summary>
+            The status string of all the virtual units in this room.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.Userlist">
+            <summary>
+            The usernames of all the virtual users in this room.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.Groups">
+            <summary>
+            The IDs and badge strings of all the active user groups in this room.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.virtualRoom.squareTrigger">
+            <summary>
+            Represents a trigger square that invokes a special event.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.squareTrigger.Object">
+            <summary>
+            The object of this trigger.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.squareTrigger.goalX">
+            <summary>
+            Optional. The new destination X of the virtual unit that invokes the trigger, walking.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.squareTrigger.goalY">
+            <summary>
+            Optional. The new destination Y of the virtual unit that invokes the trigger, walking.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.squareTrigger.stepX">
+            <summary>
+            Optional. The next X step of the virtual unit that invokes the trigger, stepping.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.squareTrigger.stepY">
+            <summary>
+            Optional. The next Y step of the virtual unit that invokes the trigger, stepping.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.squareTrigger.roomID">
+            <summary>
+            Optional. Optional. In case of a warp tile, this is the database ID of the destination room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.squareTrigger.State">
+            <summary>
+            Optional. A boolean flag for the trigger.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.squareTrigger.#ctor(System.String,System.Int32,System.Int32,System.Int32,System.Int32,System.Boolean,System.Int32)">
+            <summary>
+            Initializes the new trigger.
+            </summary>
+            <param name="Object">The object of this rigger.</param>
+            <param name="goalX">Optional. The destination X of the virtual unit that invokes the trigger, walking.</param>
+            <param name="goalY">Optional. The destination Y of the virtual unit that invokes the trigger, walking.</param>
+            <param name="stepX">Optional. The next X step of the virtual unit that invokes the trigger, stepping.</param>
+            <param name="stepY">Optional. The next Y step of the virtual unit that invokes the trigger, stepping.</param>
+            <param name="roomID">Optional. In case of a warp tile, this is the database ID of the destination room.</param>
+            <param name="State">Optional. A boolean flag for the trigger.</param>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.virtualRoom.FloorItemManager">
+            <summary>
+            Provides management for virtual flooritems in a virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.virtualRoom.FloorItemManager.soundMachineID">
+            <summary>
+            The database ID of the soundmachine in this FloorItemManager.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.FloorItemManager.#ctor(Holo.Virtual.Rooms.virtualRoom)">
+            <summary>
+            Initializes the manager.
+            </summary>
+            <param name="Room">The parent room.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.FloorItemManager.Clear">
+            <summary>
+            Removes all the items from the item manager and destructs all objects inside.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.FloorItemManager.addItem(System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Double,System.String)">
+            <summary>
+            Adds a new virtual flooritem to the manager at initialization.
+            </summary>
+            <param name="itemID">The ID of the new item.</param>
+            <param name="templateID">The template ID of the new item.</param>
+            <param name="X">The X position of the new item.</param>
+            <param name="Y">The Y position of the new item.</param>
+            <param name="Z">The Z [rotation] of the new item.</param>
+            <param name="H">The H position [height] of the new item.</param>
+            <param name="Var">The variable of the new item.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.FloorItemManager.removeItem(System.Int32,System.Int32)">
+            <summary>
+            Removes a virtual flooritem from the item manager, handles the heightmap, makes it disappear in room and returns it back to the owners hand, or deletes it.
+            </summary>
+            <param name="itemID">The ID of the item to remove.</param>
+            <param name="ownerID">The ID of the user who owns this item. If 0, then the item will be dropped from the database.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.FloorItemManager.toggleItemStatus(System.Int32,System.String,System.Boolean)">
+            <summary>
+            Updates the status of a virtual flooritem and updates it in the virtual room and in the database. Door items are also being handled if opened/closed.
+            </summary>
+            <param name="itemID">The ID of the item to update.</param>
+            <param name="toStatus">The new status of the item.</param>
+            <param name="hasRights">The bool that indicates if the user that signs this item has rights.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.FloorItemManager.containsItem(System.Int32)">
+            <summary>
+            Returns a bool that indicates if the item manager contains a certain virtual flooritem.
+            </summary>
+            <param name="itemID">The ID of the item to check.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.FloorItemManager.getItem(System.Int32)">
+            <summary>
+            Returns the floorItem object of a certain virtual flooritem in the item manager.
+            </summary>
+            <param name="itemID">The ID of the item to get the floorItem object of.</param>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.FloorItemManager.Items">
+            <summary>
+            Returns a string with all the virtual wallitems in this item manager.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.virtualRoom.WallItemManager">
+            <summary>
+            Provides management for virtual wallitems in a virtual room.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.WallItemManager.#ctor(Holo.Virtual.Rooms.virtualRoom)">
+            <summary>
+            Initializes the manager.
+            </summary>
+            <param name="Room">The parent room.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.WallItemManager.Clear">
+            <summary>
+            Removes all the items from the item manager and destructs all objects inside.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.WallItemManager.addItem(System.Int32,System.Int32,System.String,System.String,System.Boolean)">
+            <summary>
+            Adds a virtual wallitem to the item manager and optionally makes it appear in the room.
+            </summary>
+            <param name="itemID">The ID of the item to add.</param>
+            <param name="Item">The item to add.</param>
+            <param name="Place">Indicates if the item is put in the room now, so updating database and sending appear packet to room.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.WallItemManager.removeItem(System.Int32,System.Int32)">
+            <summary>
+            Removes a virtual wallitem from the item manager, updates the database row/drops the item from database and makes it disappear in the room.
+            </summary>
+            <param name="itemID">The ID of the item to remove.</param>
+            <param name="ownerID">The ID of the user that owns this item. If 0, then the item will be dropped from the database.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.WallItemManager.toggleItemStatus(System.Int32,System.Int32)">
+            <summary>
+            Updates the status of a virtual wallitem and updates it in the virtual room and in the database. Certain items can't switch status by this way, and they will be ignored to prevent exploiting.
+            </summary>
+            <param name="itemID">The ID of the item to update.</param>
+            <param name="toStatus">The new status of the item.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.WallItemManager.containsItem(System.Int32)">
+            <summary>
+            Returns a bool that indicates if the item manager contains a certain virtual wallitem.
+            </summary>
+            <param name="itemID">The ID of the item to check.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.WallItemManager.getItem(System.Int32)">
+            <summary>
+            Returns the wallItem object of a certain virtual wallitem in the item manager.
+            </summary>
+            <param name="itemID">The ID of the item to get the wallItem object of.</param>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.WallItemManager.Items">
+            <summary>
+            Returns a string with all the virtual wallitems in this item manager.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.virtualRoom.furnitureStack">
+            <summary>
+            Represents a stack of virtual flooritems.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.furnitureStack.#ctor">
+            <summary>
+            Initializes a new stack.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.furnitureStack.Add(System.Int32)">
+            <summary>
+            Adds an item ID to the top position of the stack.
+            </summary>
+            <param name="itemID">The item ID to add.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.furnitureStack.Remove(System.Int32)">
+            <summary>
+            Removes an item ID from the stack and shrinks empty spots. [order is kept the same]
+            </summary>
+            <param name="itemID">The item ID to remove.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.furnitureStack.topItemID">
+            <summary>
+            The most top item ID of the stack.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.furnitureStack.bottomItemID">
+            <summary>
+            The lowest located [so: first added] item ID of the stack.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.furnitureStack.getAboveItemID(System.Int32)">
+            <summary>
+            Returns the item ID located above a given item ID.
+            </summary>
+            <param name="aboveID">The item ID to get the item ID above of.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.furnitureStack.getBelowItemID(System.Int32)">
+            <summary>
+            Returns the item ID located below a given item ID.
+            </summary>
+            <param name="belowID">The item ID to get the item ID below of.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.virtualRoom.furnitureStack.Contains(System.Int32)">
+            <summary>
+            Returns a bool that indicates if the stack contains a certain item ID.
+            </summary>
+            <param name="itemID">The item ID to check.</param>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.virtualRoom.furnitureStack.Count">
+            <summary>
+            The amount of item ID's in the stack.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Bots.virtualBot">
+            <summary>
+            Represents a computer controlled virtual user with an artifical intelligence (AI). The bot walks around in virtual rooms on specified coordinates, interacts with other virtual users and serves drinks and food.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.roomUID">
+            <summary>
+            The ID of the bot in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Room">
+            <summary>
+            The virtual room the bot roams in.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Name">
+            <summary>
+            The name of the bot.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Mission">
+            <summary>
+            The mission/motto that the bot has.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Figure">
+            <summary>
+            The bot's figure string.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.X">
+            <summary>
+            The X position of the bot in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Y">
+            <summary>
+            The Y position of the bot in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.H">
+            <summary>
+            The height of the bot in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Z1">
+            <summary>
+            The rotation of the bot's head in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Z2">
+            <summary>
+            The rotation of the bot's body in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.goalX">
+            <summary>
+            Used for pathfinding. The X coordinate of the bot's target square in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.goalY">
+            <summary>
+            Used for pathfinding. The Y coordinate of the bot's target square in the virtual room.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.freeRoam">
+            <summary>
+            Indicates if the bot uses 'freeroam', which allows it to walk everywhere where it can go to. Astar pathfinding is used.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.noShoutingMessage">
+            <summary>
+            The message that the bot will use (on random) to shouting people near the bot.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.aiHandler">
+            <summary>
+            Handles the random determining of actions.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Sayings">
+            <summary>
+            Contains the texts that the bot can 'say' on random.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Shouts">
+            <summary>
+            Contains the texts that the bot can 'shout' on random.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Coords">
+            <summary>
+            Contains the coordinate's where the bot can walk to. Ignored if freeroam is enabled.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.chatTriggers">
+            <summary>
+            Contains the chat triggers where the bot reacts on.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Customer">
+            <summary>
+            The virtualRoomUser object the bot is currently serving an item to.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.customerTrigger">
+            <summary>
+            The chatTrigger object that was invoked by the current customer.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.Statuses">
+            <summary>
+            Contains the bot's animation statuses.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.#ctor(System.Int32,System.Int32,Holo.Virtual.Rooms.virtualRoom)">
+            <summary>
+            Initializes a new virtualBot object, loading the walk squares, chat texts etc.
+            </summary>
+            <param name="botID">The database ID of the bot.</param>
+            <param name="roomUID">The ID that identifies this bot in room.</param>
+            <param name="Room">The virtualRoom object where the bot is in.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.Kill">
+            <summary>
+            Safely shuts this virtualBot down and tidies up all resources.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.Interact(Holo.Virtual.Users.virtualRoomUser,System.String)">
+            <summary>
+            Invoked by a virtualRoomUser. There is checked if this bot reacts on a certain chat message, if so, then replies/orders etc are processed.
+            </summary>
+            <param name="roomUser">The virtualRoomUser object that interacts with this bot by saying a message.</param>
+            <param name="Message">The message that the virtualRoomUser said to this bot.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.checkOrders">
+            <summary>
+            If the bot currently is processing an order, then it'll hand over the order and prepare for a new one.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.Rotate(System.Int32,System.Int32)">
+            <summary>
+            Rotates the bot to a certain X and Y coordinate and refreshes it in the room. If the bot is sitting, then rotating will be ignored.
+            </summary>
+            <param name="toX">The X coordinate to face.</param>
+            <param name="toY">The Y coordinate to face.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.Rotate(System.Byte)">
+            <summary>
+            Sets a new rotation for the bot and refreshes it in the room. If the bot is sitting, then rotating will be ignored.
+            </summary>
+            <param name="R">The new rotation to use.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.getClosestWalkCoordTo(System.Int32,System.Int32)">
+            <summary>
+            Returns a Coord object with the X and Y of the walkcoord that is as closest to the given position.
+            </summary>
+            <param name="X">The X position.</param>
+            <param name="Y">The Y position.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.addStatus(System.String,System.String)">
+            <summary>
+            Adds a status key and a value to the bot's statuses. If the status is already inside, then the previous one will be removed.
+            </summary>
+            <param name="Key">The key of the status.</param>
+            <param name="Value">The value of the status.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.removeStatus(System.String)">
+            <summary>
+            Removes a certain status from the bot's statuses.
+            </summary>
+            <param name="Key">The key of the status to remove.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.containsStatus(System.String)">
+            <summary>
+            Returns a bool that indicates if the bot has a certain status at the moment.
+            </summary>
+            <param name="Key">The key of the status to check.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.Refresh">
+            <summary>
+            Refreshes the status of the bot in the virtual room.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.handleStatus(System.String,System.String,System.Int32)">
+            <summary>
+            Adds a status to the bot, keeps it for a specified amount of time [in ms] and removes the status. Refreshes at add and remove.
+            </summary>
+            <param name="Key">The key of the status, eg, 'sit'.</param>
+            <param name="Value">The value of the status, eg, '1.0'.</param>
+            <param name="Length">The amount of milliseconsd to keep the status before removing it again.</param>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.AI">
+            <summary>
+            Ran on a thread. Handles the bot's artifical intelligence, by interacting with users and using random values etc.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Bots.virtualBot.detailsString">
+            <summary>
+            The details string of the bot, containing room identifier ID, name, motto, figure etc.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Bots.virtualBot.statusString">
+            <summary>
+            The status string of the bot, containing positions, movements, statuses (animations) etc.
+            </summary>
+        </member>
+        <member name="T:Holo.Virtual.Rooms.Bots.virtualBot.chatTrigger">
+            <summary>
+            Represents a trigger that can be invoked by a chat message. Results in a reply and/or an order confirmation.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.chatTrigger.Words">
+            <summary>
+            A System.String array with words that invoke this trigger.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.chatTrigger.Replies">
+            <summary>
+            A System.String array with replies that are used when this trigger is invoked.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.chatTrigger.serveReplies">
+            <summary>
+            A System.String array with replies that are used when the bot hands over the food/drink item for this trigger.
+            </summary>
+        </member>
+        <member name="F:Holo.Virtual.Rooms.Bots.virtualBot.chatTrigger.serveItem">
+            <summary>
+            The item (food/drink) that will be served when one of this trigger's words match a given word.
+            </summary>
+        </member>
+        <member name="M:Holo.Virtual.Rooms.Bots.virtualBot.chatTrigger.containsWord(System.String)">
+            <summary>
+            Returns a boolean that indicates if this trigger replies on a certain word.
+            </summary>
+            <param name="Word">The word to check.</param>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Bots.virtualBot.chatTrigger.Reply">
+            <summary>
+            Returns a random reply from the replies array.
+            </summary>
+        </member>
+        <member name="P:Holo.Virtual.Rooms.Bots.virtualBot.chatTrigger.serveReply">
+            <summary>
+            Returns a random 'hand over item, here you are' reply from the replies array.
+            </summary>
+        </member>
+        <member name="T:Holo.Managers.staffManager">
+            <summary>
+            Provides management for CFH and moderacy tasks for staff.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.staffManager.addStaffMessage(System.String,System.Int32,System.Int32,System.String,System.String)">
+            <summary>
+            Adds a staff message to the system_stafflog table, regarding one of the actions that a MOD/other staff member performed. Details in the message: type action, ID of the user (staffmember) that performed the action, the target user ID/room ID and the message + staff note.
+            </summary>
+            <param name="Action">The action performed. [alert, kick, ban, ralert, rkick]</param>
+            <param name="userID">The ID of the staffmember that performed the action.</param>
+            <param name="targetID">The ID of the target user/target room.</param>
+            <param name="Message">The message that went with the action.</param>
+            <param name="Note">A staff-only note for Housekeeping. [optional]</param>
+        </member>
+        <member name="T:Holo.Managers.catalogueManager">
+            <summary>
+            Manager for catalogue page caching, catalogue item templates, catalogue purchase handling and few other catalogue related tasks.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.catalogueManager.Init">
+            <summary>
+            Initializes the catalogue manager, (re)caching all the pages and item templates.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.catalogueManager.cachePage(System.Int32)">
+            <summary>
+            Caches a specified catalogue page, plus the items on this page.
+            </summary>
+            <param name="pageID">The ID of the page to cache. If -1 is specified, all the items that aren't on a page are cached.</param>
+        </member>
+        <member name="M:Holo.Managers.catalogueManager.getPageExists(System.String)">
+            <summary>
+            Returns a bool that specifies if the catalogue manager contains a certain page, specified by name.
+            </summary>
+            <param name="pageName">The name of the catalogue page to check.</param>
+        </member>
+        <member name="M:Holo.Managers.catalogueManager.getPageIndex(System.Byte)">
+            <summary>
+            Returns the index of catalogue pages for a certain user rank.
+            </summary>
+            <param name="userRank">The rank of the user to handout the index to.</param>
+        </member>
+        <member name="M:Holo.Managers.catalogueManager.getPage(System.String,System.Byte)">
+            <summary>
+            Returns the content of a certain catalogue page as string.
+            </summary>
+            <param name="pageName">The name of the catalogue page to retrieve the content of.</param>
+            <param name="userRank">The rank of the user to handout the page content to. If this rank is lower than the required minimum rank to access this page, the 'access denied' cast is returned.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Holo.Managers.catalogueManager.handlePurchase(System.Int32,System.Int32,System.Int32,System.Int32,System.Int32)">
+            <summary>
+            Handles special actions at purchase in the catalogue, such as decoration variables for items and items who are sold in pairs.
+            </summary>
+            <param name="templateID">The template ID of the item being purchased.</param>
+            <param name="receiverID">The ID of the user that receives the item in his/her Hand.</param>
+            <param name="roomID">The target room ID of this item. 0 = inhand, -1 = in presentbox, -2 = in Recycler</param>
+            <param name="decorID">The wallpaper/floor value for wallpaper/floor purchases.</param>
+            <param name="presentBoxID">If the item is bought as present, then specify the ID of the present box item. If not, specify 0.</param>
+        </member>
+        <member name="M:Holo.Managers.catalogueManager.wallPositionOK(System.String)">
+            <summary>
+            Checks if the wallposition for a wallitem is correct, if it is, then the output should be exactly the same as the input. If not, then the wallposition is invalid.
+            </summary>
+            <param name="wallPosition">The original wallposition. [input]</param>
+        </member>
+        <member name="M:Holo.Managers.catalogueManager.getTemplate(System.Int32)">
+            <summary>
+            Returns the itemTemplate object matching a certain template ID. If the specified item template is not loaded, then an empty item template is returned.
+            </summary>
+            <param name="templateID">The template ID to return the item template of.</param>
+        </member>
+        <member name="P:Holo.Managers.catalogueManager.lastItemID">
+            <summary>
+            Returns the last purchased/created item in the 'furniture' table of the HoloDB.
+            </summary>
+        </member>
+        <member name="T:Holo.Managers.catalogueManager.cataloguePage">
+            <summary>
+            Represents a page in the Catalogue.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.cataloguePage.displayName">
+            <summary>
+            The display name of the page in the client.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.cataloguePage.pageData">
+            <summary>
+            The page string of the page, containing the layout, items etc.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.cataloguePage.minRank">
+            <summary>
+            The minimum rank that a virtual user requires to access this rank.
+            </summary>
+        </member>
+        <member name="T:Holo.Managers.catalogueManager.itemTemplate">
+            <summary>
+            Represents a cached virtual item template.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.itemTemplate.typeID">
+            <summary>
+            The type ID of the item, eg, 0 = walliten, 1 = flooritem, 2 = seat etc.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.itemTemplate.Sprite">
+            <summary>
+            The sprite of the item.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.itemTemplate.Colour">
+            <summary>
+            The colour of the item.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.itemTemplate.Length">
+            <summary>
+            The length of the item.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.itemTemplate.Width">
+            <summary>
+            The width of the item.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.itemTemplate.topH">
+            <summary>
+            The topheight of the item, if seat, then this indicates the sitheight. If a solid stackable item, then this is the stackheight. If 0.0, then the item is classified as non-stackable.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.itemTemplate.isDoor">
+            <summary>
+            Specifies if the item can be used as door.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.itemTemplate.isTradeable">
+            <summary>
+            Specifies if the item can be traded between virtual users.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.catalogueManager.itemTemplate.isRecycleable">
+            <summary>
+            Specifies if the item can be recycled in the item recycler. 
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.catalogueManager.itemTemplate.#ctor(System.String,System.Byte,System.String,System.Int32,System.Int32,System.Double,System.Boolean,System.Boolean,System.Boolean)">
+            <summary>
+            Initializes the item template.
+            </summary>
+            <param name="Sprite">The sprite of the item.</param>
+            <param name="typeID">The type ID of the item, eg, 0 = walliten, 1 = flooritem, 2 = seat etc.</param>
+            <param name="Colour">The colour of the item.</param>
+            <param name="Length">The length of the item.</param>
+            <param name="Width">The width of the item.</param>
+            <param name="topH">The topheight of the item, if seat, then this indicates the sitheight. If a solid stackable item, then this is the stackheight. If 0.0, then the item is classified as non-stackable.</param>
+            <param name="isDoor">Specifies if the item can be used as door.</param>
+            <param name="isTradeable">Specifies if the item can be traded between virtual users.</param>
+            <param name="isRecycleable">Specifies if the item can be recycled in the item recycler.</param>
+        </member>
+        <member name="T:Holo.Managers.userManager">
+            <summary>
+            Provides management for logged in users, aswell for retrieving details such as ID/name and vice versa from the database.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.userManager.Init">
+            <summary>
+            Starts the pingchecker thread.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.userManager.addUser(System.Int32,Holo.Virtual.Users.virtualUser)">
+            <summary>
+            Adds a virtualUser class together with the userID to the userManager. Login ticket will be nulled and previous logged in instances of this user will be dropped.
+            </summary>
+            <param name="userID">The ID of the user to add.</param>
+            <param name="User">The virtualUser class of this user.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.removeUser(System.Int32)">
+            <summary>
+            Removes a user from the userManager. [if it exists]
+            </summary>
+            <param name="userID">The ID of the user to remove.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.containsUser(System.Int32)">
+            <summary>
+            Returns a bool that indicates if the userManager contains a certain user.
+            </summary>
+            <param name="userID">The ID of the user.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.containsUser(System.String)">
+            <summary>
+            Returns a bool that indicates if the userManager contains a certain user.
+            </summary>
+            <param name="userName">The username of the user.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.getUserID(System.String)">
+            <summary>
+            Retrieves the ID of a user from the database.
+            </summary>
+            <param name="userName">The username of the user.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.getUserName(System.Int32)">
+            <summary>
+            Retrieves the username of a user from the database.
+            </summary>
+            <param name="userID">The ID of the user.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.userExists(System.Int32)">
+            <summary>
+            Returns a bool that indicates if a user with a certain user ID exists in the database.
+            </summary>
+            <param name="userID">The ID of the user to check.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.getUserFriendIDs(System.Int32)">
+            <summary>
+            Returns an int array with the ID's of the messenger friends of a certain user.
+            </summary>
+            <param name="userID">The ID of the user to get the friend ID's from.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.getUser(System.Int32)">
+            <summary>
+            Returns a virtualUser class for a certain user
+            </summary>
+            <param name="userID">The ID of the user.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.getUser(System.String)">
+            <summary>
+            Returns a virtualUser class for a certain user.
+            </summary>
+            <param name="userName">The username of the user.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.sendData(System.String)">
+            <summary>
+            Sends a single packet to all connected clients.
+            </summary>
+            <param name="Data">The packet to send.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.sendToRank(System.Byte,System.Boolean,System.String)">
+            <summary>
+            Sends a single packet to all active virtual users with the specified rank. Optionally you can include users who have a higher rank than the specified rank.
+            </summary>
+            <param name="Rank">The minimum rank that the virtual user required to receive the data.</param>
+            <param name="includeHigher">Indicates if virtual users with a rank that's higher than the specified rank should also receive the packet.</param>
+            <param name="Data">The packet to send.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.addChatMessage(System.String,System.Int32,System.String)">
+            <summary>
+            Inserts a single 'chat saying' to the system_chatlog table, together with username of sayer, room ID of sayer and the current timestamp.
+            </summary>
+            <param name="userName">The username of the sayer.</param>
+            <param name="roomID">The ID of the room where the sayer is in.</param>
+            <param name="Message">The message the sayer said.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.generateUserInfo(System.Int32,System.Byte)">
+            <summary>
+            Generates an info list about a certain user. If the user isn't found or has a higher rank than the info requesting user, then an access error message is returned. Otherwise, a report with user ID, username, rank, mission, credits amount, tickets amount, virtual birthday (signup date), real birthday, email address and last IP address. If the user is online, then information about the room the user currently is in (including ID and owner name) is supplied, otherwise, the last server access date is supplied.
+            </summary>
+            <param name="userID">The database ID of the user to generate the info of.</param>
+            <param name="Rank">The rank of the user that requests this info. If this rank is lower than the rank of the target user, then there is no info returned.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.setBan(System.Int32,System.Int32,System.String)">
+            <summary>
+            (Re)bans a single user for a specified amount of hours and reason. If the user is online, then it receives the ban message and get's disconnected.
+            </summary>
+            <param name="userID">The database ID of the user to ban.</param>
+            <param name="Hours">The amount of hours (starts now) till the ban is lifted.</param>
+            <param name="Reason">The reason for the ban, that describes the user why it's account is blocked from the system.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.getBanReason(System.String)">
+            <summary>
+            Checks if there are system bans for a certain IP address.
+            If a ban is detected, it checks if it's already expired.
+            If that is the case, then it lifts the ban.
+            If there is a pending ban, it returns the reason that was supplied with the banning, otherwise, it returns "".
+            </summary>
+            <param name="IP">The IP address to check bans for.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.setBan(System.String,System.Int32,System.String)">
+            <summary>
+            (Re)bans all the users on a certain IP address, making them unable to login, and making them unable to connect to the system. The ban is applied with a specified amount and reason. All affected users receive the ban message (which contains the reason) and they are disconnected.
+            </summary>
+            <param name="IP">The IP address to ban.</param>
+            <param name="Hours">The amount of hours (starts now) till the ban is lifted.</param>
+            <param name="Reason">The reason for the ban, that describes thes user why their IP address/accounts are blocked from the system.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.getBanReason(System.Int32)">
+            <summary>
+            Checks if there is a system ban for a certain user.
+            If a ban is detected, it checks if it's already expired.
+            If that is the case, then it lifts the ban.
+            If there is a pending ban, it returns the reason that was supplied with the banning, otherwise, it returns "".
+            </summary>
+            <param name="userID">The database ID of the user to check for bans.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.generateBanReport(System.Int32)">
+            <summary>
+            Generates a ban report for a certain ban on a user, including all details that could be of use. If there was no ban found, or the user that was banned doesn't exist, then a holo.cast.banreport.null is returned.
+            </summary>
+            <param name="userID">The database ID of the user to generate the ban report for.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.generateBanReport(System.String)">
+            <summary>
+            Generates a ban report for a certain IP address, including all details that could be of use. If there was no ban found, or the user that was banned doesn't exist, then a holo.cast.banreport.null is returned.
+            </summary>
+            <param name="IP">The IP address to generate the ban report for.</param>
+        </member>
+        <member name="M:Holo.Managers.userManager.checkPings">
+            <summary>
+            Ran on a thread at interval 60000ms, checks ping status of users and disconnects timed out users.
+            </summary>
+        </member>
+        <member name="P:Holo.Managers.userManager.userCount">
+            <summary>
+            Returns the current amount of users in the userManager.
+            </summary>
+        </member>
+        <member name="P:Holo.Managers.userManager.peakUserCount">
+            <summary>
+            Returns the peak amount of users in the userManager since boot.
+            </summary>
+        </member>
+        <member name="T:Holo.Managers.roomManager">
+            <summary>
+            Provides management for virtual rooms, aswell as some misc tasks for rooms.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.roomManager._Rooms">
+            <summary>
+            Contains the hooked virtual room objects.
+            </summary>
+        </member>
+        <member name="F:Holo.Managers.roomManager._peakRoomCount">
+            <summary>
+            The peak amount of rooms that has been in the room manager since start of the emulator.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.roomManager.addRoom(System.Int32,Holo.Virtual.Rooms.virtualRoom)">
+            <summary>
+            Adds a virtualRoom class together with the roomID to the roomManager.
+            </summary>
+            <param name="roomID">The ID of the room to add..</param>
+            <param name="Room">The virtualRoom class of this room.</param>
+        </member>
+        <member name="M:Holo.Managers.roomManager.removeRoom(System.Int32)">
+            <summary>
+            Removes a room from the roomManager. [if it exists]
+            </summary>
+            <param name="roomID">The ID of the room to remove.</param>
+        </member>
+        <member name="M:Holo.Managers.roomManager.containsRoom(System.Int32)">
+            <summary>
+            Returns a bool that indicates if the roomManager contains a certain room.
+            </summary>
+            <param name="roomID">The ID of the room.</param>
+        </member>
+        <member name="M:Holo.Managers.roomManager.getRoom(System.Int32)">
+            <summary>
+            Returns a virtualRoom class for a certain room.
+            </summary>
+            <param name="roomID">The ID of the room.</param>
+        </member>
+        <!-- Badly formed XML comment ignored for member "M:Holo.Managers.roomManager.getPoll(System.Int32)" -->
+        <member name="M:Holo.Managers.roomManager.updateRoomVisitorCount(System.Int32,System.Int32)">
+            <summary>
+            Updates the inside visitors count in the database for a certain room.
+            </summary>
+            <param name="roomID">The ID of the room to update.</param>
+            <param name="visitorCount">The new visitors count.</param>
+        </member>
+        <member name="M:Holo.Managers.roomManager.getRoomState(System.String)">
+            <summary>
+            Returns the int ID for a certain room state.
+            </summary>
+            <param name="State">The room state ID.</param>
+        </member>
+        <member name="M:Holo.Managers.roomManager.getRoomState(System.Int32)">
+            <summary>
+            Returns the string state for a certain room state byte.
+            </summary>
+            <param name="State">The room state ID.</param>
+        </member>
+        <member name="M:Holo.Managers.roomManager.refreshWallitem(System.Int32,System.Int32,System.String,System.String,System.String)">
+            <summary>
+            Updates the inside visitors count in the database for a certain room.
+            </summary>
+            <param name="roomID">The ID of the room the item is in.</param>
+            <param name="itemID">The ID of the item to refresh.</param>
+            <param name="cctName">The cct name of the item to refresh.</param>
+            <param name="wallPosition">The wall position of the item to refresh.</param>
+            <param name="itemVariable">The variable of the item to refresh.</param>
+        </member>
+        <member name="P:Holo.Managers.roomManager.roomCount">
+            <summary>
+            Returns the current amount of rooms in the roomManager.
+            </summary>
+        </member>
+        <member name="P:Holo.Managers.roomManager.peakRoomCount">
+            <summary>
+            Returns the peak amount of rooms in the roomManager since boot.
+            </summary>
+        </member>
+        <member name="T:Holo.Managers.roomManager.moodlight">
+            <summary>
+            Contains functions for the moodlight.
+            </summary>
+        </member>
+        <member name="M:Holo.Managers.roomManager.moodlight.getSettings(System.Int32)">
+            <summary>
+            Returns a string containing the setting data for the moodlight in the room.
+            </summary>
+            <param name="roomID">The roomID to get the moodlight for.</param>
+        </member>
+        <member name="M:Holo.Managers.roomManager.moodlight.setSettings(System.Int32,System.Boolean,System.Int32,System.Int32,System.String,System.Int32)">
+            <summary>
+            Saves the setting data for the moodlight in the room.
+            </summary>
+            <param name="roomID">The roomID to get the moodlight for.</param>
+            <param name="isEnabled">The status of the moodlight (on/off).</param>
+            <param name="presetID">The preset slot that is being used.</param>
+            <param name="bgState">The status of the background only tick.</param>
+            <param name="presetColour">The colour that is being saved.</param>
+            <param name="alphaDarkF">The alpha value of the darkness level.</param>
+        </member>
+    </members>
+</doc>
