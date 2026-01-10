@@ -1,5 +1,5 @@
-﻿using System;
-using System.Data.Odbc;
+using System;
+using MySql.Data.MySqlClient;
 using System.Collections;
 using System.Data;
 
@@ -25,18 +25,18 @@ namespace Holo
             {
                 System.Threading.Thread.Sleep(1000);
 
-                Out.WriteLine("Opnieuw verbinden met Mysql server...");
-                dbConnection = new OdbcConnection(strConnection);
+                Out.WriteLine("Reconnecting to MySQL server...");
+                dbConnection = new MySqlConnection(strConnection);
                 dbConnection.StateChange += new System.Data.StateChangeEventHandler(dbConnection_StateChange);
                 System.Threading.Thread.Sleep(1000);
                 dbConnection.Open();
-                Out.WriteLine("Verbinding met Msql server geslaagt.");
+                Out.WriteLine("Connection to MySQL server succeeded.");
             }
         }
-        private static OdbcConnection dbConnection;
+        private static MySqlConnection dbConnection;
         #region Database connection management
         /// <summary> 
-        /// Opens connection to the MySQL database with the supplied parameters, and returns a 'true' boolean when the connection has succeeded. Requires MySQL ODBC 5.1 driver to be installed. 
+        /// Opens connection to the MySQL database with the supplied parameters, and returns a 'true' boolean when the connection has succeeded. Uses MySQL.Data library.
         /// </summary> 
         /// <param name="dbHost">The hostname/IP address where the database server is located.</param> 
         /// <param name="dbPort">The port the database server is running on.</param> 
@@ -48,8 +48,8 @@ namespace Holo
             try
             {
                 Out.WriteLine("Connecting to " + dbName + " at " + dbHost + ":" + dbPort + " for user '" + dbUsername + "'");
-                strConnection = "Driver={MySQL ODBC 5.1 Driver};Server=" + dbHost + ";Port=" + dbPort + ";Database=" + dbName + ";User=" + dbUsername + ";Password=" + dbPassword + ";Option=3;";
-                dbConnection = new OdbcConnection(strConnection);
+                strConnection = "Server=" + dbHost + ";Port=" + dbPort + ";Database=" + dbName + ";User=" + dbUsername + ";Password=" + dbPassword + ";";
+                dbConnection = new MySqlConnection(strConnection);
                 dbConnection.StateChange += new System.Data.StateChangeEventHandler(dbConnection_StateChange);
                 dbConnection.Open();
                 Out.WriteLine("Connection to database successfull.");
@@ -67,13 +67,13 @@ namespace Holo
         /// </summary> 
         public static void closeConnection()
         {
-            Out.WriteLine("Sluiten van de database connectie...");
+            Out.WriteLine("Closing database connection...");
             try
             {
                 dbConnection.Close();
-                Out.WriteLine("Database connectie gesloten.");
+                Out.WriteLine("Database connection closed.");
             }
-            catch { Out.WriteLine("Geen database connectie!"); }
+            catch { Out.WriteLine("No database connection!"); }
         }
         #endregion
 
@@ -84,7 +84,7 @@ namespace Holo
         /// <param name="Query">The SQL statement to be executed. Default SQL syntax.</param> 
         public static void runQuery(string Query)
         {
-            try { new OdbcCommand(Query, dbConnection).ExecuteScalar(); }
+            try { new MySqlCommand(Query, dbConnection).ExecuteScalar(); }
             catch (Exception ex) { Out.WriteError("Error '" + ex.Message + "' at '" + Query + "'"); }
         }
         #endregion
@@ -97,7 +97,7 @@ namespace Holo
         /// <param name="Query">The SQL query that selects a field.</param> 
         public static string runRead(string Query)
         {
-            try { return new OdbcCommand(Query + " LIMIT 1", dbConnection).ExecuteScalar().ToString(); }
+            try { return new MySqlCommand(Query + " LIMIT 1", dbConnection).ExecuteScalar().ToString(); }
             catch (Exception ex)
             {
                 Out.WriteError("Error '" + ex.Message + "' at '" + Query + "'");
@@ -111,7 +111,7 @@ namespace Holo
         /// <param name="Tick">Just to differ the runRead functions; supply a null if you want to use this overload.</param> 
         public static int runRead(string Query, object Tick)
         {
-            try { return Convert.ToInt32(new OdbcCommand(Query + " LIMIT 1", dbConnection).ExecuteScalar()); }
+            try { return Convert.ToInt32(new MySqlCommand(Query + " LIMIT 1", dbConnection).ExecuteScalar()); }
             catch (Exception ex)
             {
                 Out.WriteError("Error '" + ex.Message + "' at '" + Query + "'");
@@ -133,7 +133,7 @@ namespace Holo
             try
             {
                 ArrayList columnBuilder = new ArrayList();
-                OdbcDataReader columnReader = new OdbcCommand(Query, dbConnection).ExecuteReader();
+                MySqlDataReader columnReader = new MySqlCommand(Query, dbConnection).ExecuteReader();
 
                 while (columnReader.Read())
                 {
@@ -164,7 +164,7 @@ namespace Holo
             try
             {
                 ArrayList columnBuilder = new ArrayList();
-                OdbcDataReader columnReader = new OdbcCommand(Query, dbConnection).ExecuteReader();
+                MySqlDataReader columnReader = new MySqlCommand(Query, dbConnection).ExecuteReader();
 
                 while (columnReader.Read())
                 {
@@ -193,7 +193,7 @@ namespace Holo
             try
             {
                 ArrayList rowBuilder = new ArrayList();
-                OdbcDataReader rowReader = new OdbcCommand(Query + " LIMIT 1", dbConnection).ExecuteReader();
+                MySqlDataReader rowReader = new MySqlCommand(Query + " LIMIT 1", dbConnection).ExecuteReader();
 
                 while (rowReader.Read())
                 {
@@ -223,7 +223,7 @@ namespace Holo
             try
             {
                 ArrayList rowBuilder = new ArrayList();
-                OdbcDataReader rowReader = new OdbcCommand(Query + " LIMIT 1", dbConnection).ExecuteReader();
+                MySqlDataReader rowReader = new MySqlCommand(Query + " LIMIT 1", dbConnection).ExecuteReader();
 
                 while (rowReader.Read())
                 {
@@ -249,7 +249,7 @@ namespace Holo
         /// <param name="Query">The SQL query to run. LIMIT 1 is added.</param>
         public static string runReadUnsafe(string Query)
         {
-            try { return new OdbcCommand(Query + " LIMIT 1", dbConnection).ExecuteScalar().ToString(); }
+            try { return new MySqlCommand(Query + " LIMIT 1", dbConnection).ExecuteScalar().ToString(); }
             catch { return ""; }
         }
         /// <summary>
@@ -259,7 +259,7 @@ namespace Holo
         /// <param name="Tick">Just to differ the runReadUnsafe functions; supply a null if you want to use this overload.</param> 
         public static int runReadUnsafe(string Query, object Tick)
         {
-            try { return Convert.ToInt32(new OdbcCommand(Query + " LIMIT 1", dbConnection).ExecuteScalar()); }
+            try { return Convert.ToInt32(new MySqlCommand(Query + " LIMIT 1", dbConnection).ExecuteScalar()); }
             catch { return 0; }
         }
         #endregion
@@ -272,7 +272,7 @@ namespace Holo
         /// <param name="Query">The SQL query that contains the seeked fields and conditions. LIMIT 1 is added.</param> 
         public static bool checkExists(string Query)
         {
-            try { return new OdbcCommand(Query + " LIMIT 1", dbConnection).ExecuteReader().HasRows; }
+            try { return new MySqlCommand(Query + " LIMIT 1", dbConnection).ExecuteReader().HasRows; }
             catch (Exception ex)
             {
                 Out.WriteError("Error '" + ex.Message + "' at '" + Query + "'");
