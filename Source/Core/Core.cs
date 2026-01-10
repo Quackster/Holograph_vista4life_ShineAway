@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 
 using Holo.Managers;
@@ -176,16 +176,18 @@ namespace Holo
         /// </summary>
         private static void printDatabaseStats()
         {
-            int userCount = DB.runRead("SELECT COUNT(*) FROM users",null);
-            int roomCount = DB.runRead("SELECT COUNT(*) FROM rooms",null);
-            int itemCount = DB.runRead("SELECT COUNT(*) FROM furniture",null);
+            var systemDataAccess = new Holo.Data.Repositories.SystemDataAccess();
+            int userCount = systemDataAccess.GetUserCount();
+            int roomCount = systemDataAccess.GetRoomCount();
+            int itemCount = systemDataAccess.GetFurnitureCount();
             Out.WriteLine("Result: " + userCount + " users, " + roomCount + " rooms and " + itemCount + " furnitures.");
         }
         private static void resetDynamics()
         {
-            DB.runQuery("UPDATE system SET onlinecount = '0',onlinecount_peak = '0',connections_accepted = '0',activerooms = '0'");
-            DB.runQuery("UPDATE users SET ticket_sso = NULL");
-            DB.runQuery("UPDATE rooms SET visitors_now = '0'");
+            var systemDataAccess = new Holo.Data.Repositories.SystemDataAccess();
+            systemDataAccess.ResetSystemDynamics();
+            systemDataAccess.NullifyAllUserTickets();
+            systemDataAccess.ResetRoomVisitorCounts();
 
             Out.WriteLine("Client connection statistics reset.");
             Out.WriteLine("Room inside counts reset.");
@@ -206,7 +208,8 @@ namespace Holo
                 long memUsage = GC.GetTotalMemory(false) / 1024;
 
                 Console.Title = "Holograph Emulator 26 | online users: " + onlineCount + " | loaded rooms " + roomCount + " | RAM usage: " + memUsage + "KB";
-                DB.runQuery("UPDATE system SET onlinecount = '" + onlineCount + "',onlinecount_peak = '" + peakOnlineCount + "',activerooms = '" + roomCount + "',activerooms_peak = '" + peakRoomCount + "',connections_accepted = '" + acceptedConnections + "'");
+                var systemDataAccess = new Holo.Data.Repositories.SystemDataAccess();
+                systemDataAccess.UpdateSystemStats(onlineCount, peakOnlineCount, roomCount, peakRoomCount, acceptedConnections);
                 Thread.Sleep(6000);
                 Out.WriteTrace("Servermonitor loop");
             }

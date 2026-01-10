@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Holo.Data.Repositories;
 
 namespace Holo.Managers
 {
@@ -10,6 +11,8 @@ namespace Holo.Managers
     /// </summary>
     public static class staffManager
     {
+        private static readonly StaffLogDataAccess _staffLogDataAccess = new StaffLogDataAccess();
+
         /// <summary>
         /// Adds a staff message to the system_stafflog table, regarding one of the actions that a MOD/other staff member performed. Details in the message: type action, ID of the user (staffmember) that performed the action, the target user ID/room ID and the message + staff note.
         /// </summary>
@@ -20,7 +23,7 @@ namespace Holo.Managers
         /// <param name="Note">A staff-only note for Housekeeping. [optional]</param>
         public static void addStaffMessage(string Action, int userID, int targetID, string Message, string Note)
         {
-            DB.runQuery("INSERT INTO system_stafflog (action,userid,targetid,message,note,timestamp) VALUES ('" + Action + "','" + userID + "','" + targetID + "','" + DB.Stripslash(Message) + "','" + DB.Stripslash(Note) + "','" + DateTime.Now.ToString() + "')");
+            _staffLogDataAccess.AddStaffLog(Action, userID, targetID, DB.Stripslash(Message), DB.Stripslash(Note), DateTime.Now.ToString());
         }
     }
 }

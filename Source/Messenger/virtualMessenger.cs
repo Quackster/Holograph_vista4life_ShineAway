@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Collections;
 using System.Collections.Generic;
+using Holo.Data.Repositories;
 
 using Holo.Managers;
 using Holo.Virtual;
@@ -15,6 +16,8 @@ namespace Holo.Virtual.Users.Messenger
     /// </summary>
     class virtualMessenger
     {
+        private static readonly MessengerDataAccess _messengerDataAccess = new MessengerDataAccess();
+        private static readonly UserDataAccess _userDataAccess = new UserDataAccess();
         #region Declares
         /// <summary>
         /// The database ID of the parent virtual user.
@@ -55,13 +58,13 @@ namespace Holo.Virtual.Users.Messenger
         }
         internal string friendRequests()
         {
-            int[] userIDs = DB.runReadColumn("SELECT userid_from FROM messenger_friendrequests WHERE userid_to = '" + this.userID + "' ORDER by requestid ASC",0,null);
-            StringBuilder Requests = new StringBuilder(Encoding.encodeVL64(userIDs.Length) + Encoding.encodeVL64(userIDs.Length));
-            if(userIDs.Length > 0)
+            var userIDs = _messengerDataAccess.GetFriendRequestUserIds(this.userID);
+            StringBuilder Requests = new StringBuilder(Encoding.encodeVL64(userIDs.Count) + Encoding.encodeVL64(userIDs.Count));
+            if(userIDs.Count > 0)
             {
-                int[] requestIDs = DB.runReadColumn("SELECT requestid FROM messenger_friendrequests WHERE userid_to = '" + this.userID + "' ORDER BY requestid ASC",0,null);
-                for(int i = 0; i < userIDs.Length; i++)
-                    Requests.Append(Encoding.encodeVL64(requestIDs[i]) + DB.runRead("SELECT name FROM users WHERE id = '" + userIDs[i] + "'") + Convert.ToChar(2) + userIDs[i] + Convert.ToChar(2));
+                var requestIDs = _messengerDataAccess.GetFriendRequestIds(this.userID);
+                for(int i = 0; i < userIDs.Count; i++)
+                    Requests.Append(Encoding.encodeVL64(requestIDs[i]) + _userDataAccess.GetUsername(userIDs[i]) + Convert.ToChar(2) + userIDs[i] + Convert.ToChar(2));
             }
             return Requests.ToString();
         }
@@ -131,7 +134,7 @@ namespace Holo.Virtual.Users.Messenger
         /// <param name="userID">The database ID of the user to check.</param>
         internal bool hasFriendRequests(int userID)
         {
-            return DB.checkExists("SELECT requestid FROM messenger_friendrequests WHERE (userid_to = '" + this.userID + "' AND userid_from = '" + userID + "') OR (userid_to = '" + userID + "' AND userid_from = '" + this.userID + "')");
+            return _messengerDataAccess.HasFriendRequests(this.userID, userID);
         }
 
         #region Object management

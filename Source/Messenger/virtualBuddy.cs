@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using Holo.Data.Repositories;
 using Holo.Managers;
 using Holo.Virtual.Users;
 
@@ -9,6 +10,7 @@ namespace Holo.Virtual.Users.Messenger
     /// </summary>
     class virtualBuddy
     {
+        private static readonly UserDataAccess _userDataAccess = new UserDataAccess();
         /// <summary>
         /// The database ID of this user.
         /// </summary>
@@ -67,7 +69,7 @@ namespace Holo.Virtual.Users.Messenger
                 if(Online)
                     Username = userManager.getUser(userID)._Username;
                 else
-                    Username = DB.runRead("SELECT name FROM users WHERE id = '" + userID + "'");
+                    Username = _userDataAccess.GetUsername(userID);
                 OUT += Username + Convert.ToChar(2);
             }
 

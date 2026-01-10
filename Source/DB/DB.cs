@@ -34,6 +34,14 @@ namespace Holo
             }
         }
         private static MySqlConnection dbConnection;
+        
+        /// <summary>
+        /// Gets the current database connection. Used by data access classes.
+        /// </summary>
+        internal static MySqlConnection GetConnection()
+        {
+            return dbConnection;
+        }
         #region Database connection management
         /// <summary> 
         /// Opens connection to the MySQL database with the supplied parameters, and returns a 'true' boolean when the connection has succeeded. Uses MySQL.Data library.

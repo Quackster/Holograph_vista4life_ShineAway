@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Collections;
+using Holo.Data.Repositories;
 
 using Holo.Virtual.Rooms;
 
@@ -11,6 +12,8 @@ namespace Holo.Managers
     /// </summary>
     public static class roomManager
     {
+        private static readonly MoodlightDataAccess _moodlightDataAccess = new MoodlightDataAccess();
+        private static readonly FurnitureDataAccess _furnitureDataAccess = new FurnitureDataAccess();
         #region Declares
         /// <summary>
         /// Contains the hooked virtual room objects.
@@ -98,27 +101,31 @@ namespace Holo.Managers
         /// <param name="roomID">The ID of the room.</param>
         public static string getPoll(int roomID)
         {
-            string[] poll_poll = DB.runReadRow("SELECT pid,title,thanks FROM poll WHERE rid = '" + roomID + "'");
-            int pollID = int.Parse(poll_poll[0]);
-            string pollTitle = poll_poll[1];
-            string pollThanks = poll_poll[2];
-            int[] pollQIDs = DB.runReadColumn("SELECT qid FROM poll_questions WHERE pid = '" + pollID + "'", 0, null);
-            string[] pollQuestion = DB.runReadColumn("SELECT question FROM poll_questions WHERE pid = '" + pollID + "'", 0);
-            int pollQuestions = pollQuestion.Length;
-            int[] pollTypes = DB.runReadColumn("SELECT type FROM poll_questions WHERE pid = '" + pollID + "'", 0, null);
-            int[] pollMin = DB.runReadColumn("SELECT min FROM poll_questions WHERE pid = '" + pollID + "'", 0, null);
-            int[] pollMax = DB.runReadColumn("SELECT max FROM poll_questions WHERE pid = '" + pollID + "'", 0, null);
-            string[][] pollAnswer = new string[pollQIDs.Length][];
-            int[] pollAnswers = new int[pollQIDs.Length];
+            var pollDataAccess = new Holo.Data.Repositories.PollDataAccess();
+            var pollData = pollDataAccess.GetPollData(roomID);
+            if (pollData == null)
+                return "";
+            
+            int pollID = pollData.PollId;
+            string pollTitle = pollData.Title;
+            string pollThanks = pollData.Thanks;
+            var pollQIDs = pollDataAccess.GetPollQuestionIds(pollID);
+            var pollQuestion = pollDataAccess.GetPollQuestions(pollID);
+            int pollQuestions = pollQuestion.Count;
+            var pollTypes = pollDataAccess.GetPollQuestionTypes(pollID);
+            var pollMin = pollDataAccess.GetPollQuestionMins(pollID);
+            var pollMax = pollDataAccess.GetPollQuestionMaxs(pollID);
+            string[][] pollAnswer = new string[pollQIDs.Count][];
+            int[] pollAnswers = new int[pollQIDs.Count];
             int qCount = 0;
             foreach (int q in pollQIDs)
             {
-                int[] aid = DB.runReadColumn("SELECT aid FROM poll_answers WHERE qid = '" + q + "'", 0, null);
-                pollAnswer[qCount] = new string[aid.Length];
+                var aid = pollDataAccess.GetPollAnswerIds(q);
+                pollAnswer[qCount] = new string[aid.Count];
                 int iCount = 0;
                 foreach (int a in aid)
                 {
-                    pollAnswer[qCount][iCount] = DB.runRead("SELECT answer FROM poll_answers WHERE qid = '" + q + "' AND aid = '" + a + "'");
+                    pollAnswer[qCount][iCount] = pollDataAccess.GetPollAnswer(q, a);
                     iCount++;
                 }
                 pollAnswers[qCount] = pollAnswer[qCount].Length;
@@ -161,7 +168,8 @@ namespace Holo.Managers
         /// <param name="visitorCount">The new visitors count.</param>
         public static void updateRoomVisitorCount(int roomID, int visitorCount)
         {
-            DB.runQuery("UPDATE rooms SET visitors_now = '" + visitorCount + "' WHERE id = '" + roomID + "' LIMIT 1");
+            var roomDataAccess = new Holo.Data.Repositories.RoomDataAccess();
+            roomDataAccess.UpdateRoomVisitorCount(roomID, visitorCount);
         }
         /// <summary>
         /// Returns the int ID for a certain room state.
@@ -218,12 +226,15 @@ namespace Holo.Managers
             {
                 try
                 {
-                    string[] itemSettings = DB.runReadRow("SELECT preset_cur,preset_1,preset_2,preset_3 FROM furniture_moodlight WHERE roomid = '" + roomID + "'");
-                    string settingPack = Encoding.encodeVL64(3) + Encoding.encodeVL64(int.Parse(itemSettings[0]));
+                    var itemSettings = _moodlightDataAccess.GetMoodlightSettings(roomID);
+                    if (itemSettings == null)
+                        return null;
+                    string settingPack = Encoding.encodeVL64(3) + Encoding.encodeVL64(int.Parse(itemSettings.PresetCurrent));
 
+                    string[] presets = { itemSettings.Preset1, itemSettings.Preset2, itemSettings.Preset3 };
                     for (int i = 1; i <= 3; i++)
                     {
-                        string[] curPresetData = itemSettings[i].Split(Char.Parse(","));
+                        string[] curPresetData = presets[i - 1].Split(Char.Parse(","));
                         settingPack += Encoding.encodeVL64(i) + Encoding.encodeVL64(int.Parse(curPresetData[0])) + curPresetData[1] + Convert.ToChar(2) + Encoding.encodeVL64(int.Parse(curPresetData[2]));
                     }
                     return settingPack;
@@ -244,12 +255,12 @@ namespace Holo.Managers
             /// <param name="alphaDarkF">The alpha value of the darkness level.</param>
             public static void setSettings(int roomID, bool isEnabled, int presetID, int bgState, string presetColour, int alphaDarkF)
             {
-                int itemID = DB.runRead("SELECT id FROM furniture_moodlight WHERE roomid = '" + roomID + "'", null);
+                int itemID = _moodlightDataAccess.GetMoodlightItemId(roomID);
                 string newPresetValue;
 
                 if (isEnabled == false)
                 {
-                    string curPresetValue = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
+                    string curPresetValue = _furnitureDataAccess.GetFurnitureVariable(itemID);
                     if (curPresetValue.Substring(0, 1) == "2")
                     {
                         newPresetValue = "1" + curPresetValue.Substring(1);
@@ -258,15 +269,16 @@ namespace Holo.Managers
                     {
                         newPresetValue = "2" + curPresetValue.Substring(1);
                     }
-                    DB.runQuery("UPDATE furniture SET var = '" + newPresetValue + "' WHERE id = '" + itemID.ToString() + "' LIMIT 1");
+                    _furnitureDataAccess.UpdateFurnitureVariable(itemID, newPresetValue);
                 }
                 else
                 {
                     newPresetValue = "2" + "," + presetID.ToString() + "," + bgState.ToString() + "," + presetColour + "," + alphaDarkF.ToString();
-                    DB.runQuery("UPDATE furniture SET var = '" + newPresetValue + "' WHERE id = '" + itemID.ToString() + "' LIMIT 1");
-                    DB.runQuery("UPDATE furniture_moodlight SET preset_cur = '" + presetID.ToString() + "',preset_" + presetID.ToString() + "= '" + bgState.ToString() + "," + presetColour + "," + alphaDarkF.ToString() + "' WHERE id = '" + itemID.ToString() + "' LIMIT 1");
+                    _furnitureDataAccess.UpdateFurnitureVariable(itemID, newPresetValue);
+                    string presetValue = bgState.ToString() + "," + presetColour + "," + alphaDarkF.ToString();
+                    _moodlightDataAccess.UpdateMoodlightPreset(itemID, presetID, presetID, presetValue);
                 }
-                string wallPosition = DB.runRead("SELECT wallpos FROM furniture WHERE id = '" + itemID + "'");
+                string wallPosition = _furnitureDataAccess.GetFurnitureWallPosition(itemID);
                 refreshWallitem(roomID, itemID, "roomdimmer", wallPosition, newPresetValue);
             }
         }

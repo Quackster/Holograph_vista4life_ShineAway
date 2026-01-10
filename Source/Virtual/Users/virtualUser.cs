@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Net;
 using System.Net.Sockets;
@@ -12,6 +12,8 @@ using Holo.Virtual.Rooms.Games;
 using Holo.Virtual;
 using Microsoft.VisualBasic;
 using System.Collections.Generic;
+using Holo.Data.Repositories;
+using Holo.Core;
 
 namespace Holo.Virtual.Users
 {
@@ -142,6 +144,210 @@ namespace Holo.Virtual.Users
         internal bool _hostsEvent;
 
         private virtualSongEditor songEditor;
+
+        // Data access instances
+        private static readonly UserDataAccess _userDataAccess = new UserDataAccess();
+        private static readonly BadgeDataAccess _badgeDataAccess = new BadgeDataAccess();
+        private static readonly ClubDataAccess _clubDataAccess = new ClubDataAccess();
+        private static readonly IgnoreDataAccess _ignoreDataAccess = new IgnoreDataAccess();
+        private static readonly MessengerDataAccess _messengerDataAccess = new MessengerDataAccess();
+        private static readonly VoucherDataAccess _voucherDataAccess = new VoucherDataAccess();
+        private static readonly RoomDataAccess _roomDataAccess = new RoomDataAccess();
+        private static readonly FavoriteRoomDataAccess _favoriteRoomDataAccess = new FavoriteRoomDataAccess();
+        private static readonly HelpDataAccess _helpDataAccess = new HelpDataAccess();
+        private static readonly GroupDataAccess _groupDataAccess = new GroupDataAccess();
+        private static readonly TagDataAccess _tagDataAccess = new TagDataAccess();
+        private static readonly PollDataAccess _pollDataAccess = new PollDataAccess();
+        private static readonly RoomCategoryDataAccess _roomCategoryDataAccess = new RoomCategoryDataAccess();
+        private static readonly RoomVoteDataAccess _roomVoteDataAccess = new RoomVoteDataAccess();
+        private static readonly RoomBanDataAccess _roomBanDataAccess = new RoomBanDataAccess();
+        private static readonly FurnitureDataAccess _furnitureDataAccess = new FurnitureDataAccess();
+        private static readonly RoomRightsDataAccess _roomRightsDataAccess = new RoomRightsDataAccess();
+        private static readonly CatalogueDataAccess _catalogueDataAccess = new CatalogueDataAccess();
+        private static readonly SoundMachineDataAccess _soundMachineDataAccess = new SoundMachineDataAccess();
+        #endregion
+
+        #region Packet Handler Registration
+        /// <summary>
+        /// Dictionary of packet handlers, keyed by packet header.
+        /// </summary>
+        private static readonly Dictionary<string, PacketHandler> _packetHandlers = new Dictionary<string, PacketHandler>();
+
+        /// <summary>
+        /// Static constructor to initialize packet handlers.
+        /// </summary>
+        static virtualUser()
+        {
+            RegisterPacketHandlers();
+        }
+
+        /// <summary>
+        /// Registers all packet handlers.
+        /// </summary>
+        private static void RegisterPacketHandlers()
+        {
+            // Non-logged in packets (no login required)
+            RegisterHandler("CD", HandlePing, false);
+            RegisterHandler("CN", HandleClientVersion, false);
+            RegisterHandler("CJ", HandleClientInfo, false);
+            RegisterHandler("_R", HandleSSORequest, false);
+            RegisterHandler("CL", HandleLogin, false);
+
+            // Logged in packets (require login)
+            RegisterHandler("@q", HandleRequestDate, true);
+            RegisterHandler("@L", HandleInitializeMessenger, true);
+            RegisterHandler("@Z", HandleInitializeClub, true);
+            RegisterHandler("@G", HandleRefreshAppearance, true);
+            RegisterHandler("@H", HandleRefreshValueables, true);
+            RegisterHandler("B]", HandleRefreshBadges, true);
+            RegisterHandler("Cd", HandleRefreshGroupStatus, true);
+            RegisterHandler("C^", HandleRecyclerSetup, true);
+            RegisterHandler("C_", HandleRecyclerSession, true);
+            RegisterHandler("Ej", HandleSetGuideAvailable, true);
+            RegisterHandler("Ek", HandleSetGuideUnavailable, true);
+            RegisterHandler("Ai", HandleBuyGameTickets, true);
+            RegisterHandler("BA", HandleRedeemVoucher, true);
+            RegisterHandler("Fs", HandleSearchConsole, true);
+            RegisterHandler("@i", HandleSearchInConsole, true);
+            RegisterHandler("@g", HandleRequestFriend, true);
+            RegisterHandler("@e", HandleAcceptFriendRequest, true);
+            RegisterHandler("@f", HandleDeclineFriendRequest, true);
+            RegisterHandler("@h", HandleRemoveBuddy, true);
+            RegisterHandler("@a", HandleSendInstantMessage, true);
+            RegisterHandler("@O", HandleRefreshFriendList, true);
+            RegisterHandler("DF", HandleFollowBuddy, true);
+            RegisterHandler("@b", HandleInviteBuddies, true);
+            RegisterHandler("BV", HandleNavigateRooms, true);
+            RegisterHandler("BW", HandleRequestCategoryIndex, true);
+            RegisterHandler("DH", HandleRefreshRecommendedRooms, true);
+            RegisterHandler("@P", HandleViewOwnRooms, true);
+            RegisterHandler("@Q", HandleSearchRooms, true);
+            RegisterHandler("@U", HandleGetRoomDetails, true);
+            RegisterHandler("@R", HandleInitializeFavorites, true);
+            RegisterHandler("@S", HandleAddFavorite, true);
+            RegisterHandler("@T", HandleRemoveFavorite, true);
+            RegisterHandler("EA", HandleGetEventSetup, true);
+            RegisterHandler("EY", HandleToggleEventButton, true);
+            RegisterHandler("D{", HandleCheckEventCategory, true);
+            RegisterHandler("E^", HandleOpenEventCategory, true);
+            RegisterHandler("EZ", HandleCreateEvent, true);
+            RegisterHandler("E[", HandleEndEvent, true);
+            RegisterHandler("@]", HandleCreateRoomPhase1, true);
+            RegisterHandler("@Y", HandleCreateRoomPhase2, true);
+            RegisterHandler("@X", HandleModifyRoom, true);
+            RegisterHandler("BX", HandleTriggerRoomModify, true);
+            RegisterHandler("BY", HandleEditRoomCategory, true);
+            RegisterHandler("@W", HandleDeleteRoom, true);
+            RegisterHandler("BZ", HandleWhoIsInRoom, true);
+            RegisterHandler("@u", HandleLeaveRoom, true);
+            RegisterHandler("Bv", HandleRoomAdvertisement, true);
+            RegisterHandler("@B", HandleEnterRoom, true);
+            RegisterHandler("@v", HandleEnterRoomTeleporter, true);
+            RegisterHandler("@y", HandleCheckRoomAccess, true);
+            RegisterHandler("Ab", HandleAnswerDoorbell, true);
+            RegisterHandler("@{", HandleEnterRoomData, true);
+            RegisterHandler("A~", HandleGetRoomAd, true);
+            RegisterHandler("@|", HandleGetRoomClass, true);
+            RegisterHandler("@}", HandleGetRoomItems, true);
+            RegisterHandler("@~", HandleGetRoomGroupBadges, true);
+            RegisterHandler("@\x7F", HandleGetWallItems, true);
+            RegisterHandler("A@", HandleAddUserToRoom, true);
+            RegisterHandler("CH", HandleModTool, true);
+            RegisterHandler("Cm", HandleSendCFHMessage, true);
+            RegisterHandler("Cn", HandleDeleteCFHMessage, true);
+            RegisterHandler("AV", HandleSubmitCFHMessage, true);
+            RegisterHandler("CG", HandleReplyCFH, true);
+            RegisterHandler("CF", HandleDeleteCFH, true);
+            RegisterHandler("@p", HandlePickupCFH, true);
+            RegisterHandler("EC", HandleGoToCFHRoom, true);
+            RegisterHandler("cI", HandleIgnoreUser, true);
+            RegisterHandler("cK", HandleUnignoreUser, true);
+            RegisterHandler("AO", HandleRotateUser, true);
+            RegisterHandler("AK", HandleWalkTo, true);
+            RegisterHandler("As", HandleClickDoor, true);
+            RegisterHandler("At", HandleSelectSwimmingOutfit, true);
+            RegisterHandler("B^", HandleSwitchBadge, true);
+            RegisterHandler("DG", HandleGetTags, true);
+            RegisterHandler("Cg", HandleGetGroupBadgeDetails, true);
+            RegisterHandler("D\x7F", HandleIgnoreUser2, true);
+            RegisterHandler("EB", HandleUnignoreUser2, true);
+            RegisterHandler("AX", HandleStopStatus, true);
+            RegisterHandler("A^", HandleWave, true);
+            RegisterHandler("A]", HandleDance, true);
+            RegisterHandler("AP", HandleCarryItem, true);
+            RegisterHandler("Cl", HandleAnswerPoll, true);
+            RegisterHandler("@t", HandleSay, true);
+            RegisterHandler("@w", HandleShout, true);
+            RegisterHandler("@x", HandleWhisper, true);
+            RegisterHandler("D}", HandleShowSpeechBubble, true);
+            RegisterHandler("D~", HandleHideSpeechBubble, true);
+            RegisterHandler("A`", HandleGiveRights, true);
+            RegisterHandler("Aa", HandleTakeRights, true);
+            RegisterHandler("A_", HandleKickUser, true);
+            RegisterHandler("E@", HandleKickAndBan, true);
+            RegisterHandler("DE", HandleVoteRoom, true);
+            RegisterHandler("Ae", HandleOpenCatalogue, true);
+            RegisterHandler("Af", HandleOpenCataloguePage, true);
+            RegisterHandler("Ad", HandlePurchaseItem, true);
+            RegisterHandler("Ca", HandleRecyclerProceed, true);
+            RegisterHandler("Cb", HandleRecyclerRedeem, true);
+            RegisterHandler("AA", HandleHand, true);
+            RegisterHandler("LB", HandleHand2, true);
+            RegisterHandler("AB", HandleApplyWallpaper, true);
+            RegisterHandler("AZ", HandlePlaceItem, true);
+            RegisterHandler("AC", HandlePickupItem, true);
+            RegisterHandler("AI", HandleMoveItem, true);
+            RegisterHandler("CV", HandleToggleWallItem, true);
+            RegisterHandler("AJ", HandleToggleFloorItem, true);
+            RegisterHandler("AN", HandleOpenPresent, true);
+            RegisterHandler("Bw", HandleRedeemCreditItem, true);
+            RegisterHandler("AQ", HandleEnterTeleporter, true);
+            RegisterHandler("AM", HandleCloseDice, true);
+            RegisterHandler("AL", HandleSpinDice, true);
+            RegisterHandler("Cw", HandleSpinWheel, true);
+            RegisterHandler("Dz", HandleActivateLoveShuffler, true);
+            RegisterHandler("AS", HandleOpenStickie, true);
+            RegisterHandler("AT", HandleEditStickie, true);
+            RegisterHandler("AU", HandleDeleteStickie, true);
+            RegisterHandler("Ah", HandleLidoVoting, true);
+            RegisterHandler("Ct", HandleInitializeSoundMachine, true);
+            RegisterHandler("Cu", HandleEnterRoomPlaylist, true);
+            RegisterHandler("C]", HandleGetSongData, true);
+            RegisterHandler("Cs", HandleSavePlaylist, true);
+            RegisterHandler("C~", HandleBurnSong, true);
+            RegisterHandler("Cx", HandleDeleteSong, true);
+            RegisterHandler("Co", HandleInitializeSongEditor, true);
+            RegisterHandler("C[", HandleAddSoundSet, true);
+            RegisterHandler("Cp", HandleSaveNewSong, true);
+            RegisterHandler("Cq", HandleRequestEditSong, true);
+            RegisterHandler("Cr", HandleSaveEditedSong, true);
+            RegisterHandler("AG", HandleStartTrading, true);
+            RegisterHandler("AH", HandleOfferTradeItem, true);
+            RegisterHandler("AD", HandleDeclineTrade, true);
+            RegisterHandler("AE", HandleAcceptTrade, true);
+            RegisterHandler("AF", HandleAbortTrade, true);
+            RegisterHandler("B_", HandleRefreshGameList, true);
+            RegisterHandler("B`", HandleCheckoutGame, true);
+            RegisterHandler("Bb", HandleRequestNewGame, true);
+            RegisterHandler("Bc", HandleProcessNewGame, true);
+            RegisterHandler("Be", HandleSwitchTeam, true);
+            RegisterHandler("Bg", HandleLeaveGame, true);
+            RegisterHandler("Bh", HandleKickPlayer, true);
+            RegisterHandler("Bj", HandleStartGame, true);
+            RegisterHandler("Bk", HandleGameMove, true);
+            RegisterHandler("Bl", HandleGameRestart, true);
+            RegisterHandler("EW", HandleToggleMoodlight, true);
+            RegisterHandler("EU", HandleLoadMoodlight, true);
+            RegisterHandler("EV", HandleUpdateDimmer, true);
+        }
+
+        /// <summary>
+        /// Registers a packet handler.
+        /// </summary>
+        private static void RegisterHandler(string header, PacketHandlerDelegate handler, bool requiresLogin)
+        {
+            _packetHandlers[header] = new PacketHandler(header, handler, requiresLogin);
+        }
         #endregion
 
         #region Constructors/destructors
@@ -274,6 +480,16 @@ namespace Holo.Virtual.Users
                 Disconnect();
             }
         }
+
+        /// <summary>
+        /// Sends a packet built with PacketBuilder to the client.
+        /// </summary>
+        /// <param name="builder">The PacketBuilder instance containing the packet data.</param>
+        internal void sendData(PacketBuilder builder)
+        {
+            if (builder != null)
+                sendData(builder.Build());
+        }
         /// <summary>
         /// Triggered when an asynchronous BeginSend action is completed. Virtual user completes the transfer action and leaves asynchronous action.
         /// </summary>
@@ -293,3207 +509,3393 @@ namespace Holo.Virtual.Users
         private void processPacket(string currentPacket)
         {
             Out.WriteSpecialLine(currentPacket.Replace(Convert.ToChar(13).ToString(), "{13}"), Out.logFlags.MehAction, ConsoleColor.DarkGray, ConsoleColor.DarkYellow, "< [" + Thread.GetDomainID() + "]", 2, ConsoleColor.Blue);
+            
+            if (string.IsNullOrEmpty(currentPacket) || currentPacket.Length < 2)
             {
-                if (_isLoggedIn == false)
+                Disconnect();
+                return;
+            }
 
-                #region Non-logged in packet processing
+            string header = currentPacket.Substring(0, 2);
+            
+            if (!_packetHandlers.TryGetValue(header, out PacketHandler handler))
+            {
+                Disconnect();
+                return;
+            }
+
+            // Check if login is required
+            if (handler.RequiresLogin && !_isLoggedIn)
+            {
+                Disconnect();
+                return;
+            }
+
+            // Create packet reader (skip header - first 2 characters)
+            string packetData = currentPacket.Length > 2 ? currentPacket.Substring(2) : string.Empty;
+            PacketReader reader = new PacketReader(packetData);
+            
+            // Execute handler
+            try
+            {
+                handler.Handler(this, reader);
+            }
+            catch (Exception ex)
+            {
+                Out.WriteSpecialLine($"Error handling packet {header}: {ex.Message}", Out.logFlags.MehAction, ConsoleColor.Red, ConsoleColor.DarkRed, "ERROR", 2, ConsoleColor.Red);
+                Disconnect();
+            }
+        }
+      
+        #endregion
+
+        #region Packet Handlers
+        // Non-logged in handlers
+        private static void HandlePing(virtualUser user, PacketReader reader)
+        {
+            user.pingOK = true;
+        }
+
+        private static void HandleClientVersion(virtualUser user, PacketReader reader)
+        {
+            user.sendData("DUIH");
+        }
+
+        private static void HandleClientInfo(virtualUser user, PacketReader reader)
+        {
+            user.sendData(PacketBuilder.Create("DA")
+                .AppendB64String("QBHHIIKHJIPAHQAdd-MM-yyyy")
+                .AppendDelimiter()
+                .AppendB64String("SAHPBhotel-co.uk")
+                .AppendDelimiter()
+                .Append("QBH"));
+        }
+
+        private static void HandleSSORequest(virtualUser user, PacketReader reader)
+        {
+            user.sendData(PacketBuilder.Create("DA")
+                .AppendB64String("QBHIIIKHJIPAIQAdd-MM-yyyy")
+                .AppendDelimiter()
+                .AppendB64String("SAHPB/client")
+                .AppendDelimiter()
+                .Append("QBH")
+                .Append("IJWVVVSNKQCFUBJASMSLKUUOJCOLJQPNSBIRSVQBRXZQOTGPMNJIHLVJCRRULBLUO")
+                .AppendChar((char)1));
+        }
+
+        private static void HandleLogin(virtualUser user, PacketReader reader)
+        {
+            string ssoTicket = DB.Stripslash(reader.GetRemaining());
+            int myID = _userDataAccess.GetUserIdBySsoTicket(ssoTicket);
+            if (myID == 0)
+            {
+                user.Disconnect();
+                return;
+            }
+
+            string banReason = userManager.getBanReason(myID);
+            if (banReason != "")
+            {
+                user.sendData("@c" + banReason);
+                user.Disconnect(1000);
+                return;
+            }
+
+            user.userID = myID;
+            var userData = _userDataAccess.GetUserBasicInfo(myID);
+            if (userData == null)
+            {
+                user.Disconnect();
+                return;
+            }
+
+            user._Username = userData.Name;
+            user._Figure = userData.Figure;
+            user._Sex = userData.Sex;
+            user._Mission = userData.Mission;
+            user._Rank = userData.Rank;
+            user._consoleMission = userData.ConsoleMission;
+            userManager.addUser(myID, user);
+            user._isLoggedIn = true;
+
+            user.sendData("@B" + rankManager.fuseRights(user._Rank));
+            user.sendData("DbIH");
+            user.sendData("@C");
+
+            bool isguide = _userDataAccess.IsUserGuide(user.userID);
+            if (isguide)
+                user.sendData("BKguide");
+            
+            user.sendData("Fi" + "I");
+            user.sendData("FC");
+
+            if (Config.enableWelcomeMessage)
+                user.sendData("BK" + stringManager.getString("welcomemessage_text"));
+
+            var ignoredUsers = _ignoreDataAccess.GetIgnoredUserIds(user.userID);
+            if (ignoredUsers.Count > 0)
+            {
+                PacketBuilder builder = PacketBuilder.Create("Fd").AppendVL64(ignoredUsers.Count);
+                for (int x = 0; x < ignoredUsers.Count; x++)
                 {
-                    switch (currentPacket.Substring(0, 2))
-                    {
-                        case "CD":
-                            pingOK = true;
-                            break;
-
-                        case "CN":
-                            sendData("DUIH");
-                            break;
-
-                        case "CJ":
-                            sendData("DAQBHHIIKHJIPAHQAdd-MM-yyyy" + Convert.ToChar(2) + "SAHPBhotel-co.uk" + Convert.ToChar(2) + "QBH");
-                            break;
-
-                        case "_R":
-                           sendData("DA" + "QBHIIIKHJIPAIQAdd-MM-yyyy" + Convert.ToChar(2) + "SAHPB/client" + Convert.ToChar(2) + "QBH" + "IJWVVVSNKQCFUBJASMSLKUUOJCOLJQPNSBIRSVQBRXZQOTGPMNJIHLVJCRRULBLUO" + Convert.ToChar(1)); // V25+ SSO LOGIN BY vista4life
-                           break;
-
-                        case "CL":
-                            {
-                                string ssoTicket = DB.Stripslash(currentPacket.Substring(4));
-                                int myID = DB.runRead("SELECT id FROM users WHERE ticket_sso = '" + ssoTicket + "'", null);
-                                if (myID == 0) // No user found for this sso ticket and/or IP address
-                                {
-                                    Disconnect();
-                                    return;
-                                }
-
-                                string banReason = userManager.getBanReason(myID);
-                                if (banReason != "")
-                                {
-                                    sendData("@c" + banReason);
-                                    Disconnect(1000);
-                                    return;
-                                }
-                                this.userID = myID;
-                                string[] userData = DB.runReadRow("SELECT name,figure,sex,mission,rank,consolemission FROM users WHERE id = '" + myID + "'");
-                                _Username = userData[0];
-                                _Figure = userData[1];
-                                _Sex = char.Parse(userData[2]);
-                                _Mission = userData[3];
-                                _Rank = byte.Parse(userData[4]);
-                                _consoleMission = userData[5];
-                                userManager.addUser(myID, this);
-                                _isLoggedIn = true;
-
-                                //sendData("DA" + "IJWVVVSNKQCFUBJASMSLKUUOJCOLJQPNSBIRSVQBRXZQOTGPMNJIHLVJCRRULBLUO" + "QBHIIIKHJIPAIQAdd-MM-yyyy" + Convert.ToChar(2) + "SAHPB/client" + Convert.ToChar(2) + "QBH");
-                                //sendData("DA" + Convert.ToChar(2));
-                                //sendData("DA" + "QBHIIIKHJIPAIQAdd-MM-yyyy" + Convert.ToChar(2) + "SAHPB/client" + Convert.ToChar(2) + "QBH");
-                                sendData("@B" + rankManager.fuseRights(_Rank));
-                                sendData("DbIH");
-                                sendData("@C");
-
-                                int isguide = DB.runRead("SELECT guide FROM users WHERE id = '" + userID + "'", null);
-
-                                if (isguide == 1)
-                                    sendData("BKguide");
-                                sendData("Fi" + "I");
-                                sendData("FC");
-
-                                if (Config.enableWelcomeMessage)
-                                    sendData("BK" + stringManager.getString("welcomemessage_text"));
-
-                                //Send list of ignored users
-                                int[] ignoredUsers = DB.runReadColumn("SELECT targetid FROM user_ignores WHERE userid = '" + userID + "'", 0, null);
-                                if (ignoredUsers.Length > 0)
-                                {
-                                    StringBuilder sb = new StringBuilder("Fd" + Encoding.encodeVL64(ignoredUsers.Length));
-                                    for (int x = 0; x < ignoredUsers.Length; x++)
-                                    {
-                                        ignoreList.Add(ignoredUsers[x]);
-                                        sb.Append(ignoredUsers[x] + Convert.ToChar(2));
-                                    }
-                                    sendData(sb.ToString());
-                                }
-                                break;
-                            }
-
-                        default:
-                            Disconnect();
-                            break;
-                    }
+                    user.ignoreList.Add(ignoredUsers[x]);
+                    builder.AppendInt(ignoredUsers[x]).AppendDelimiter();
                 }
-                #endregion
-                else
-                #region Logged-in packet processing
-                {
-                    switch (currentPacket.Substring(0, 2))
-                    {
-                        case "CD": // Client - response to @r ping 
-                            pingOK = true;
-                            break;
-
-                        case "@q": // Client - request current date
-                            sendData("Bc" + DateTime.Today.ToShortDateString());
-                            break;
-
-                        #region Login
-                        case "@L": // Login - initialize messenger
-                            Messenger = new Messenger.virtualMessenger(userID);
-                            sendData("@L" + Messenger.friendList());
-                            sendData("Dz" + Messenger.friendRequests());
-                            break;
-
-                        case "@Z": // Login - initialize Club subscription status
-                            refreshClub();
-                            break;
-
-                        case "@G": // Login - initialize/refresh appearance
-                            refreshAppearance(false, true, false);
-                            break;
-
-                        case "@H": // Login - initialize/refresh valueables [credits, tickets, etc]
-                            refreshValueables(true, true);
-                            break;
-
-                        case "B]": // Login - initialize/refresh badges
-                            refreshBadges();
-                            break;
-
-                        case "Cd": // Login - initialize/refresh group status
-                            refreshGroupStatus();
-                            break;
-
-                        case "C^": // Recycler - receive recycler setup
-                            sendData("Do" + recyclerManager.setupString);
-                            break;
-
-                        case "C_": // Recycler - receive recycler session status
-                            sendData("Dp" + recyclerManager.sessionString(userID));
-                            break;
-                        #endregion
-
-                        #region Guide system
-
-                        case "Ej":
-                            {
-                                DB.runQuery("UPDATE users SET guideavailable = '1' WHERE id = '" + userID + "' LIMIT 1");
-                                break;
-                            }
-
-                        case "Ek":
-                            {
-                                DB.runQuery("UPDATE users SET guideavailable = '0' WHERE id = '" + userID + "' LIMIT 1");
-                                break;
-                            }
-
-                        #endregion
-
-                        #region Purse (voucher redeeming, transactions gametickets etc)
-
-                        case "Ai": // Buy game-tickets
-                            {
-                                string args = currentPacket.Substring(2);
-                                int Amount = Encoding.decodeVL64(args.Substring(0, 3));
-                                string Receiver = args.Substring(3);
-                                int Ticketamount = 0;
-                                int Price = 0;
-
-                                if (Amount == 1) // Look how much tickets you want
-                                {
-                                    Ticketamount = 2;
-                                    Price = 1;
-                                }
-                                else if (Amount == 2) // And again
-                                {
-                                    Ticketamount = 20;
-                                    Price = 6;
-                                }
-                                else // Wrong parameter
-                                    return;
-
-                                if (Price > _Credits) // Enough credits?
-                                {
-                                    sendData("AD");
-                                    return;
-                                }
-
-                                int ReceiverID = DB.runRead("SELECT id FROM users WHERE name = '" + DB.Stripslash(Receiver) + "'", null);
-                                if (!(ReceiverID > 0)) // Does the user exist?
-                                {
-                                    sendData("AL" + Receiver);
-                                    return;
-                                }
-
-                                _Credits -= Price; // New credit amount
-                                sendData("@F" + _Credits); // Send the new credits
-                                DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
-                                DB.runQuery("UPDATE users SET tickets = tickets+" + Ticketamount + " WHERE id = '" + ReceiverID + "' LIMIT 1");
-
-                                if (userManager.containsUser(ReceiverID)) // Check or the user is online
-                                {
-                                    virtualUser _Receiver = userManager.getUser(ReceiverID); // Get him/her
-                                    _Receiver._Tickets = _Receiver._Tickets + Ticketamount; // Update ticketamount
-
-                                    if (ReceiverID == userID)
-                                        _Receiver.refreshValueables(false, true);
-                                    else
-                                        _Receiver.refreshValueables(true, true);
-
-                                }
-
-
-                                break;
-                            }
-
-                        case "BA": // Purse - redeem credit voucher
-                            {
-                                string Code = DB.Stripslash(currentPacket.Substring(4));
-                                if (DB.checkExists("SELECT voucher FROM vouchers WHERE voucher = '" + Code + "'"))
-                                {
-                                    int voucherAmount = DB.runRead("SELECT credits FROM vouchers WHERE voucher = '" + Code + "'", null);
-                                    DB.runQuery("DELETE FROM vouchers WHERE voucher = '" + Code + "' LIMIT 1");
-
-                                    _Credits += voucherAmount;
-                                    sendData("@F" + _Credits);
-                                    sendData("CT");
-                                    DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
-                                }
-                                else
-                                    sendData("CU1");
-                                break;
-                            }
-
-                        #endregion
-
-                        #region Messenger
-
-                        case "Fs": //search console
-                            sendData("HR" + "L");
-                            break;
-
-                        case "@i": // Search in console 
-                            {
-
-                                // Variables 
-                                string Search = DB.Stripslash(currentPacket.Substring(4));
-                                string Packet = "Fs";
-                                string PacketFriends = "";
-                                string PacketOthers = "";
-                                string PacketAdd = "";
-                                int CountFriends = 0;
-                                int CountOthers = 0;
-
-                                // Database 
-                                string[] IDs = DB.runReadColumn("SELECT id FROM users WHERE name LIKE '%" + Search + "%'", 50);
-
-                                // Loop through results 
-                                for (int i = 0; i < IDs.Length; i++)
-                                {
-
-                                    int thisID = Convert.ToInt16(IDs[i]);
-                                    bool online = userManager.containsUser(thisID);
-                                    string onlineStr = online ? "I" : "H";
-
-                                    string[] row = DB.runReadRow("SELECT name, mission, lastvisit, figure FROM users WHERE id = " + thisID.ToString());
-                                    PacketAdd = Encoding.encodeVL64(thisID)
-                                                 + row[0] + ""
-                                                 + row[1] + ""
-                                                 + onlineStr + onlineStr + ""
-                                                 + onlineStr + (online ? row[3] : "") + ""
-                                                 + (online ? "" : row[2]) + "";
-
-                                    // Friend or not? 
-                                    if (Messenger.hasFriendship(thisID))
-                                    {
-                                        CountFriends += 1;
-                                        PacketFriends += PacketAdd;
-                                    }
-                                    else
-                                    {
-                                        CountOthers += 1;
-                                        PacketOthers += PacketAdd;
-                                    }
-
-                                }
-
-                                // Add count headers 
-                                PacketFriends = Encoding.encodeVL64(CountFriends) + PacketFriends;
-                                PacketOthers = Encoding.encodeVL64(CountOthers) + PacketOthers;
-
-                                // Merge packets 
-                                Packet += PacketFriends + PacketOthers;
-
-                                Out.WriteLine(Packet);
-                                // Send packets 
-                                sendData(Packet);
-
-                                break;
-                            }  
-
-
-                        case "@g": // Messenger - request user as friend
-                            {
-                                if (Messenger != null)
-                                {
-                                    string Username = DB.Stripslash(currentPacket.Substring(4));
-                                    int toID = DB.runRead("SELECT id FROM users WHERE name = '" + Username + "'", null);
-                                    if (toID > 0 && Messenger.hasFriendRequests(toID) == false && Messenger.hasFriendship(toID) == false)
-                                    {
-                                        int requestID = DB.runReadUnsafe("SELECT MAX(requestid) FROM messenger_friendrequests WHERE userid_to = '" + toID + "'", null) + 1;
-                                        DB.runQuery("INSERT INTO messenger_friendrequests(userid_to,userid_from,requestid) VALUES ('" + toID + "','" + userID + "','" + requestID + "')");
-                                        userManager.getUser(toID).sendData("BD" + "I" + _Username + Convert.ToChar(2) + userID + Convert.ToChar(2));
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "@e": // Messenger - accept friendrequest(s)
-                            {
-                                if (Messenger != null)
-                                {
-                                    int Amount = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    currentPacket = currentPacket.Substring(Encoding.encodeVL64(Amount).Length + 2);
-
-                                    int updateAmount = 0;
-                                    StringBuilder Updates = new StringBuilder();
-                                    virtualBuddy Me = new virtualBuddy(userID);
-
-                                    for (int i = 0; i < Amount; i++)
-                                    {
-                                        if (currentPacket == "")
-                                            return;
-                                        int requestID = Encoding.decodeVL64(currentPacket);
-                                        int fromUserID = DB.runRead("SELECT userid_from FROM messenger_friendrequests WHERE userid_to = '" + this.userID + "' AND requestid = '" + requestID + "'", null);
-                                        if (fromUserID == 0) // Corrupt data
-                                            return;
-
-                                        virtualBuddy Buddy = new virtualBuddy(fromUserID);
-                                        Updates.Append(Buddy.ToString(false));
-                                        updateAmount++;
-
-                                        Messenger.addBuddy(Buddy, true);
-                                        if (userManager.containsUser(fromUserID))
-                                            userManager.getUser(fromUserID).Messenger.addBuddy(Me, true);
-
-                                        DB.runQuery("INSERT INTO messenger_friendships(userid,friendid) VALUES ('" + fromUserID + "','" + this.userID + "')");
-                                        DB.runQuery("DELETE FROM messenger_friendrequests WHERE userid_to = '" + this.userID + "' AND requestid = '" + requestID + "' LIMIT 1");
-                                        currentPacket = currentPacket.Substring(Encoding.encodeVL64(requestID).Length);
-                                    }
-
-                                    if (updateAmount > 0)
-                                        sendData("@M" + "HH" + Encoding.encodeVL64(updateAmount) + Updates.ToString());
-                                }
-                                break;
-                            }
-
-                        case "@f": // Messenger - decline friendrequests
-                            {
-                                if (Messenger != null)
-                                {
-                                    int Amount = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    currentPacket = currentPacket.Substring(Encoding.encodeVL64(Amount).Length + 2);
-
-                                    for (int i = 0; i < Amount; i++)
-                                    {
-                                        if (currentPacket == "")
-                                            return;
-
-                                        int requestID = Encoding.decodeVL64(currentPacket);
-                                        DB.runQuery("DELETE FROM messenger_friendrequests WHERE userid_to = '" + this.userID + "' AND requestid = '" + requestID + "' LIMIT 1");
-
-                                        currentPacket = currentPacket.Substring(Encoding.encodeVL64(requestID).Length);
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "@h": // Messenger - remove buddy from friendlist
-                            {
-                                if (Messenger != null)
-                                {
-                                    int buddyID = Encoding.decodeVL64(currentPacket.Substring(3));
-                                    Messenger.removeBuddy(buddyID);
-                                    if (userManager.containsUser(buddyID))
-                                        userManager.getUser(buddyID).Messenger.removeBuddy(userID);
-                                    DB.runQuery("DELETE FROM messenger_friendships WHERE (userid = '" + userID + "' AND friendid = '" + buddyID + "') OR (userid = '" + buddyID + "' AND friendid = '" + userID + "') LIMIT 1");
-                                }
-                                break;
-                            }
-
-                        case "@a": // Messenger - send instant message to buddy
-                            {
-                                if (Messenger != null)
-                                {
-                                    int buddyID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    string Message = currentPacket.Substring(Encoding.encodeVL64(buddyID).Length + 4);
-                                    Message = stringManager.filterSwearwords(Message); // Filter swearwords
-
-                                    if (Messenger.containsOnlineBuddy(buddyID)) // Buddy online
-                                        userManager.getUser(buddyID).sendData("BF" + Encoding.encodeVL64(userID) + Message + Convert.ToChar(2));
-                                    else // Buddy offline (or user doesn't has user in buddylist)
-                                        sendData("DE" + Encoding.encodeVL64(5) + Encoding.encodeVL64(userID));
-                                }
-                                break;
-                            }
-
-                        case "@O": // Messenger - refresh friendlist
-                            {
-                                if (Messenger != null)
-                                    sendData("@M" + Messenger.getUpdates());
-                                break;
-                            }
-
-                        case "DF": // Messenger - follow buddy to a room
-                            {
-                                if (Messenger != null)
-                                {
-                                    int ID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    int errorID = -1;
-                                    if (Messenger.hasFriendship(ID)) // Has friendship with user
-                                    {
-                                        if (userManager.containsUser(ID)) // User is online
-                                        {
-                                            virtualUser _User = userManager.getUser(ID);
-                                            if (_User._roomID > 0) // User is in room
-                                            {
-                                                if (_User._inPublicroom)
-                                                    sendData("D^" + "I" + Encoding.encodeVL64(_User._roomID));
-                                                else
-                                                    sendData("D^" + "H" + Encoding.encodeVL64(_User._roomID));
-                                            }
-                                            else // User is not in a room
-                                                errorID = 2;
-                                        }
-                                        else // User is offline
-                                            errorID = 1;
-                                    }
-                                    else // User is not this virtual user's friend
-                                        errorID = 0;
-
-                                    if (errorID != -1) // Error occured
-                                        sendData("E]" + Encoding.encodeVL64(errorID));
-                                }
-                                break;
-                            }
-
-                        case "@b": // Messenger - invite buddies to your room
-                            {
-                                if (Messenger != null && roomUser != null)
-                                {
-                                    int Amount = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    int[] IDs = new int[Amount];
-                                    currentPacket = currentPacket.Substring(Encoding.encodeVL64(Amount).Length + 2);
-
-                                    for (int i = 0; i < Amount; i++)
-                                    {
-                                        if (currentPacket == "")
-                                            return;
-
-                                        int ID = Encoding.decodeVL64(currentPacket);
-                                        if (Messenger.hasFriendship(ID) && userManager.containsUser(ID))
-                                            IDs[i] = ID;
-
-                                        currentPacket = currentPacket.Substring(Encoding.encodeVL64(ID).Length);
-                                    }
-
-                                    string Message = currentPacket.Substring(2);
-                                    string Data = "BG" + Encoding.encodeVL64(userID) + Message + Convert.ToChar(2);
-                                    for (int i = 0; i < Amount; i++)
-                                        userManager.getUser(IDs[i]).sendData(Data);
-                                }
-                                break;
-                            }
-
-                        #endregion
-
-                        #region Navigator actions
-                        case "BV": // Navigator - navigate through rooms and categories
-                            {
-                                int hideFull = Encoding.decodeVL64(currentPacket.Substring(2, 1));
-                                int cataID = Encoding.decodeVL64(currentPacket.Substring(3));
-
-                                string Name = DB.runReadUnsafe("SELECT name FROM room_categories WHERE id = '" + cataID + "' AND (access_rank_min <= " + _Rank + " OR access_rank_hideforlower = '0')");
-                                if (Name == "") // User has no access to this category/it does not exist
-                                    return;
-
-                                int Type = DB.runRead("SELECT type FROM room_categories WHERE id = '" + cataID + "'", null);
-                                int parentID = DB.runRead("SELECT parent FROM room_categories WHERE id = '" + cataID + "'", null);
-
-                                StringBuilder Navigator = new StringBuilder(@"C\" + Encoding.encodeVL64(hideFull) + Encoding.encodeVL64(cataID) + Encoding.encodeVL64(Type) + Name + Convert.ToChar(2) + Encoding.encodeVL64(0) + Encoding.encodeVL64(10000) + Encoding.encodeVL64(parentID));
-                                string _SQL_ORDER_HELPER = "";
-                                if (Type == 0) // Publicrooms
-                                {
-                                    if (hideFull == 1)
-                                        _SQL_ORDER_HELPER = "AND visitors_now < visitors_max ORDER BY id ASC";
-                                    else
-                                        _SQL_ORDER_HELPER = "ORDER BY id ASC";
-                                }
-                                else // Guestrooms
-                                {
-                                    if (hideFull == 1)
-                                        _SQL_ORDER_HELPER = "AND visitors_now < visitors_max ORDER BY visitors_now DESC LIMIT 30";
-                                    else
-                                        _SQL_ORDER_HELPER = "ORDER BY visitors_now DESC LIMIT " + Config.Navigator_openCategory_maxResults;
-                                }
-
-                                int[] roomIDs = DB.runReadColumn("SELECT id FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0, null);
-                                if (Type == 2) // Guestrooms
-                                    Navigator.Append(Encoding.encodeVL64(roomIDs.Length));
-                                if (roomIDs.Length > 0)
-                                {
-                                    bool canSeeHiddenNames = false;
-                                    int[] roomStates = DB.runReadColumn("SELECT state FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0, null);
-                                    int[] showNameFlags = DB.runReadColumn("SELECT showname FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0, null);
-                                    int[] nowVisitors = DB.runReadColumn("SELECT visitors_now FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0, null);
-                                    int[] maxVisitors = DB.runReadColumn("SELECT visitors_max FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0, null);
-                                    string[] roomNames = DB.runReadColumn("SELECT name FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0);
-                                    string[] roomDescriptions = DB.runReadColumn("SELECT description FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0);
-                                    string[] roomOwners = DB.runReadColumn("SELECT owner FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0);
-                                    string[] roomCCTs = null;
-
-                                    if (Type == 0) // Publicroom
-                                        roomCCTs = DB.runReadColumn("SELECT ccts FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0);
-                                    else
-                                        canSeeHiddenNames = rankManager.containsRight(_Rank, "fuse_enter_locked_rooms");
-
-                                    for (int i = 0; i < roomIDs.Length; i++)
-                                    {
-                                        if (Type == 0) // Publicroom
-                                            Navigator.Append(Encoding.encodeVL64(roomIDs[i]) + Encoding.encodeVL64(1) + roomNames[i] + Convert.ToChar(2) + Encoding.encodeVL64(nowVisitors[i]) + Encoding.encodeVL64(maxVisitors[i]) + Encoding.encodeVL64(cataID) + roomDescriptions[i] + Convert.ToChar(2) + Encoding.encodeVL64(roomIDs[i]) + Encoding.encodeVL64(0) + roomCCTs[i] + Convert.ToChar(2) + "HI");
-                                        else // Guestroom
-                                        {
-                                            if (showNameFlags[i] == 0 && canSeeHiddenNames == false)
-                                                continue;
-                                            else
-                                                Navigator.Append(Encoding.encodeVL64(roomIDs[i]) + roomNames[i] + Convert.ToChar(2) + roomOwners[i] + Convert.ToChar(2) + roomManager.getRoomState(roomStates[i]) + Convert.ToChar(2) + Encoding.encodeVL64(nowVisitors[i]) + Encoding.encodeVL64(maxVisitors[i]) + roomDescriptions[i] + Convert.ToChar(2));
-                                        }
-                                    }
-                                }
-
-                                int[] subCataIDs = DB.runReadColumn("SELECT id FROM room_categories WHERE parent = '" + cataID + "' AND (access_rank_min <= " + _Rank + " OR access_rank_hideforlower = '0') ORDER BY id ASC", 0, null);
-                                if (subCataIDs.Length > 0) // Sub categories
-                                {
-                                    for (int i = 0; i < subCataIDs.Length; i++)
-                                    {
-                                        int visitorCount = DB.runReadUnsafe("SELECT SUM(visitors_now) FROM rooms WHERE category = '" + subCataIDs[i] + "'", null);
-                                        int visitorMax = DB.runReadUnsafe("SELECT SUM(visitors_max) FROM rooms WHERE category = '" + subCataIDs[i] + "'", null);
-                                        if (visitorMax > 0 && hideFull == 1 && visitorCount >= visitorMax)
-                                            continue;
-
-                                        string subName = DB.runRead("SELECT name FROM room_categories WHERE id = '" + subCataIDs[i] + "'");
-                                        Navigator.Append(Encoding.encodeVL64(subCataIDs[i]) + Encoding.encodeVL64(0) + subName + Convert.ToChar(2) + Encoding.encodeVL64(visitorCount) + Encoding.encodeVL64(visitorMax) + Encoding.encodeVL64(cataID));
-                                    }
-                                }
-
-                                sendData(Navigator.ToString());
-                                break;
-                            }
-
-                        case "BW": // Navigator - request index of categories to place guestroom on
-                            {
-                                StringBuilder Categories = new StringBuilder();
-                                int[] cataIDs = DB.runReadColumn("SELECT id FROM room_categories WHERE type = '2' AND parent > 0 AND access_rank_min <= " + _Rank + " ORDER BY id ASC", 0, null);
-                                string[] cataNames = DB.runReadColumn("SELECT name FROM room_categories WHERE type = '2' AND parent > 0 AND access_rank_min <= " + _Rank + " ORDER BY id ASC", 0);
-                                for (int i = 0; i < cataIDs.Length; i++)
-                                    Categories.Append(Encoding.encodeVL64(cataIDs[i]) + cataNames[i] + Convert.ToChar(2));
-
-                                sendData("C]" + Encoding.encodeVL64(cataIDs.Length) + Categories.ToString());
-                                break;
-                            }
-
-                        case "DH": // Navigator - refresh recommended rooms (random guestrooms)
-                            {
-                                string Rooms = "";
-                                for (int i = 0; i <= 3; i++)
-                                {
-                                    string[] roomDetails = DB.runReadRow("SELECT id,name,owner,description,state,visitors_now,visitors_max FROM rooms WHERE NOT(owner IS NULL) ORDER BY RAND()");
-                                    if (roomDetails.Length == 0)
-                                        return;
-                                    else
-                                        Rooms += Encoding.encodeVL64(int.Parse(roomDetails[0])) + roomDetails[1] + Convert.ToChar(2) + roomDetails[2] + Convert.ToChar(2) + roomManager.getRoomState(int.Parse(roomDetails[4])) + Convert.ToChar(2) + Encoding.encodeVL64(int.Parse(roomDetails[5])) + Encoding.encodeVL64(int.Parse(roomDetails[6])) + roomDetails[3] + Convert.ToChar(2);
-                                }
-                                sendData("E_" + Encoding.encodeVL64(3) + Rooms);
-                                break;
-                            }
-
-                        case "@P": // Navigator - view user's own guestrooms
-                            {
-                                string[] roomIDs = DB.runReadColumn("SELECT id FROM rooms WHERE owner = '" + _Username + "' ORDER BY id ASC", 0);
-                                if (roomIDs.Length > 0)
-                                {
-                                    StringBuilder Rooms = new StringBuilder();
-                                    for (int i = 0; i < roomIDs.Length; i++)
-                                    {
-                                        string[] roomDetails = DB.runReadRow("SELECT name,description,state,showname,visitors_now,visitors_max FROM rooms WHERE id = '" + roomIDs[i] + "'");
-                                        Rooms.Append(roomIDs[i] + Convert.ToChar(9) + roomDetails[0] + Convert.ToChar(9) + _Username + Convert.ToChar(9) + roomManager.getRoomState(int.Parse(roomDetails[2])) + Convert.ToChar(9) + "x" + Convert.ToChar(9) + roomDetails[4] + Convert.ToChar(9) + roomDetails[5] + Convert.ToChar(9) + "null" + Convert.ToChar(9) + roomDetails[1] + Convert.ToChar(9) + roomDetails[1] + Convert.ToChar(9) + Convert.ToChar(13));
-                                    }
-                                    sendData("@P" + Rooms.ToString());
-                                }
-                                else
-                                    sendData("@y" + _Username);
-                                break;
-                            }
-
-                        case "@Q": // Navigator - perform guestroom search on name/owner with a given criticeria
-                            {
-                                bool seeAllRoomOwners = rankManager.containsRight(_Rank, "fuse_see_all_roomowners");
-                                string _SEARCH = DB.Stripslash(currentPacket.Substring(2));
-                                string[] roomIDs = DB.runReadColumn("SELECT id FROM rooms WHERE NOT(owner IS NULL) AND (owner = '" + _SEARCH + "' OR name LIKE '%" + _SEARCH + "%') ORDER BY id ASC", Config.Navigator_roomSearch_maxResults);
-                                if (roomIDs.Length > 0)
-                                {
-                                    StringBuilder Rooms = new StringBuilder();
-                                    for (int i = 0; i < roomIDs.Length; i++)
-                                    {
-                                        string[] roomDetails = DB.runReadRow("SELECT name,owner,description,state,showname,visitors_now,visitors_max FROM rooms WHERE id = '" + roomIDs[i] + "'");
-                                        if (roomDetails[4] == "0" && roomDetails[1] != _Username && seeAllRoomOwners == false) // The room owner has hidden his name at the guestroom and this user hasn't got the fuseright to see all room owners
-                                            roomDetails[1] = "-";
-                                        Rooms.Append(roomIDs[i] + Convert.ToChar(9) + roomDetails[0] + Convert.ToChar(9) + roomDetails[1] + Convert.ToChar(9) + roomManager.getRoomState(int.Parse(roomDetails[3])) + Convert.ToChar(9) + "x" + Convert.ToChar(9) + roomDetails[5] + Convert.ToChar(9) + roomDetails[6] + Convert.ToChar(9) + "null" + Convert.ToChar(9) + roomDetails[2] + Convert.ToChar(9) + Convert.ToChar(13));
-                                    }
-                                    sendData("@w" + Rooms.ToString());
-                                }
-                                else
-                                    sendData("@z");
-                                break;
-                            }
-
-                        case "@U": // Navigator - get guestroom details
-                            {
-                                int roomID = int.Parse(currentPacket.Substring(2));
-                                string[] roomDetails = DB.runReadRow("SELECT name,owner,description,model,state,superusers,showname,category,visitors_now,visitors_max FROM rooms WHERE id = '" + roomID + "' AND NOT(owner IS NULL)");
-
-                                if (roomDetails.Length > 0) // Guestroom does exist
-                                {
-                                    StringBuilder Details = new StringBuilder(Encoding.encodeVL64(int.Parse(roomDetails[5])) + Encoding.encodeVL64(int.Parse(roomDetails[4])) + Encoding.encodeVL64(roomID));
-                                    if (roomDetails[6] == "0" && rankManager.containsRight(_Rank, "fuse_see_all_roomowners")) // The room owner has decided to hide his name at this room, and this user hasn't got the fuseright to see all room owners, hide the name
-                                        Details.Append("-");
-                                    else
-                                        Details.Append(roomDetails[1]);
-
-                                    Details.Append(Convert.ToChar(2) + "model_" + roomDetails[3] + Convert.ToChar(2) + roomDetails[0] + Convert.ToChar(2) + roomDetails[2] + Convert.ToChar(2) + Encoding.encodeVL64(int.Parse(roomDetails[6])));
-                                    if (DB.checkExists("SELECT id FROM room_categories WHERE id = '" + roomDetails[7] + "' AND trading = '1'"))
-                                        Details.Append("I"); // Allow trading
-                                    else
-                                        Details.Append("H"); // Disallow trading
-
-                                    Details.Append(Encoding.encodeVL64(int.Parse(roomDetails[8])) + Encoding.encodeVL64(int.Parse(roomDetails[9])));
-                                    sendData("@v" + Details.ToString());
-                                }
-                                break;
-                            }
-
-                        case "@R": // Navigator - initialize user's favorite rooms
-                            {
-                                int[] roomIDs = DB.runReadColumn("SELECT roomid FROM users_favouriterooms WHERE userid = '" + userID + "' ORDER BY roomid DESC", Config.Navigator_Favourites_maxRooms, null);
-                                if (roomIDs.Length > 0)
-                                {
-                                    int deletedAmount = 0;
-                                    int guestRoomAmount = 0;
-                                    bool seeHiddenRoomOwners = rankManager.containsRight(_Rank, "fuse_enter_locked_rooms");
-                                    StringBuilder Rooms = new StringBuilder();
-                                    for (int i = 0; i < roomIDs.Length; i++)
-                                    {
-                                        string[] roomData = DB.runReadRow("SELECT name,owner,state,showname,visitors_now,visitors_max,description FROM rooms WHERE id = '" + roomIDs[i] + "'");
-                                        if (roomData.Length == 0)
-                                        {
-                                            if (guestRoomAmount > 0)
-                                                deletedAmount++;
-                                            DB.runQuery("DELETE FROM users_favouriterooms WHERE userid = '" + userID + "' AND roomid = '" + roomIDs[i] + "' LIMIT 1");
-                                        }
-                                        else
-                                        {
-                                            if (roomData[1] == "") // Publicroom
-                                            {
-                                                int categoryID = DB.runRead("SELECT category FROM rooms WHERE id = '" + roomIDs[i] + "'", null);
-                                                string CCTs = DB.runRead("SELECT ccts FROM rooms WHERE id = '" + roomIDs[i] + "'");
-                                                Rooms.Append(Encoding.encodeVL64(roomIDs[i]) + "I" + roomData[0] + Convert.ToChar(2) + Encoding.encodeVL64(int.Parse(roomData[4])) + Encoding.encodeVL64(int.Parse(roomData[5])) + Encoding.encodeVL64(categoryID) + roomData[6] + Convert.ToChar(2) + Encoding.encodeVL64(roomIDs[i]) + "H" + CCTs + Convert.ToChar(2) + "HI");
-                                            }
-                                            else // Guestroom
-                                            {
-                                                if (roomData[3] == "0" && _Username != roomData[1] && seeHiddenRoomOwners == false) // Room owner doesn't wish to show his name, and this user isn't the room owner and this user doesn't has the right to see hidden room owners, change room owner to '-'
-                                                    roomData[1] = "-";
-                                                Rooms.Append(Encoding.encodeVL64(roomIDs[i]) + roomData[0] + Convert.ToChar(2) + roomData[1] + Convert.ToChar(2) + roomManager.getRoomState(int.Parse(roomData[2])) + Convert.ToChar(2) + Encoding.encodeVL64(int.Parse(roomData[4])) + Encoding.encodeVL64(int.Parse(roomData[5])) + roomData[6] + Convert.ToChar(2));
-                                                guestRoomAmount++;
-                                            }
-                                        }
-                                    }
-                                    sendData("@}" + "H" + "H" + "J" + Convert.ToChar(2) + "HHH" + Encoding.encodeVL64(guestRoomAmount - deletedAmount) + Rooms.ToString());
-                                }
-                                break;
-                            }
-
-                        case "@S": // Navigator - add room to favourite rooms list
-                            {
-                                int roomID = Encoding.decodeVL64(currentPacket.Substring(3));
-                                if (DB.checkExists("SELECT id FROM rooms WHERE id = '" + roomID + "'") == true && DB.checkExists("SELECT userid FROM users_favouriterooms WHERE userid = '" + userID + "' AND roomid = '" + roomID + "'") == false) // The virtual room does exist, and the virtual user hasn't got it in the list already
-                                {
-                                    if (DB.runReadUnsafe("SELECT COUNT(userid) FROM users_favouriterooms WHERE userid = '" + userID + "'", null) < Config.Navigator_Favourites_maxRooms)
-                                        DB.runQuery("INSERT INTO users_favouriterooms(userid,roomid) VALUES ('" + userID + "','" + roomID + "')");
-                                    else
-                                        sendData("@a" + "nav_error_toomanyfavrooms");
-                                }
-                                break;
-                            }
-                        case "@T": // Navigator - remove room from favourite rooms list
-                            {
-                                int roomID = Encoding.decodeVL64(currentPacket.Substring(3));
-                                DB.runQuery("DELETE FROM users_favouriterooms WHERE userid = '" + userID + "' AND roomid = '" + roomID + "' LIMIT 1");
-                                break;
-                            }
-
-                        #endregion
-
-                        #region Room event actions
-                        case "EA": // Events - get setup
-                            sendData("Ep" + Encoding.encodeVL64(eventManager.categoryAmount));
-                            break;
-
-                        case "EY": // Events - show/hide 'Host event' button
-                            if (_inPublicroom || roomUser == null || _hostsEvent) // In publicroom, not in room at all or already hosting event
-                                sendData("Eo" + "H"); // Hide
-                            else
-                                sendData("Eo" + "I"); // Show
-                            break;
-
-                        case "D{": // Events - check if event category is OK
-                            {
-                                int categoryID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                if (eventManager.categoryOK(categoryID))
-                                    sendData("Eb" + Encoding.encodeVL64(categoryID));
-                                break;
-                            }
-
-                        case "E^": // Events - open category
-                            {
-                                int categoryID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                if (categoryID >= 1 && categoryID <= 11)
-                                    sendData("Eq" + Encoding.encodeVL64(categoryID) + eventManager.getEvents(categoryID));
-                                break;
-                            }
-
-                        case "EZ": // Events - create event
-                            {
-                                if (_isOwner && _hostsEvent == false && _inPublicroom == false && roomUser != null)
-                                {
-                                    int categoryID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    if (eventManager.categoryOK(categoryID))
-                                    {
-                                        int categoryLength = Encoding.encodeVL64(categoryID).Length;
-                                        int nameLength = Encoding.decodeB64(currentPacket.Substring(categoryLength + 2, 2));
-                                        string Name = currentPacket.Substring(categoryLength + 4, nameLength);
-                                        string Description = currentPacket.Substring(categoryLength + nameLength + 6);
-
-                                        _hostsEvent = true;
-                                        eventManager.createEvent(categoryID, userID, _roomID, Name, Description);
-                                        Room.sendData("Er" + eventManager.getEvent(_roomID));
-                                    }
-                                }
-                                break;
-                            }
-
-                        case @"E\": // Events - edit event
-                            {
-                                if (_hostsEvent && _isOwner && _inPublicroom == false && roomUser != null)
-                                {
-                                    int categoryID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    if (eventManager.categoryOK(categoryID))
-                                    {
-                                        int categoryLength = Encoding.encodeVL64(categoryID).Length;
-                                        int nameLength = Encoding.decodeB64(currentPacket.Substring(categoryLength + 2, 2));
-                                        string Name = currentPacket.Substring(categoryLength + 4, nameLength);
-                                        string Description = currentPacket.Substring(categoryLength + nameLength + 6);
-
-                                        eventManager.editEvent(categoryID, _roomID, Name, Description);
-                                        Room.sendData("Er" + eventManager.getEvent(_roomID));
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "E[": // Events - end event
-                            {
-                                if (_hostsEvent && _isOwner && _inPublicroom == false && roomUser != null)
-                                {
-                                    _hostsEvent = false;
-                                    eventManager.removeEvent(_roomID);
-                                    Room.sendData("Er" + "-1");
-                                }
-                                break;
-                            }
-
-                        #endregion
-
-                        #region Guestroom create and modify
-                        case "@]": // Create guestroom - phase 1
-                            {
-                                string[] roomSettings = currentPacket.Split('/');
-                                if (DB.runRead("SELECT COUNT(id) FROM rooms WHERE owner = '" + _Username + "'", null) < Config.Navigator_createRoom_maxRooms)
-                                {
-                                    roomSettings[2] = stringManager.filterSwearwords(roomSettings[2]);
-                                    roomSettings[3] = roomSettings[3].Substring(6, 1);
-                                    roomSettings[4] = roomManager.getRoomState(roomSettings[4]).ToString();
-                                    if (roomSettings[5] != "0" && roomSettings[5] != "1")
-                                        return;
-
-                                    DB.runQuery("INSERT INTO rooms (name,owner,model,state,showname) VALUES ('" + DB.Stripslash(roomSettings[2]) + "','" + _Username + "','" + roomSettings[3] + "','" + roomSettings[4] + "','" + roomSettings[5] + "')");
-                                    string roomID = DB.runRead("SELECT MAX(id) FROM rooms WHERE owner = '" + _Username + "'");
-                                    sendData("@{" + roomID + Convert.ToChar(13) + roomSettings[2]);
-                                }
-                                else
-                                    sendData("@a" + "Error creating a private room");
-                                break;
-                            }
-
-                        case "@Y": // Create guestroom - phase 2 / modify guestroom
-                            {
-                                int roomID = 0;
-                                if (currentPacket.Substring(2, 1) == "/")
-                                    roomID = int.Parse(currentPacket.Split('/')[1]);
-                                else
-                                    roomID = int.Parse(currentPacket.Substring(2).Split('/')[0]);
-
-                                int superUsers = 0;
-                                int maxVisitors = 25;
-                                string[] packetContent = currentPacket.Split(Convert.ToChar(13));
-                                string roomDescription = "";
-                                string roomPassword = "";
-
-                                for (int i = 1; i < packetContent.Length; i++) // More proper way, thanks Jeax
-                                {
-                                    string updHeader = packetContent[i].Split('=')[0];
-                                    string updValue = packetContent[i].Substring(updHeader.Length + 1);
-                                    switch (updHeader)
-                                    {
-                                        case "description":
-                                            roomDescription = stringManager.filterSwearwords(updValue);
-                                            roomDescription = DB.Stripslash(roomDescription);
-                                            break;
-
-                                        case "allsuperuser":
-                                            superUsers = int.Parse(updValue);
-                                            if (superUsers != 0 && superUsers != 1)
-                                                superUsers = 0;
-                                            break;
-
-                                        case "maxvisitors":
-                                            maxVisitors = int.Parse(updValue);
-                                            if (maxVisitors < 10 || maxVisitors > 25)
-                                                maxVisitors = 25;
-                                            break;
-
-                                        case "password":
-                                            roomPassword = DB.Stripslash(updValue);
-                                            break;
-
-                                        default:
-                                            return;
-                                    }
-                                }
-                                DB.runQuery("UPDATE rooms SET description = '" + roomDescription + "',superusers = '" + superUsers + "',visitors_max = '" + maxVisitors + "',password = '" + roomPassword + "' WHERE id = '" + roomID + "' AND owner = '" + _Username + "' LIMIT 1");
-                                break;
-                            }
-
-                        case "@X": // Modify guestroom, save name, state and show/hide ownername
-                            {
-                                string[] packetContent = currentPacket.Substring(2).Split('/');
-                                int roomID = int.Parse(packetContent[0]);
-                                string roomName = DB.Stripslash(stringManager.filterSwearwords(packetContent[1]));
-                                string showName = packetContent[2];
-                                if (showName != "1" && showName != "0")
-                                    showName = "1";
-                                int roomState = roomManager.getRoomState(packetContent[2]);
-                                DB.runQuery("UPDATE rooms SET name = '" + roomName + "',state = '" + roomState + "',showname = '" + showName + "' WHERE id = '" + roomID + "' AND owner = '" + _Username + "' LIMIT 1");
-                                break;
-                            }
-
-                        case "BX": // Navigator - trigger guestroom modify
-                            {
-                                int roomID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                string roomCategory = DB.runRead("SELECT category FROM rooms WHERE id = '" + roomID + "' AND owner = '" + _Username + "'");
-                                if (roomCategory != "")
-                                    sendData("C^" + Encoding.encodeVL64(roomID) + Encoding.encodeVL64(int.Parse(roomCategory)));
-                                break;
-                            }
-
-                        case "BY": // Navigator - edit category of a guestroom
-                            {
-                                int roomID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                int cataID = Encoding.decodeVL64(currentPacket.Substring(Encoding.encodeVL64(roomID).Length + 2));
-                                if (DB.checkExists("SELECT id FROM room_categories WHERE id = '" + cataID + "' AND type = '2' AND parent > 0 AND access_rank_min <= " + _Rank)) // Category is valid for this user
-                                    DB.runQuery("UPDATE rooms SET category = '" + cataID + "' WHERE id = '" + roomID + "' AND owner = '" + _Username + "' LIMIT 1");
-                                break;
-                            }
-
-                        case "@W": // Guestroom - Delete
-                            {
-                                int roomID = int.Parse(currentPacket.Substring(2));
-                                if (DB.checkExists("SELECT id FROM rooms WHERE id = '" + roomID + "' AND owner = '" + _Username + "'") == true)
-                                {
-
-                                    DB.runQuery("DELETE FROM room_rights WHERE roomid = '" + roomID + "'");
-                                    DB.runQuery("DELETE FROM rooms WHERE id = '" + roomID + "' LIMIT 1");
-                                    DB.runQuery("DELETE FROM room_votes WHERE roomid = '" + roomID + "'");
-                                    DB.runQuery("DELETE FROM room_bans WHERE roomid = '" + roomID + "' LIMIT 1");
-                                    DB.runQuery("DELETE FROM furniture WHERE roomid = '" + roomID + "'");
-                                    DB.runQuery("DELETE FROM furniture_moodlight WHERE roomid = '" + roomID + "'");
-                                }
-                                if (roomManager.containsRoom(roomID) == true)
-                                {
-                                    roomManager.getRoom(roomID).kickUsers(byte.Parse("9"), "This room has been deleted");
-                                }
-                                break;
-                            }
-
-                        case "BZ": // Navigator - 'Who's in here' feature for public rooms
-                            {
-                                int roomID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                if (roomManager.containsRoom(roomID))
-                                    sendData("C_" + roomManager.getRoom(roomID).Userlist);
-                                else
-                                    sendData("C_");
-                                break;
-                            }
-                        #endregion
-
-                        #region Enter/leave room
-                        case "@u": // Rooms - leave room
-                            {
-                                if (Room != null && roomUser != null)
-                                    Room.removeUser(roomUser.roomUID, false, "");
-                                else
-                                {
-                                    if (gamePlayer != null)
-                                        leaveGame();
-                                }
-                                break;
-                            }
-
-                        case "Bv": // Enter room - loading screen advertisement
-                            {
-                                Config.Rooms_LoadAvertisement_img = "";
-                                if (Config.Rooms_LoadAvertisement_img == "")
-                                    sendData("DB0");
-                                else
-                                    sendData("DB" + Config.Rooms_LoadAvertisement_img + Convert.ToChar(9) + Config.Rooms_LoadAvertisement_uri);
-                            }
-                            break;
-
-                        case "@B": // Enter room - determine room and check state + max visitors override
-                            {
-                                int roomID = Encoding.decodeVL64(currentPacket.Substring(3));
-                                bool isPublicroom = (currentPacket.Substring(2, 1) == "A");
-
-                                sendData("@S");
-                                sendData("Bf" + "http://wwww.vista4life.com/bf.php?p=emu");
-
-                                if (gamePlayer != null && gamePlayer.Game != null)
-                                {
-                                    if (gamePlayer.enteringGame)
-                                    {
-                                        Room.removeUser(roomUser.roomUID, false, "");
-                                        sendData("AE" + gamePlayer.Game.Lobby.Type + "_arena_" + gamePlayer.Game.mapID + " " + roomID);
-                                        sendData("Cs" + gamePlayer.Game.getMap());
-                                        string s = gamePlayer.Game.getMap();
-                                    }
-                                    else
-                                        leaveGame();
-                                }
-                                else
-                                {
-                                    if (Room != null && roomUser != null)
-                                        Room.removeUser(roomUser.roomUID, false, "");
-
-                                    if (_teleporterID == 0)
-                                    {
-                                        bool allowEnterLockedRooms = rankManager.containsRight(_Rank, "fuse_enter_locked_rooms");
-                                        int accessLevel = DB.runRead("SELECT state FROM rooms WHERE id = '" + roomID + "'", null);
-                                        if (accessLevel == 3 && _clubMember == false && allowEnterLockedRooms == false) // Room is only for club subscribers and the user isn't club and hasn't got the fuseright for entering all rooms nomatter the state
-                                        {
-                                            sendData("C`" + "Kc");
-                                            return;
-                                        }
-                                        else if (accessLevel == 4 && allowEnterLockedRooms == false) // The room is only for staff and the user hasn't got the fuseright for entering all rooms nomatter the state
-                                        {
-                                            sendData("BK" + stringManager.getString("room_stafflocked"));
-                                            return;
-                                        }
-
-                                        int nowVisitors = DB.runRead("SELECT SUM(visitors_now) FROM rooms WHERE id = '" + roomID + "'", null);
-                                        if (nowVisitors > 0)
-                                        {
-                                            int maxVisitors = DB.runRead("SELECT SUM(visitors_max) FROM rooms WHERE id = '" + roomID + "'", null);
-                                            if (nowVisitors >= maxVisitors && rankManager.containsRight(_Rank, "fuse_enter_full_rooms") == false)
-                                            {
-                                                if (isPublicroom == false)
-                                                    sendData("C`" + "I");
-                                                else
-                                                    sendData("BK" + stringManager.getString("room_full"));
-                                                return;
-                                            }
-                                        }
-                                    }
-
-                                    _roomID = roomID;
-                                    _inPublicroom = isPublicroom;
-                                    _ROOMACCESS_PRIMARY_OK = true;
-
-                                    if (isPublicroom)
-                                    {
-                                        string roomModel = DB.runRead("SELECT model FROM rooms WHERE id = '" + roomID + "'");
-                                        sendData("AE" + roomModel + " " + roomID);
-                                        _ROOMACCESS_SECONDARY_OK = true;
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "@v": // Enter room - guestroom - enter room by using a teleporter
-                            {
-                                sendData("@S");
-                                break;
-                            }
-
-                        case "@y": // Enter room - guestroom - check roomban/password/doorbell
-                            {
-                                if (_inPublicroom == false)
-                                {
-                                    _isOwner = DB.checkExists("SELECT id FROM rooms WHERE id = '" + _roomID + "' AND owner = '" + _Username + "'");
-                                    if (_isOwner == false)
-                                        _hasRights = DB.checkExists("SELECT userid FROM room_rights WHERE roomid = '" + _roomID + "' AND userid = '" + userID + "'");
-                                    if (_hasRights == false)
-                                        _hasRights = DB.checkExists("SELECT id FROM rooms WHERE id = '" + _roomID + "' AND superusers = '1'");
-
-                                    if (_teleporterID == 0 && _isOwner == false && rankManager.containsRight(_Rank, "fuse_enter_locked_rooms") == false)
-                                    {
-                                        int accessFlag = DB.runRead("SELECT state FROM rooms WHERE id = '" + _roomID + "'", null);
-                                        if (_ROOMACCESS_PRIMARY_OK == false && accessFlag != 2)
-                                            return;
-
-                                        // Check for roombans
-                                        if (DB.checkExists("SELECT roomid FROM room_bans WHERE roomid = '" + _roomID + "' AND userid = '" + userID + "'"))
-                                        {
-                                            DateTime banExpireMoment = DateTime.Parse(DB.runRead("SELECT ban_expire FROM room_bans WHERE roomid = '" + _roomID + "' AND userid = '" + userID + "'"));
-                                            if (DateTime.Compare(banExpireMoment, DateTime.Now) > 0)
-                                            {
-                                                sendData("C`" + "PA");
-                                                sendData("@R");
-                                                return;
-                                            }
-                                            else
-                                                DB.runQuery("DELETE FROM room_bans WHERE roomid = '" + _roomID + "' AND userid = '" + userID + "' LIMIT 1");
-                                        }
-
-                                        if (accessFlag == 1) // Doorbell
-                                        {
-                                            if (roomManager.containsRoom(_roomID) == false)
-                                            {
-                                                sendData("BC");
-                                                return;
-                                            }
-                                            else
-                                            {
-                                                roomManager.getRoom(_roomID).sendDataToRights("A[" + _Username);
-                                                sendData("A[");
-                                                return;
-                                            }
-                                        }
-                                        else if (accessFlag == 2) // Password
-                                        {
-                                            string givenPassword = "";
-                                            try { givenPassword = currentPacket.Split('/')[1]; }
-                                            catch { }
-                                            string roomPassword = DB.runRead("SELECT password FROM rooms WHERE id = '" + _roomID + "'");
-                                            if (givenPassword != roomPassword) { sendData("@a" + "Incorrect flat password"); return; }
-                                        }
-                                    }
-                                    _ROOMACCESS_SECONDARY_OK = true;
-                                    sendData("@i");
-                                }
-                                break;
-                            }
-
-                        case "Ab": // Answer guestroom doorbell
-                            {
-                                if (_hasRights == false && rankManager.containsRight(roomUser.User._Rank, "fuse_enter_locked_rooms"))
-                                    return;
-
-                                string ringer = currentPacket.Substring(4, Encoding.decodeB64(currentPacket.Substring(2, 2)));
-                                bool letIn = currentPacket.Substring(currentPacket.Length - 1) == "A";
-
-                                virtualUser ringerData = userManager.getUser(ringer);
-                                if (ringerData == null)
-                                    return;
-                                if (ringerData._roomID != _roomID)
-                                    return;
-
-                                if (letIn)
-                                {
-                                    ringerData._ROOMACCESS_SECONDARY_OK = true;
-                                    Room.sendDataToRights("@i" + ringer + Convert.ToChar(2));  
-                                    ringerData.sendData("@i");
-                                }
-                                else
-                                {
-                                    ringerData.sendData("BC");
-                                    ringerData._roomID = 0;
-                                    ringerData._inPublicroom = false;
-                                    ringerData._ROOMACCESS_PRIMARY_OK = false;
-                                    ringerData._ROOMACCESS_SECONDARY_OK = false;
-                                    ringerData._isOwner = false;
-                                    ringerData._hasRights = false;
-                                    ringerData.Room = null;
-                                    ringerData.roomUser = null;
-                                    //ringerData.Room.removeUser(ringerData.roomUser.roomUID, true, "");
-                                }
-                                break;
-                            }
-
-                        case "@{": // Enter room - guestroom - guestroom only data: model, wallpaper, floor, landscape, rights, room votes // Updated by Su-la-ke
-                            {
-                                if (_ROOMACCESS_SECONDARY_OK && _inPublicroom == false)
-                                {
-                                    string Model = "model_" + DB.runRead("SELECT model FROM rooms WHERE id = '" + _roomID + "'");
-                                    sendData("AE" + Model + " " + _roomID);
-
-                                    int Wallpaper = DB.runRead("SELECT wallpaper FROM rooms WHERE id = '" + _roomID + "'", null);
-                                    int Floor = DB.runRead("SELECT floor FROM rooms WHERE id = '" + _roomID + "'", null);
-                                    string Landscape = DB.runRead("SELECT landscape FROM rooms WHERE id = '" + _roomID + "'");
-                                    sendData("@n" + "landscape/" + Landscape);
-                                    if (Wallpaper > 0)
-                                        sendData("@n" + "wallpaper/" + Wallpaper);
-                                    if (Floor > 0)
-                                        sendData("@n" + "floor/" + Floor);
-
-
-
-                                    if (_isOwner == false)
-                                    {
-                                        _isOwner = rankManager.containsRight(_Rank, "fuse_any_room_controller");
-                                    }
-                                    if (_isOwner)
-                                    {
-                                        _hasRights = true;
-                                        sendData("@o");
-                                    }
-                                    if (_hasRights)
-                                        sendData("@j");
-
-                                    int voteAmount = -1;
-                                    if (DB.checkExists("SELECT userid FROM room_votes WHERE userid = '" + userID + "' AND roomid = '" + _roomID + "'"))
-                                    {
-                                        voteAmount = DB.runRead("SELECT SUM(vote) FROM room_votes WHERE roomid = '" + _roomID + "'", null);
-                                        if (voteAmount < 0) { voteAmount = 0; }
-                                    }
-                                    sendData("EY" + Encoding.encodeVL64(voteAmount));
-                                    sendData("Er" + eventManager.getEvent(_roomID));
-                                }
-                                break;
-                            }
-
-                        case "A~": // Enter room - get room advertisement
-                            {
-                                if (_inPublicroom && DB.checkExists("SELECT roomid FROM room_ads WHERE roomid = '" + _roomID + "'"))
-                                {
-                                    string advImg = DB.runRead("SELECT img FROM room_ads WHERE roomid = '" + _roomID + "'");
-                                    string advUri = DB.runRead("SELECT uri FROM room_ads WHERE roomid = '" + _roomID + "'");
-                                    sendData("CP" + advImg + Convert.ToChar(9) + advUri);
-                                }
-                                else
-                                    sendData("CP" + "0");
-                                break;
-                            }
-
-                        case "@|": // Enter room - get roomclass + get heightmap
-                            {
-                                if (_ROOMACCESS_SECONDARY_OK)
-                                {
-                                    if (roomManager.containsRoom(_roomID))
-                                        Room = roomManager.getRoom(_roomID);
-                                    else
-                                    {
-                                        Room = new virtualRoom(_roomID, _inPublicroom);
-                                        roomManager.addRoom(_roomID, Room);
-                                    }
-
-                                    sendData("@_" + Room.Heightmap);
-                                    sendData(@"@\" + Room.dynamicUnits);
-                                }
-                                else
-                                {
-                                    if (gamePlayer != null && gamePlayer.enteringGame && gamePlayer.teamID != -1 && gamePlayer.Game != null)
-                                    {
-                                        sendData("@_" + gamePlayer.Game.Heightmap);
-                                        sendData("Cs" + gamePlayer.Game.getPlayers());
-                                        string s = gamePlayer.Game.getPlayers();
-                                    }
-                                    gamePlayer.enteringGame = false;
-                                }
-                                break;
-                            }
-
-                        case "@}": // Enter room - get items
-                            {
-                                if (_ROOMACCESS_SECONDARY_OK && Room != null)
-                                {
-                                    sendData("@^" + Room.PublicroomItems);
-                                    sendData("@`" + Room.Flooritems);
-                                }
-                                break;
-                            }
-
-                        case "@~": // Enter room - get group badges, optional skill levels in game lobbies and sprite index
-                            {
-                                {
-                                    if (_ROOMACCESS_SECONDARY_OK && Room != null)
-                                    {
-                                        sendData("Du" + Room.Groups);
-                                        if (Room.Lobby != null)
-                                        {
-                                            sendData("Cg" + "H" + Room.Lobby.Rank.Title + Convert.ToChar(2) + Encoding.encodeVL64(Room.Lobby.Rank.minPoints) + Encoding.encodeVL64(Room.Lobby.Rank.maxPoints));
-                                            sendData("Cz" + Room.Lobby.playerRanks);
-                                        }
-                                        sendData("DiH");
-                                        if (_receivedSpriteIndex == false)
-                                        {
-                                            sendData("Dg" + @"[SEshelves_norjaX~Dshelves_polyfonYmAshelves_siloXQHtable_polyfon_smallYmAchair_polyfonZbBtable_norja_medY_Itable_silo_medX~Dtable_plasto_4legY_Itable_plasto_roundY_Itable_plasto_bigsquareY_Istand_polyfon_zZbBchair_siloX~Dsofa_siloX~Dcouch_norjaX~Dchair_norjaX~Dtable_polyfon_medYmAdoormat_loveZbBdoormat_plainZ[Msofachair_polyfonX~Dsofa_polyfonZ[Msofachair_siloX~Dchair_plastyX~Dchair_plastoYmAtable_plasto_squareY_Ibed_polyfonX~Dbed_polyfon_one[dObed_trad_oneYmAbed_tradYmAbed_silo_oneYmAbed_silo_twoYmAtable_silo_smallX~Dbed_armas_twoYmAbed_budget_oneXQHbed_budgetXQHshelves_armasYmAbench_armasYmAtable_armasYmAsmall_table_armasZbBsmall_chair_armasYmAfireplace_armasYmAlamp_armasYmAbed_armas_oneYmAcarpet_standardY_Icarpet_armasYmAcarpet_polarY_Ifireplace_polyfonY_Itable_plasto_4leg*1Y_Itable_plasto_bigsquare*1Y_Itable_plasto_round*1Y_Itable_plasto_square*1Y_Ichair_plasto*1YmAcarpet_standard*1Y_Idoormat_plain*1Z[Mtable_plasto_4leg*2Y_Itable_plasto_bigsquare*2Y_Itable_plasto_round*2Y_Itable_plasto_square*2Y_Ichair_plasto*2YmAdoormat_plain*2Z[Mcarpet_standard*2Y_Itable_plasto_4leg*3Y_Itable_plasto_bigsquare*3Y_Itable_plasto_round*3Y_Itable_plasto_square*3Y_Ichair_plasto*3YmAcarpet_standard*3Y_Idoormat_plain*3Z[Mtable_plasto_4leg*4Y_Itable_plasto_bigsquare*4Y_Itable_plasto_round*4Y_Itable_plasto_square*4Y_Ichair_plasto*4YmAcarpet_standard*4Y_Idoormat_plain*4Z[Mdoormat_plain*6Z[Mdoormat_plain*5Z[Mcarpet_standard*5Y_Itable_plasto_4leg*5Y_Itable_plasto_bigsquare*5Y_Itable_plasto_round*5Y_Itable_plasto_square*5Y_Ichair_plasto*5YmAtable_plasto_4leg*6Y_Itable_plasto_bigsquare*6Y_Itable_plasto_round*6Y_Itable_plasto_square*6Y_Ichair_plasto*6YmAtable_plasto_4leg*7Y_Itable_plasto_bigsquare*7Y_Itable_plasto_round*7Y_Itable_plasto_square*7Y_Ichair_plasto*7YmAtable_plasto_4leg*8Y_Itable_plasto_bigsquare*8Y_Itable_plasto_round*8Y_Itable_plasto_square*8Y_Ichair_plasto*8YmAtable_plasto_4leg*9Y_Itable_plasto_bigsquare*9Y_Itable_plasto_round*9Y_Itable_plasto_square*9Y_Ichair_plasto*9YmAcarpet_standard*6Y_Ichair_plasty*1X~DpizzaYmAdrinksYmAchair_plasty*2X~Dchair_plasty*3X~Dchair_plasty*4X~Dbar_polyfonY_Iplant_cruddyYmAbottleYmAbardesk_polyfonX~Dbardeskcorner_polyfonX~DfloortileHbar_armasY_Ibartable_armasYmAbar_chair_armasYmAcarpet_softZ@Kcarpet_soft*1Z@Kcarpet_soft*2Z@Kcarpet_soft*3Z@Kcarpet_soft*4Z@Kcarpet_soft*5Z@Kcarpet_soft*6Z@Kred_tvY_Iwood_tvYmAcarpet_polar*1Y_Ichair_plasty*5X~Dcarpet_polar*2Y_Icarpet_polar*3Y_Icarpet_polar*4Y_Ichair_plasty*6X~Dtable_polyfonYmAsmooth_table_polyfonYmAsofachair_polyfon_girlX~Dbed_polyfon_girl_one[dObed_polyfon_girlX~Dsofa_polyfon_girlZ[Mbed_budgetb_oneXQHbed_budgetbXQHplant_pineappleYmAplant_fruittreeY_Iplant_small_cactusY_Iplant_bonsaiY_Iplant_big_cactusY_Iplant_yukkaY_Icarpet_standard*7Y_Icarpet_standard*8Y_Icarpet_standard*9Y_Icarpet_standard*aY_Icarpet_standard*bY_Iplant_sunflowerY_Iplant_roseY_Itv_luxusY_IbathZ\BsinkY_ItoiletYmAduckYmAtileYmAtoilet_redYmAtoilet_yellYmAtile_redYmAtile_yellYmApresent_gen[~Npresent_gen1[~Npresent_gen2[~Npresent_gen3[~Npresent_gen4[~Npresent_gen5[~Npresent_gen6[~Nbar_basicY_Ishelves_basicXQHsoft_sofachair_norjaX~Dsoft_sofa_norjaX~Dlamp_basicXQHlamp2_armasYmAfridgeY_IdoorYc[doorBYc[doorCYc[pumpkinYmAskullcandleYmAdeadduckYmAdeadduck2YmAdeadduck3YmAmenorahYmApuddingYmAhamYmAturkeyYmAxmasduckY_IhouseYmAtriplecandleYmAtree3YmAtree4YmAtree5X~Dham2YmAwcandlesetYmArcandlesetYmAstatueYmAheartY_IvaleduckYmAheartsofaX~DthroneYmAsamovarY_IgiftflowersY_IhabbocakeYmAhologramYmAeasterduckY_IbunnyYmAbasketY_IbirdieYmAediceX~Dclub_sofaZ[Mprize1YmAprize2YmAprize3YmAdivider_poly3X~Ddivider_arm1YmAdivider_arm2YmAdivider_arm3YmAdivider_nor1X~Ddivider_silo1X~Ddivider_nor2X~Ddivider_silo2Z[Mdivider_nor3X~Ddivider_silo3X~DtypingmachineYmAspyroYmAredhologramYmAcameraHjoulutahtiYmAhyacinth1YmAhyacinth2YmAchair_plasto*10YmAchair_plasto*11YmAbardeskcorner_polyfon*12X~Dbardeskcorner_polyfon*13X~Dchair_plasto*12YmAchair_plasto*13YmAchair_plasto*14YmAtable_plasto_4leg*14Y_ImocchamasterY_Icarpet_legocourtYmAbench_legoYmAlegotrophyYmAvalentinescreenYmAedicehcYmArare_daffodil_rugYmArare_beehive_bulbY_IhcsohvaYmAhcammeYmArare_elephant_statueYmArare_fountainY_Irare_standYmArare_globeYmArare_hammockYmArare_elephant_statue*1YmArare_elephant_statue*2YmArare_fountain*1Y_Irare_fountain*2Y_Irare_fountain*3Y_Irare_beehive_bulb*1Y_Irare_beehive_bulb*2Y_Irare_xmas_screenY_Irare_parasol*1XMVrare_parasol*2XMVrare_parasol*3XMVtree1X~Dtree2ZmBwcandleYxBrcandleYxBsoft_jaggara_norjaYmAhouse2YmAdjesko_turntableYmAmd_sofaZ[Mmd_limukaappiY_Itable_plasto_4leg*10Y_Itable_plasto_4leg*15Y_Itable_plasto_bigsquare*14Y_Itable_plasto_bigsquare*15Y_Itable_plasto_round*14Y_Itable_plasto_round*15Y_Itable_plasto_square*14Y_Itable_plasto_square*15Y_Ichair_plasto*15YmAchair_plasty*7X~Dchair_plasty*8X~Dchair_plasty*9X~Dchair_plasty*10X~Dchair_plasty*11X~Dchair_plasto*16YmAtable_plasto_4leg*16Y_Ihockey_scoreY_Ihockey_lightYmAdoorDYc[prizetrophy2*3Yd[prizetrophy3*3Yd[prizetrophy4*3Yd[prizetrophy5*3Yd[prizetrophy6*3Yd[prizetrophy*1Yd[prizetrophy2*1Yd[prizetrophy3*1Yd[prizetrophy4*1Yd[prizetrophy5*1Yd[prizetrophy6*1Yd[prizetrophy*2Yd[prizetrophy2*2Yd[prizetrophy3*2Yd[prizetrophy4*2Yd[prizetrophy5*2Yd[prizetrophy6*2Yd[prizetrophy*3Yd[rare_parasol*0XMVhc_lmp[fBhc_tblYmAhc_chrYmAhc_dskXQHnestHpetfood1ZvCpetfood2ZvCpetfood3ZvCwaterbowl*4XICwaterbowl*5XICwaterbowl*2XICwaterbowl*1XICwaterbowl*3XICtoy1XICtoy1*1XICtoy1*2XICtoy1*3XICtoy1*4XICgoodie1Yc[goodie1*1Yc[goodie1*2Yc[goodie2Yc[prizetrophy7*3Yd[prizetrophy7*1Yd[prizetrophy7*2Yd[scifiport*0Y_Iscifiport*9Y_Iscifiport*8Y_Iscifiport*7Y_Iscifiport*6Y_Iscifiport*5Y_Iscifiport*4Y_Iscifiport*3Y_Iscifiport*2Y_Iscifiport*1Y_Iscifirocket*9Y_Iscifirocket*8Y_Iscifirocket*7Y_Iscifirocket*6Y_Iscifirocket*5Y_Iscifirocket*4Y_Iscifirocket*3Y_Iscifirocket*2Y_Iscifirocket*1Y_Iscifirocket*0Y_Iscifidoor*10Y_Iscifidoor*9Y_Iscifidoor*8Y_Iscifidoor*7Y_Iscifidoor*6Y_Iscifidoor*5Y_Iscifidoor*4Y_Iscifidoor*3Y_Iscifidoor*2Y_Iscifidoor*1Y_Ipillow*5YmApillow*8YmApillow*0YmApillow*1YmApillow*2YmApillow*7YmApillow*9YmApillow*4YmApillow*6YmApillow*3YmAmarquee*1Y_Imarquee*2Y_Imarquee*7Y_Imarquee*aY_Imarquee*8Y_Imarquee*9Y_Imarquee*5Y_Imarquee*4Y_Imarquee*6Y_Imarquee*3Y_Iwooden_screen*1Y_Iwooden_screen*2Y_Iwooden_screen*7Y_Iwooden_screen*0Y_Iwooden_screen*8Y_Iwooden_screen*5Y_Iwooden_screen*9Y_Iwooden_screen*4Y_Iwooden_screen*6Y_Iwooden_screen*3Y_Ipillar*6Y_Ipillar*1Y_Ipillar*9Y_Ipillar*0Y_Ipillar*8Y_Ipillar*2Y_Ipillar*5Y_Ipillar*4Y_Ipillar*7Y_Ipillar*3Y_Irare_dragonlamp*4Y_Irare_dragonlamp*0Y_Irare_dragonlamp*5Y_Irare_dragonlamp*2Y_Irare_dragonlamp*8Y_Irare_dragonlamp*9Y_Irare_dragonlamp*7Y_Irare_dragonlamp*6Y_Irare_dragonlamp*1Y_Irare_dragonlamp*3Y_Irare_icecream*1Y_Irare_icecream*7Y_Irare_icecream*8Y_Irare_icecream*2Y_Irare_icecream*6Y_Irare_icecream*9Y_Irare_icecream*3Y_Irare_icecream*0Y_Irare_icecream*4Y_Irare_icecream*5Y_Irare_fan*7YxBrare_fan*6YxBrare_fan*9YxBrare_fan*3YxBrare_fan*0YxBrare_fan*4YxBrare_fan*5YxBrare_fan*1YxBrare_fan*8YxBrare_fan*2YxBqueue_tile1*3X~Dqueue_tile1*6X~Dqueue_tile1*4X~Dqueue_tile1*9X~Dqueue_tile1*8X~Dqueue_tile1*5X~Dqueue_tile1*7X~Dqueue_tile1*2X~Dqueue_tile1*1X~Dqueue_tile1*0X~DticketHrare_snowrugX~Dcn_lampZxIcn_sofaYmAsporttrack1*1YmAsporttrack1*3YmAsporttrack1*2YmAsporttrack2*1[~Nsporttrack2*2[~Nsporttrack2*3[~Nsporttrack3*1YmAsporttrack3*2YmAsporttrack3*3YmAfootylampX~Dbarchair_siloX~Ddivider_nor4*4X~Dtraffic_light*1ZxItraffic_light*2ZxItraffic_light*3ZxItraffic_light*4ZxItraffic_light*6ZxIrubberchair*1X~Drubberchair*2X~Drubberchair*3X~Drubberchair*4X~Drubberchair*5X~Drubberchair*6X~Dbarrier*1X~Dbarrier*2X~Dbarrier*3X~Drubberchair*7X~Drubberchair*8X~Dtable_norja_med*2Y_Itable_norja_med*3Y_Itable_norja_med*4Y_Itable_norja_med*5Y_Itable_norja_med*6Y_Itable_norja_med*7Y_Itable_norja_med*8Y_Itable_norja_med*9Y_Icouch_norja*2X~Dcouch_norja*3X~Dcouch_norja*4X~Dcouch_norja*5X~Dcouch_norja*6X~Dcouch_norja*7X~Dcouch_norja*8X~Dcouch_norja*9X~Dshelves_norja*2X~Dshelves_norja*3X~Dshelves_norja*4X~Dshelves_norja*5X~Dshelves_norja*6X~Dshelves_norja*7X~Dshelves_norja*8X~Dshelves_norja*9X~Dchair_norja*2X~Dchair_norja*3X~Dchair_norja*4X~Dchair_norja*5X~Dchair_norja*6X~Dchair_norja*7X~Dchair_norja*8X~Dchair_norja*9X~Ddivider_nor1*2X~Ddivider_nor1*3X~Ddivider_nor1*4X~Ddivider_nor1*5X~Ddivider_nor1*6X~Ddivider_nor1*7X~Ddivider_nor1*8X~Ddivider_nor1*9X~Dsoft_sofa_norja*2X~Dsoft_sofa_norja*3X~Dsoft_sofa_norja*4X~Dsoft_sofa_norja*5X~Dsoft_sofa_norja*6X~Dsoft_sofa_norja*7X~Dsoft_sofa_norja*8X~Dsoft_sofa_norja*9X~Dsoft_sofachair_norja*2X~Dsoft_sofachair_norja*3X~Dsoft_sofachair_norja*4X~Dsoft_sofachair_norja*5X~Dsoft_sofachair_norja*6X~Dsoft_sofachair_norja*7X~Dsoft_sofachair_norja*8X~Dsoft_sofachair_norja*9X~Dsofachair_silo*2X~Dsofachair_silo*3X~Dsofachair_silo*4X~Dsofachair_silo*5X~Dsofachair_silo*6X~Dsofachair_silo*7X~Dsofachair_silo*8X~Dsofachair_silo*9X~Dtable_silo_small*2X~Dtable_silo_small*3X~Dtable_silo_small*4X~Dtable_silo_small*5X~Dtable_silo_small*6X~Dtable_silo_small*7X~Dtable_silo_small*8X~Dtable_silo_small*9X~Ddivider_silo1*2X~Ddivider_silo1*3X~Ddivider_silo1*4X~Ddivider_silo1*5X~Ddivider_silo1*6X~Ddivider_silo1*7X~Ddivider_silo1*8X~Ddivider_silo1*9X~Ddivider_silo3*2X~Ddivider_silo3*3X~Ddivider_silo3*4X~Ddivider_silo3*5X~Ddivider_silo3*6X~Ddivider_silo3*7X~Ddivider_silo3*8X~Ddivider_silo3*9X~Dtable_silo_med*2X~Dtable_silo_med*3X~Dtable_silo_med*4X~Dtable_silo_med*5X~Dtable_silo_med*6X~Dtable_silo_med*7X~Dtable_silo_med*8X~Dtable_silo_med*9X~Dsofa_silo*2X~Dsofa_silo*3X~Dsofa_silo*4X~Dsofa_silo*5X~Dsofa_silo*6X~Dsofa_silo*7X~Dsofa_silo*8X~Dsofa_silo*9X~Dsofachair_polyfon*2X~Dsofachair_polyfon*3X~Dsofachair_polyfon*4X~Dsofachair_polyfon*6X~Dsofachair_polyfon*7X~Dsofachair_polyfon*8X~Dsofachair_polyfon*9X~Dsofa_polyfon*2Z[Msofa_polyfon*3Z[Msofa_polyfon*4Z[Msofa_polyfon*6Z[Msofa_polyfon*7Z[Msofa_polyfon*8Z[Msofa_polyfon*9Z[Mbed_polyfon*2X~Dbed_polyfon*3X~Dbed_polyfon*4X~Dbed_polyfon*6X~Dbed_polyfon*7X~Dbed_polyfon*8X~Dbed_polyfon*9X~Dbed_polyfon_one*2[dObed_polyfon_one*3[dObed_polyfon_one*4[dObed_polyfon_one*6[dObed_polyfon_one*7[dObed_polyfon_one*8[dObed_polyfon_one*9[dObardesk_polyfon*2X~Dbardesk_polyfon*3X~Dbardesk_polyfon*4X~Dbardesk_polyfon*5X~Dbardesk_polyfon*6X~Dbardesk_polyfon*7X~Dbardesk_polyfon*8X~Dbardesk_polyfon*9X~Dbardeskcorner_polyfon*2X~Dbardeskcorner_polyfon*3X~Dbardeskcorner_polyfon*4X~Dbardeskcorner_polyfon*5X~Dbardeskcorner_polyfon*6X~Dbardeskcorner_polyfon*7X~Dbardeskcorner_polyfon*8X~Dbardeskcorner_polyfon*9X~Ddivider_poly3*2X~Ddivider_poly3*3X~Ddivider_poly3*4X~Ddivider_poly3*5X~Ddivider_poly3*6X~Ddivider_poly3*7X~Ddivider_poly3*8X~Ddivider_poly3*9X~Dchair_silo*2X~Dchair_silo*3X~Dchair_silo*4X~Dchair_silo*5X~Dchair_silo*6X~Dchair_silo*7X~Dchair_silo*8X~Dchair_silo*9X~Ddivider_nor3*2X~Ddivider_nor3*3X~Ddivider_nor3*4X~Ddivider_nor3*5X~Ddivider_nor3*6X~Ddivider_nor3*7X~Ddivider_nor3*8X~Ddivider_nor3*9X~Ddivider_nor2*2X~Ddivider_nor2*3X~Ddivider_nor2*4X~Ddivider_nor2*5X~Ddivider_nor2*6X~Ddivider_nor2*7X~Ddivider_nor2*8X~Ddivider_nor2*9X~Dsilo_studydeskX~Dsolarium_norjaY_Isolarium_norja*1Y_Isolarium_norja*2Y_Isolarium_norja*3Y_Isolarium_norja*5Y_Isolarium_norja*6Y_Isolarium_norja*7Y_Isolarium_norja*8Y_Isolarium_norja*9Y_IsandrugX~Drare_moonrugYmAchair_chinaYmAchina_tableYmAsleepingbag*1YmAsleepingbag*2YmAsleepingbag*3YmAsleepingbag*4YmAsafe_siloY_Isleepingbag*7YmAsleepingbag*9YmAsleepingbag*5YmAsleepingbag*10YmAsleepingbag*6YmAsleepingbag*8YmAchina_shelveX~Dtraffic_light*5ZxIdivider_nor4*2X~Ddivider_nor4*3X~Ddivider_nor4*5X~Ddivider_nor4*6X~Ddivider_nor4*7X~Ddivider_nor4*8X~Ddivider_nor4*9X~Ddivider_nor5*2X~Ddivider_nor5*3X~Ddivider_nor5*4X~Ddivider_nor5*5X~Ddivider_nor5*6X~Ddivider_nor5*7X~Ddivider_nor5*8X~Ddivider_nor5*9X~Ddivider_nor5X~Ddivider_nor4X~Dwall_chinaYmAcorner_chinaYmAbarchair_silo*2X~Dbarchair_silo*3X~Dbarchair_silo*4X~Dbarchair_silo*5X~Dbarchair_silo*6X~Dbarchair_silo*7X~Dbarchair_silo*8X~Dbarchair_silo*9X~Dsafe_silo*2Y_Isafe_silo*3Y_Isafe_silo*4Y_Isafe_silo*5Y_Isafe_silo*6Y_Isafe_silo*7Y_Isafe_silo*8Y_Isafe_silo*9Y_Iglass_shelfY_Iglass_chairY_Iglass_stoolY_Iglass_sofaY_Iglass_tableY_Iglass_table*2Y_Iglass_table*3Y_Iglass_table*4Y_Iglass_table*5Y_Iglass_table*6Y_Iglass_table*7Y_Iglass_table*8Y_Iglass_table*9Y_Iglass_chair*2Y_Iglass_chair*3Y_Iglass_chair*4Y_Iglass_chair*5Y_Iglass_chair*6Y_Iglass_chair*7Y_Iglass_chair*8Y_Iglass_chair*9Y_Iglass_sofa*2Y_Iglass_sofa*3Y_Iglass_sofa*4Y_Iglass_sofa*5Y_Iglass_sofa*6Y_Iglass_sofa*7Y_Iglass_sofa*8Y_Iglass_sofa*9Y_Iglass_stool*2Y_Iglass_stool*4Y_Iglass_stool*5Y_Iglass_stool*6Y_Iglass_stool*7Y_Iglass_stool*8Y_Iglass_stool*3Y_Iglass_stool*9Y_ICF_10_coin_goldZvCCF_1_coin_bronzeZvCCF_20_moneybagZvCCF_50_goldbarZvCCF_5_coin_silverZvChc_crptYmAhc_tvZ\BgothgateX~DgothiccandelabraYxBgothrailingX~Dgoth_tableYmAhc_bkshlfYmAhc_btlrY_Ihc_crtnYmAhc_djsetYmAhc_frplcZbBhc_lmpstYmAhc_machineYmAhc_rllrXQHhc_rntgnX~Dhc_trllYmAgothic_chair*1X~Dgothic_sofa*1X~Dgothic_stool*1X~Dgothic_chair*2X~Dgothic_sofa*2X~Dgothic_stool*2X~Dgothic_chair*3X~Dgothic_sofa*3X~Dgothic_stool*3X~Dgothic_chair*4X~Dgothic_sofa*4X~Dgothic_stool*4X~Dgothic_chair*5X~Dgothic_sofa*5X~Dgothic_stool*5X~Dgothic_chair*6X~Dgothic_sofa*6X~Dgothic_stool*6X~Dval_cauldronX~Dsound_machineX~Dromantique_pianochair*3Y_Iromantique_pianochair*5Y_Iromantique_pianochair*2Y_Iromantique_pianochair*4Y_Iromantique_pianochair*1Y_Iromantique_divan*3Y_Iromantique_divan*5Y_Iromantique_divan*2Y_Iromantique_divan*4Y_Iromantique_divan*1Y_Iromantique_chair*3Y_Iromantique_chair*5Y_Iromantique_chair*2Y_Iromantique_chair*4Y_Iromantique_chair*1Y_Irare_parasolY_Iplant_valentinerose*3XICplant_valentinerose*5XICplant_valentinerose*2XICplant_valentinerose*4XICplant_valentinerose*1XICplant_mazegateYeCplant_mazeZcCplant_bulrushXICpetfood4Y_Icarpet_valentineZ|Egothic_carpetXICgothic_carpet2Z|Egothic_chairX~Dgothic_sofaX~Dgothic_stoolX~Dgrand_piano*3Z|Egrand_piano*5Z|Egrand_piano*2Z|Egrand_piano*4Z|Egrand_piano*1Z|Etheatre_seatZ@Kromantique_tray2Y_Iromantique_tray1Y_Iromantique_smalltabl*3Y_Iromantique_smalltabl*5Y_Iromantique_smalltabl*2Y_Iromantique_smalltabl*4Y_Iromantique_smalltabl*1Y_Iromantique_mirrortablY_Iromantique_divider*3Z[Mromantique_divider*2Z[Mromantique_divider*4Z[Mromantique_divider*1Z[Mjp_tatami2[dWjp_tatamiYGGhabbowood_chairYGGjp_bambooYGGjp_iroriXQHjp_pillowYGGsound_set_1[dWsound_set_2[dWsound_set_3[dWsound_set_4[dWsound_set_5[dWsound_set_6[dWsound_set_7[dWsound_set_8[dWsound_set_9[dWsound_machine*1Yc[spotlightY_Isound_machine*2Yc[sound_machine*3Yc[sound_machine*4Yc[sound_machine*5Yc[sound_machine*6Yc[sound_machine*7Yc[rom_lampZ|Erclr_sofaXQHrclr_gardenXQHrclr_chairZ|Esound_set_28[dWsound_set_27[dWsound_set_26[dWsound_set_25[dWsound_set_24[dWsound_set_23[dWsound_set_22[dWsound_set_21[dWsound_set_20[dWsound_set_19[dWsound_set_18[dWsound_set_17[dWsound_set_16[dWsound_set_15[dWsound_set_14[dWsound_set_13[dWsound_set_12[dWsound_set_11[dWsound_set_10[dWrope_dividerXQHromantique_clockY_Irare_icecream_campaignY_Ipura_mdl5*1Yc[pura_mdl5*2Yc[pura_mdl5*3Yc[pura_mdl5*4Yc[pura_mdl5*5Yc[pura_mdl5*6Yc[pura_mdl5*7Yc[pura_mdl5*8Yc[pura_mdl5*9Yc[pura_mdl4*1XQHpura_mdl4*2XQHpura_mdl4*3XQHpura_mdl4*4XQHpura_mdl4*5XQHpura_mdl4*6XQHpura_mdl4*7XQHpura_mdl4*8XQHpura_mdl4*9XQHpura_mdl3*1XQHpura_mdl3*2XQHpura_mdl3*3XQHpura_mdl3*4XQHpura_mdl3*5XQHpura_mdl3*6XQHpura_mdl3*7XQHpura_mdl3*8XQHpura_mdl3*9XQHpura_mdl2*1XQHpura_mdl2*2XQHpura_mdl2*3XQHpura_mdl2*4XQHpura_mdl2*5XQHpura_mdl2*6XQHpura_mdl2*7XQHpura_mdl2*8XQHpura_mdl2*9XQHpura_mdl1*1XQHpura_mdl1*2XQHpura_mdl1*3XQHpura_mdl1*4XQHpura_mdl1*5XQHpura_mdl1*6XQHpura_mdl1*7XQHpura_mdl1*8XQHpura_mdl1*9XQHjp_lanternXQHchair_basic*1XQHchair_basic*2XQHchair_basic*3XQHchair_basic*4XQHchair_basic*5XQHchair_basic*6XQHchair_basic*7XQHchair_basic*8XQHchair_basic*9XQHbed_budget*1XQHbed_budget*2XQHbed_budget*3XQHbed_budget*4XQHbed_budget*5XQHbed_budget*6XQHbed_budget*7XQHbed_budget*8XQHbed_budget*9XQHbed_budget_one*1XQHbed_budget_one*2XQHbed_budget_one*3XQHbed_budget_one*4XQHbed_budget_one*5XQHbed_budget_one*6XQHbed_budget_one*7XQHbed_budget_one*8XQHbed_budget_one*9XQHjp_drawerXQHtile_stellaZ[Mtile_marbleZ[Mtile_brownZ[Msummer_grill*1Y_Isummer_grill*2Y_Isummer_grill*3Y_Isummer_grill*4Y_Isummer_chair*1Y_Isummer_chair*2Y_Isummer_chair*3Y_Isummer_chair*4Y_Isummer_chair*5Y_Isummer_chair*6Y_Isummer_chair*7Y_Isummer_chair*8Y_Isummer_chair*9Y_Isound_set_36[dWsound_set_35[dWsound_set_34[dWsound_set_33[dWsound_set_32[dWsound_set_31[dWsound_set_30[dWsound_set_29[dWsound_machine_proYc[rare_mnstrY_Ione_way_door*1XQHone_way_door*2XQHone_way_door*3XQHone_way_door*4XQHone_way_door*5XQHone_way_door*6XQHone_way_door*7XQHone_way_door*8XQHone_way_door*9XQHexe_rugZ[Mexe_s_tableZGRsound_set_37[dWsummer_pool*1ZlIsummer_pool*2ZlIsummer_pool*3ZlIsummer_pool*4ZlIsong_diskYc[jukebox*1Yc[carpet_soft_tut[~Nsound_set_44[dWsound_set_43[dWsound_set_42[dWsound_set_41[dWsound_set_40[dWsound_set_39[dWsound_set_38[dWgrunge_chairZ@Kgrunge_mattressZ@Kgrunge_radiatorZ@Kgrunge_shelfZ@Kgrunge_signZ@Kgrunge_tableZ@Khabboween_crypt[uKhabboween_grassZ@Khal_cauldronZ@Khal_graveZ@Ksound_set_52[dWsound_set_51[dWsound_set_50[dWsound_set_49[dWsound_set_48[dWsound_set_47[dWsound_set_46[dWsound_set_45[dWxmas_icelampZ[Mxmas_cstl_wallZ[Mxmas_cstl_twrZ[Mxmas_cstl_gate[~Ntree7Z[Mtree6Z[Msound_set_54[dWsound_set_53[dWsafe_silo_pb[dOplant_mazegate_snowZ[Mplant_maze_snowZ[Mchristmas_sleighZ[Mchristmas_reindeer[~Nchristmas_poopZ[Mexe_bardeskZ[Mexe_chairZ[Mexe_chair2Z[Mexe_cornerZ[Mexe_drinksZ[Mexe_sofaZ[Mexe_tableZ[Msound_set_59[dWsound_set_58[dWsound_set_57[dWsound_set_56[dWsound_set_55[dWnoob_table*1[~Nnoob_table*2[~Nnoob_table*3[~Nnoob_table*4[~Nnoob_table*5[~Nnoob_table*6[~Nnoob_stool*1[~Nnoob_stool*2[~Nnoob_stool*3[~Nnoob_stool*4[~Nnoob_stool*5[~Nnoob_stool*6[~Nnoob_rug*1[~Nnoob_rug*2[~Nnoob_rug*3[~Nnoob_rug*4[~Nnoob_rug*5[~Nnoob_rug*6[~Nnoob_lamp*1[dOnoob_lamp*2[dOnoob_lamp*3[dOnoob_lamp*4[dOnoob_lamp*5[dOnoob_lamp*6[dOnoob_chair*1[~Nnoob_chair*2[~Nnoob_chair*3[~Nnoob_chair*4[~Nnoob_chair*5[~Nnoob_chair*6[~Nexe_globe[~Nexe_plantZ[Mval_teddy*1[dOval_teddy*2[dOval_teddy*3[dOval_teddy*4[dOval_teddy*5[dOval_teddy*6[dOval_randomizer[dOval_choco[dOteleport_doorYc[sound_set_61[dWsound_set_60[dWfortune[dOsw_tableZIPsw_raven[cQsw_chestZIPsand_cstl_wallZIPsand_cstl_twrZIPsand_cstl_gateZIPgrunge_candleZIPgrunge_benchZIPgrunge_barrelZIPrclr_lampZGRprizetrophy9*1Yd[prizetrophy8*1Yd[nouvelle_traxYc[md_rugZGRjp_tray6ZGRjp_tray5ZGRjp_tray4ZGRjp_tray3ZGRjp_tray2ZGRjp_tray1ZGRarabian_teamkZGRarabian_snakeZGRarabian_rugZGRarabian_pllwZGRarabian_divdrZGRarabian_chairZGRarabian_bigtbZGRarabian_tetblZGRarabian_tray1ZGRarabian_tray2ZGRarabian_tray3ZGRarabian_tray4ZGRsound_set_64[dWsound_set_63[dWsound_set_62[dWjukebox_ptv*1Yc[calippoZAStraxsilverYc[traxgoldYc[traxbronzeYc[bench_puffetYATCFC_500_goldbarZvCCFC_200_moneybagZvCCFC_10_coin_bronzeZvCCFC_100_coin_goldZvCCFC_50_coin_silverZvCjp_tableXMVjp_rareXMVjp_katana3XMVjp_katana2XMVjp_katana1XMVfootylamp_campaignXMVtiki_waterfall[dWtiki_tray4[dWtiki_tray3[dWtiki_tray2[dWtiki_tray1[dWtiki_tray0[dWtiki_toucan[dWtiki_torch[dWtiki_statue[dWtiki_sand[dWtiki_parasol[dWtiki_junglerug[dWtiki_corner[dWtiki_bflies[dWtiki_bench[dWtiki_bardesk[dWtampax_rug[dWsound_set_70[dWsound_set_69[dWsound_set_68[dWsound_set_67[dWsound_set_66[dWsound_set_65[dWnoob_rug_tradeable*1[dWnoob_rug_tradeable*2[dWnoob_rug_tradeable*3[dWnoob_rug_tradeable*4[dWnoob_rug_tradeable*5[dWnoob_rug_tradeable*6[dWnoob_plant[dWnoob_lamp_tradeable*1[dWnoob_lamp_tradeable*2[dWnoob_lamp_tradeable*3[dWnoob_lamp_tradeable*4[dWnoob_lamp_tradeable*5[dWnoob_lamp_tradeable*6[dWnoob_chair_tradeable*1[dWnoob_chair_tradeable*2[dWnoob_chair_tradeable*3[dWnoob_chair_tradeable*4[dWnoob_chair_tradeable*5[dWnoob_chair_tradeable*6[dWjp_teamaker[dWsvnr_uk[`_svnr_nlXhXsvnr_itXhXsvnr_de[gXsvnr_aus[gXdiner_tray_7[gXdiner_tray_6[gXdiner_tray_5[gXdiner_tray_4[gXdiner_tray_3[gXdiner_tray_2[gXdiner_tray_1[gXdiner_tray_0[gXdiner_sofa_2*1[gXdiner_sofa_2*2[gXdiner_sofa_2*3[gXdiner_sofa_2*4[gXdiner_sofa_2*5[gXdiner_sofa_2*6[gXdiner_sofa_2*7[gXdiner_sofa_2*8[gXdiner_sofa_2*9[gXdiner_shaker[gXdiner_rug[gXdiner_gumvendor*1[gXdiner_gumvendor*2[gXdiner_gumvendor*3[gXdiner_gumvendor*4[gXdiner_gumvendor*5[gXdiner_gumvendor*6[gXdiner_gumvendor*7[gXdiner_gumvendor*8[gXdiner_gumvendor*9[gXdiner_cashreg*1[gXdiner_cashreg*2[gXdiner_cashreg*3[gXdiner_cashreg*4[gXdiner_cashreg*5[gXdiner_cashreg*6[gXdiner_cashreg*7[gXdiner_cashreg*8[gXdiner_cashreg*9[gXdiner_table_2*1XiZdiner_table_2*2diner_table_2*2XiZdiner_table_2*3XiZdiner_table_2*4XiZdiner_table_2*5XiZdiner_table_2*6XiZdiner_table_2*7XiZdiner_table_2*8XiZdiner_table_2*9XiZdiner_table_1*1XiZdiner_table_1*2XiZdiner_table_1*3XiZdiner_table_1*4XiZdiner_table_1*5XiZdiner_table_1*6XiZdiner_table_1*7XiZdiner_table_1*8XiZdiner_table_1*9XiZdiner_sofa_1*1XiZdiner_sofa_1*2XiZdiner_sofa_1*3XiZdiner_sofa_1*4XiZdiner_sofa_1*5XiZdiner_sofa_1*6XiZdiner_sofa_1*7XiZdiner_sofa_1*8XiZdiner_sofa_1*9XiZdiner_chair*1XiZdiner_chair*2XiZdiner_chair*3XiZdiner_chair*4XiZdiner_chair*5XiZdiner_chair*6XiZdiner_chair*7XiZdiner_chair*8XiZdiner_chair*9XiZdiner_bardesk_gate*1XiZdiner_bardesk_gate*2XiZdiner_bardesk_gate*3XiZdiner_bardesk_gate*4XiZdiner_bardesk_gate*5XiZdiner_bardesk_gate*6XiZdiner_bardesk_gate*7XiZdiner_bardesk_gate*8XiZdiner_bardesk_gate*9XiZdiner_bardesk_corner*1XiZdiner_bardesk_corner*2XiZdiner_bardesk_corner*3XiZdiner_bardesk_corner*4XiZdiner_bardesk_corner*5XiZdiner_bardesk_corner*6XiZdiner_bardesk_corner*7XiZdiner_bardesk_corner*8XiZdiner_bardesk_corner*9XiZdiner_bardesk*1XiZdiner_bardesk*2XiZdiner_bardesk*3XiZdiner_bardesk*4XiZdiner_bardesk*5XiZdiner_bardesk*6XiZdiner_bardesk*7XiZdiner_bardesk*8XiZdiner_bardesk*9XiZads_dave_cnsXiZeasy_carpetYc[easy_bowl2Yc[greek_cornerYc[greek_gateYc[greek_pillarsYc[greek_seatYc[greektrophy*1[P\greektrophy*2[P\greektrophy*3[P\greek_blockXt[hcc_tableY`]hcc_shelfY`]hcc_sofaY`]hcc_minibarY`]hcc_chairY`]det_dividerY`]netari_carpetY`]det_bodyY`]hcc_stoolY`]hcc_sofachairY`]hcc_crnrXw]hcc_dvdrXw]sob_carpet[`_igor_seat[`_ads_igorbrainY_aads_igorswitchY_aads_711*1Y_aads_711*2Y_aads_711*3Y_aads_711*4Y_aads_igorraygunY_ahween08_sinkY[chween08_curtainY[chween08_bathY[chween08_defibsY[chween08_bbagY[chween08_curtain2Y[chween08_defibs2Y[chween08_bedY[chween08_sink2Y[chween08_bed2Y[chween08_bath2Y[chween08_manholeY[chween08_trllY[cPRpost.itHpost.it.vdHphotoHChessHTicTacToeHBattleShipHPokerHwallpaperHfloorHposterZ@KgothicfountainYxBhc_wall_lampZbBindustrialfanZ`BtorchZ\Bval_heartXBCwallmirrorZ|Ejp_ninjastarsXQHhabw_mirrorXQHhabbowheelZ[Mguitar_skullZ@Kguitar_vZ@Kxmas_light[~Nhrella_poster_3[Nhrella_poster_2ZIPhrella_poster_1[Nsw_swordsZIPsw_stoneZIPsw_holeZIProomdimmerYc[md_logo_wallZGRmd_canZGRjp_sheet3ZGRjp_sheet2ZGRjp_sheet1ZGRarabian_swordsZGRarabian_wndwZGRtiki_wallplnt[dWtiki_surfboard[dWtampax_wall[dWwindow_single_default[gXwindow_double_default[gXnoob_window_double[dWwindow_triple[gXwindow_square[gXwindow_romantic_wide[gXwindow_romantic_narrow[gXwindow_grunge[gXwindow_golden[gXwindow_chinese_wide[gXwindow_chinese_narrowYA\window_basic[gXwindow_70s_wide[gXwindow_70s_narrow[gXads_sunnydYlXwindow_diner2XiZwindow_dinerXiZdiner_walltableXiZads_dave_wallXiZwindow_holeYc[easy_posterYc[ads_nokia_logoYc[ads_nokia_phoneYc[landscapeXV^window_skyscraper[j\netari_posterY`]det_bholeY`]ads_campguitarXw]hween08_radY[chween08_wndwbY[chween08_wndwY[chween08_bioY[chw_08_xrayY[c");
-                                            _receivedSpriteIndex = true;
-                                        }
-                                    }
-                                    break;
-                                }
-                            }
-
-                        case "@": // Enter room - guestroom - get wallitems
-                            {
-                                if (_ROOMACCESS_SECONDARY_OK && Room != null)
-                                    sendData("@m" + Room.Wallitems);
-                                break;
-                            }
-
-                        case "A@": // Enter room - add this user to room
-                            {
-                                if (_ROOMACCESS_SECONDARY_OK && Room != null && roomUser == null)
-                                {
-                                    sendData("@b" + Room.dynamicStatuses);
-                                    Room.addUser(this);
-                                }
-                                break;
-                            }
-
-                        #endregion
-
-                        #region Moderation
-                        #region MOD-Tool
-                        case "CH": // MOD-Tool
-                            {
-                                int messageLength = 0;
-                                string Message = "";
-                                int staffNoteLength = 0;
-                                string staffNote = "";
-                                string targetUser = "";
-
-                                switch (currentPacket.Substring(2, 2)) // Select the action
-                                {
-                                    #region Alert single user
-                                    case "HH": // Alert single user
-                                        {
-                                            if (rankManager.containsRight(_Rank, "fuse_alert") == false) { sendData("BK" + stringManager.getString("modtool_accesserror")); return; }
-
-                                            messageLength = Encoding.decodeB64(currentPacket.Substring(4, 2));
-                                            Message = currentPacket.Substring(6, messageLength).Replace(Convert.ToChar(1).ToString(), " ");
-                                            staffNoteLength = Encoding.decodeB64(currentPacket.Substring(messageLength + 6, 2));
-                                            staffNote = currentPacket.Substring(messageLength + 8, staffNoteLength);
-                                            targetUser = currentPacket.Substring(messageLength + staffNoteLength + 10);
-
-                                            if (Message == "" || targetUser == "")
-                                                return;
-
-                                            virtualUser _targetUser = userManager.getUser(targetUser);
-                                            if (_targetUser == null)
-                                                sendData("BK" + stringManager.getString("modtool_actionfail") + "\r" + stringManager.getString("modtool_usernotfound"));
-                                            else
-                                            {
-                                                _targetUser.sendData("B!" + Message + Convert.ToChar(2));
-                                                staffManager.addStaffMessage("alert", userID, _targetUser.userID, Message, staffNote);
-                                            }
-                                            break;
-                                        }
-                                    #endregion
-
-                                    #region Kick single user from room
-                                    case "HI": // Kick single user from room
-                                        {
-                                            if (rankManager.containsRight(_Rank, "fuse_kick") == false) { sendData("BK" + stringManager.getString("modtool_accesserror")); return; }
-
-                                            messageLength = Encoding.decodeB64(currentPacket.Substring(4, 2));
-                                            Message = currentPacket.Substring(6, messageLength).Replace(Convert.ToChar(1).ToString(), " ");
-                                            staffNoteLength = Encoding.decodeB64(currentPacket.Substring(messageLength + 6, 2));
-                                            staffNote = currentPacket.Substring(messageLength + 8, staffNoteLength);
-                                            targetUser = currentPacket.Substring(messageLength + staffNoteLength + 10);
-
-                                            if (Message == "" || targetUser == "")
-                                                return;
-
-                                            virtualUser _targetUser = userManager.getUser(targetUser);
-                                            if (_targetUser == null)
-                                                sendData("BK" + stringManager.getString("modtool_actionfail") + "\r" + stringManager.getString("modtool_usernotfound"));
-                                            else
-                                            {
-                                                if (_targetUser.Room != null && _targetUser.roomUser != null)
-                                                {
-                                                    if (_targetUser._Rank < _Rank)
-                                                    {
-                                                        _targetUser.Room.removeUser(_targetUser.roomUser.roomUID, true, Message);
-                                                        staffManager.addStaffMessage("kick", userID, _targetUser.userID, Message, staffNote);
-                                                    }
-                                                    else
-                                                        sendData("BK" + stringManager.getString("modtool_actionfail") + "\r" + stringManager.getString("modtool_rankerror"));
-                                                }
-                                            }
-                                            break;
-                                        }
-                                    #endregion
-
-                                    #region Ban single user
-                                    case "HJ": // Ban single user / IP
-                                        {
-                                            if (rankManager.containsRight(_Rank, "fuse_ban") == false) { sendData("BK" + stringManager.getString("modtool_accesserror")); return; }
-
-                                            int targetUserLength = 0;
-                                            int banHours = 0;
-                                            bool banIP = (currentPacket.Substring(currentPacket.Length - 1, 1) == "I");
-
-                                            messageLength = Encoding.decodeB64(currentPacket.Substring(4, 2));
-                                            Message = currentPacket.Substring(6, messageLength).Replace(Convert.ToChar(1).ToString(), " ");
-                                            staffNoteLength = Encoding.decodeB64(currentPacket.Substring(messageLength + 6, 2));
-                                            staffNote = currentPacket.Substring(messageLength + 8, staffNoteLength);
-                                            targetUserLength = Encoding.decodeB64(currentPacket.Substring(messageLength + staffNoteLength + 8, 2));
-                                            targetUser = currentPacket.Substring(messageLength + staffNoteLength + 10, targetUserLength);
-                                            banHours = Encoding.decodeVL64(currentPacket.Substring(messageLength + staffNoteLength + targetUserLength + 10));
-
-                                            if (Message == "" || targetUser == "" || banHours == 0)
-                                                return;
-                                            else
-                                            {
-                                                string[] userDetails = DB.runReadRow("SELECT id,rank,ipaddress_last FROM users WHERE name = '" + DB.Stripslash(targetUser) + "'");
-                                                if (userDetails.Length == 0)
-                                                {
-                                                    sendData("BK" + stringManager.getString("modtool_actionfail") + "\r" + stringManager.getString("modtool_usernotfound"));
-                                                    return;
-                                                }
-                                                else if (byte.Parse(userDetails[1]) >= _Rank)
-                                                {
-                                                    sendData("BK" + stringManager.getString("modtool_actionfail") + "\r" + stringManager.getString("modtool_rankerror"));
-                                                    return;
-                                                }
-
-                                                int targetID = int.Parse(userDetails[0]);
-                                                string Report = "";
-                                                staffManager.addStaffMessage("ban", userID, targetID, Message, staffNote);
-                                                if (banIP && rankManager.containsRight(_Rank, "fuse_superban")) // IP ban is chosen and allowed for this staff member
-                                                {
-                                                    userManager.setBan(userDetails[2], banHours, Message);
-                                                    Report = userManager.generateBanReport(userDetails[2]);
-                                                }
-                                                else
-                                                {
-                                                    userManager.setBan(targetID, banHours, Message);
-                                                    Report = userManager.generateBanReport(targetID);
-                                                }
-
-                                                sendData("BK" + Report);
-                                            }
-                                            break;
-                                        }
-                                    #endregion
-
-                                    #region Room alert
-                                    case "IH": // Alert all users in current room
-                                        {
-                                            if (rankManager.containsRight(_Rank, "fuse_room_alert") == false) { sendData("BK" + stringManager.getString("modtool_accesserror")); return; }
-                                            if (Room == null || roomUser == null) { return; }
-
-                                            messageLength = Encoding.decodeB64(currentPacket.Substring(4, 2));
-                                            Message = currentPacket.Substring(6, messageLength).Replace(Convert.ToChar(1).ToString(), " ");
-                                            staffNoteLength = Encoding.decodeB64(currentPacket.Substring(messageLength + 6, 2));
-                                            staffNote = currentPacket.Substring(messageLength + 8, staffNoteLength);
-
-                                            if (Message != "")
-                                            {
-                                                Room.sendData("B!" + Message + Convert.ToChar(2));
-                                                staffManager.addStaffMessage("ralert", userID, _roomID, Message, staffNote);
-                                            }
-                                            break;
-                                        }
-                                    #endregion
-
-                                    #region Room kick
-                                    case "II": // Kick all users below users rank from room
-                                        {
-                                            if (rankManager.containsRight(_Rank, "fuse_room_kick") == false) { sendData("BK" + stringManager.getString("modtool_accesserror")); return; }
-                                            if (Room == null || roomUser == null) { return; }
-
-                                            messageLength = Encoding.decodeB64(currentPacket.Substring(4, 2));
-                                            Message = currentPacket.Substring(6, messageLength).Replace(Convert.ToChar(1).ToString(), " ");
-                                            staffNoteLength = Encoding.decodeB64(currentPacket.Substring(messageLength + 6, 2));
-                                            staffNote = currentPacket.Substring(messageLength + 8, staffNoteLength);
-
-                                            if (Message != "")
-                                            {
-                                                Room.kickUsers(_Rank, Message);
-                                                staffManager.addStaffMessage("rkick", userID, _roomID, Message, staffNote);
-                                            }
-                                            break;
-                                        }
-                                    #endregion
-                                }
-                                break;
-                            }
-                        #endregion
-
-                        #region Call For Help
-
-                        #region User Side
-                        case "Cm": // User wants to send a CFH message 
-                            {
-                                string[] cfhStats = DB.runReadRow("SELECT id, date, message, picked_up FROM cms_help WHERE username = '" + _Username + "' AND picked_up = '0'");
-                                if (cfhStats.Length == 0)
-                                    sendData("D" + "H");
-                                else
-                                    sendData("D" + "I" + cfhStats[0] + Convert.ToChar(2) + cfhStats[1] + Convert.ToChar(2) + cfhStats[2] + Convert.ToChar(2));
-                                break;
-                            }
-
-                        case "Cn": // User deletes his pending CFH message
-                            {
-                                int cfhID = DB.runRead("SELECT id FROM cms_help WHERE username = '" + _Username + "' AND picked_up = '0'", null);
-                                DB.runQuery("DELETE FROM cms_help WHERE picked_up = '0' AND username = '" + _Username + "' LIMIT 1");
-                                sendData("DH");
-                                userManager.sendToRank(Config.Minimum_CFH_Rank, true, "BT" + Encoding.encodeVL64(cfhID) + Convert.ToChar(2) + "I" + "User Deleted!" + Convert.ToChar(2) + "User Deleted!" + Convert.ToChar(2) + "User Deleted!" + Convert.ToChar(2) + Encoding.encodeVL64(0) + Convert.ToChar(2) + "" + Convert.ToChar(2) + "H" + Convert.ToChar(2) + Encoding.encodeVL64(0));
-                                break;
-                            }
-
-                        case "AV": // User sends CFH message
-                            {
-                                if (DB.checkExists("SELECT id FROM cms_help WHERE username = '" + _Username + "' AND picked_up = '0'"))
-                                    return;
-                                int messageLength = Encoding.decodeB64(currentPacket.Substring(2, 2));
-                                if (messageLength == 0)
-                                    return;
-                                string cfhMessage = currentPacket.Substring(4, messageLength);
-                                DB.runQuery("INSERT INTO cms_help (username,ip,message,date,picked_up,subject,roomid) VALUES ('" + _Username + "','" + connectionSocket.RemoteEndPoint.ToString().Split(Char.Parse(":"))[0] + "','" + DB.Stripslash(cfhMessage) + "','" + DateTime.Now + "','0','CFH message [hotel]','" + _roomID.ToString() + "')");
-                                int cfhID = DB.runRead("SELECT id FROM cms_help WHERE username = '" + _Username + "' AND picked_up = '0'", null);
-                                string roomName = DB.runRead("SELECT name FROM rooms WHERE id = '" + _roomID + "'"); //          H = Automated / I = Manual                                                                                                                                                                          H = Hide Room ID / I = Show Room ID
-                                sendData("EAH"); //                                                                                           \_/                                                                                                                                                                                                    \_/
-                                userManager.sendToRank(Config.Minimum_CFH_Rank, true, "BT" + Encoding.encodeVL64(cfhID) + Convert.ToChar(2) + "I" + "Sent: " + DateTime.Now + Convert.ToChar(2) + _Username + Convert.ToChar(2) + cfhMessage + Convert.ToChar(2) + Encoding.encodeVL64(_roomID) + Convert.ToChar(2) + roomName + Convert.ToChar(2) + "I" + Convert.ToChar(2) + Encoding.encodeVL64(_roomID));
-                                break;
-                            }
-                        #endregion
-
-                        #region Staff Side
-                        case "CG": // CFH center - reply call
-                            {
-                                if (rankManager.containsRight(_Rank, "fuse_receive_calls_for_help") == false)
-                                    return;
-                                int cfhID = Encoding.decodeVL64(currentPacket.Substring(4, Encoding.decodeB64(currentPacket.Substring(2, 2))));
-                                string cfhReply = currentPacket.Substring(Encoding.decodeB64(currentPacket.Substring(2, 2)) + 6);
-
-                                string toUserName = DB.runRead("SELECT username FROM cms_help WHERE id = '" + cfhID + "'");
-                                if (toUserName == null)
-                                    sendData("BK" + stringManager.getString("cfh_fail"));
-                                else
-                                {
-                                    int toUserID = userManager.getUserID(toUserName);
-                                    virtualUser toVirtualUser = userManager.getUser(toUserID);
-                                    if (toVirtualUser._isLoggedIn)
-                                    {
-                                        toVirtualUser.sendData("DR" + cfhReply + Convert.ToChar(2));
-                                        DB.runQuery("UPDATE cms_help SET picked_up = '" + _Username + "' WHERE id = '" + cfhID + "' LIMIT 1");
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "CF": // CFH center - Delete (Downgrade)
-                            {
-                                if (rankManager.containsRight(_Rank, "fuse_receive_calls_for_help") == false)
-                                    return;
-                                int cfhID = Encoding.decodeVL64(currentPacket.Substring(4, Encoding.decodeB64(currentPacket.Substring(2, 2))));
-                                string[] cfhStats = DB.runReadRow("SELECT username,message,date,picked_up,roomid FROM cms_help WHERE id = '" + cfhID + "'");
-                                if (cfhStats.Length == 0)
-                                    return;
-                                else
-                                {
-                                    if (cfhStats[3] == "1")
-                                        sendData("BK" + stringManager.getString("cfh_picked_up"));
-                                    else
-                                    {
-                                        DB.runQuery("DELETE FROM cms_help WHERE id = '" + cfhID + "' LIMIT 1");
-                                        userManager.sendToRank(Config.Minimum_CFH_Rank, true, "BT" + Encoding.encodeVL64(cfhID) + Convert.ToChar(2) + "H" + "Staff Deleted!" + Convert.ToChar(2) + "Staff Deleted!" + Convert.ToChar(2) + "Staff Deleted!" + Convert.ToChar(2) + Encoding.encodeVL64(0) + Convert.ToChar(2) + "" + Convert.ToChar(2) + "H" + Convert.ToChar(2) + Encoding.encodeVL64(0));
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "@p": // CFH center - Pickup
-                            {
-                                int cfhID = Encoding.decodeVL64(currentPacket.Substring(4));
-                                if (DB.checkExists("SELECT id FROM cms_help WHERE id = '" + cfhID + "'") == false)
-                                {
-                                    sendData(stringManager.getString("cfh_deleted"));
-                                    return;
-                                }
-                                string[] cfhData = DB.runReadRow("SELECT picked_up,username,message,roomid FROM cms_help WHERE id = '" + cfhID + "'");
-                                string roomName = DB.runRead("SELECT name FROM rooms WHERE id = '" + cfhData[3] + "'");
-                                if (cfhData[0] == "1")
-                                    sendData("BK" + stringManager.getString("cfh_picked_up"));
-                                else
-                                    userManager.sendToRank(Config.Minimum_CFH_Rank, true, "BT" + Encoding.encodeVL64(cfhID) + Convert.ToChar(2) + "I" + "Picked up: " + DateTime.Now + Convert.ToChar(2) + cfhData[1] + Convert.ToChar(2) + cfhData[2] + Convert.ToChar(2) + Encoding.encodeVL64(int.Parse(cfhData[3])) + Convert.ToChar(2) + roomName + Convert.ToChar(2) + "I" + Convert.ToChar(2) + Encoding.encodeVL64(int.Parse(cfhData[3])));
-                                DB.runQuery("UPDATE cms_help SET picked_up = '1' WHERE id = '" + cfhID + "' LIMIT 1");
-                                break;
-                            }
-
-                        case "EC": // Go to the room that the call for help was sent from
-                            {
-                                if (rankManager.containsRight(_Rank, "fuse_receive_calls_for_help") == false)
-                                    return;
-                                int idLength = Encoding.decodeB64(currentPacket.Substring(2, 2));
-                                int cfhID = Encoding.decodeVL64(currentPacket.Substring(4, idLength));
-                                int roomID = DB.runRead("SELECT roomid FROM cms_help WHERE id = '" + cfhID + "'", null);
-                                if (roomID == 0)
-                                    return;
-                                virtualRoom room = roomManager.getRoom(roomID);
-                                if (room.isPublicroom)
-                                    sendData("D^" + "I" + Encoding.encodeVL64(roomID));
-                                else
-                                    sendData("D^" + "H" + Encoding.encodeVL64(roomID));
-
-                                break;
-                            }
-                        #endregion
-                        #endregion
-                        #endregion
-
-                        #region In-room actions
-
-                        case "cI": // Ignore Habbo
-                            {
-                                if (Room != null && roomUser != null && statusManager.containsStatus("sit") == true && statusManager.containsStatus("lay") == true)
-                                {
-                                    statusManager.dropCarrydItem();
-                                    if (currentPacket.Length == 2)
-                                        statusManager.addStatus("ignore", "");
-                                    statusManager.Refresh();
-                                }
-                                break;
-                            }
-
-                        case "cK": // lising habbo
-                            {
-                                break;
-                            }
-
-                        case "AO": // Room - rotate user
-                            {
-                                if (Room != null && roomUser != null && statusManager.containsStatus("sit") == false && statusManager.containsStatus("lay") == false)
-                                {
-                                    int X = int.Parse(currentPacket.Substring(2).Split(' ')[0]);
-                                    int Y = int.Parse(currentPacket.Split(' ')[1]);
-                                    roomUser.Z1 = Rooms.Pathfinding.Rotation.Calculate(roomUser.X, roomUser.Y, X, Y);
-                                    roomUser.Z2 = roomUser.Z1;
-                                    roomUser.Refresh();
-                                }
-                                break;
-                            }
-
-                        case "AK": // Room - walk to a new square
-                            {
-                                if (Room != null && roomUser != null && roomUser.walkLock == false)
-                                {
-                                    int goalX = Encoding.decodeB64(currentPacket.Substring(2, 2));
-                                    int goalY = Encoding.decodeB64(currentPacket.Substring(4, 2));
-                                    {
-                                        roomUser.goalX = goalX;
-                                        roomUser.goalY = goalY;
-                                    }
-                                }
-                                break;
-                            }
-
-
-                        case "As": // Room - click door to exit room
-                            {
-                                if (Room != null && roomUser != null && roomUser.walkDoor == false)
-                                {
-                                    roomUser.walkDoor = true;
-                                    roomUser.goalX = Room.doorX;
-                                    roomUser.goalY = Room.doorY;
-                                }
-                                break;
-                            }
-
-                        case "At": // Room - select swimming outfit
-                            {
-                                if (Room != null || roomUser != null && Room.hasSwimmingPool)
-                                {
-                                    virtualRoom.squareTrigger Trigger = Room.getTrigger(roomUser.X, roomUser.Y);
-                                    if (Trigger.Object == "curtains1" || Trigger.Object == "curtains2")
-                                    {
-                                        string Outfit = DB.Stripslash(currentPacket.Substring(2));
-                                        roomUser.SwimOutfit = Outfit;
-                                        Room.sendData(@"@\" + roomUser.detailsString);
-                                        Room.sendSpecialCast(Trigger.Object, "open");
-                                        roomUser.walkLock = false;
-                                        roomUser.goalX = Trigger.goalX;
-                                        roomUser.goalY = Trigger.goalY;
-                                        DB.runQuery("UPDATE users SET figure_swim = '" + Outfit + "' WHERE id = '" + userID + "' LIMIT 1");
-                                        //Refresh();
-                                        userManager.getUser(userID).refreshAppearance(true, true, true);
-                                    }
-                                }
-                                break;
-                            }
-                        case "B^": // Badges - switch or toggle on/off badge
-                            {
-                                if (Room != null && roomUser != null)
-                                {
-                                    // Reset slots
-                                    DB.runQuery("UPDATE users_badges SET slotid = '0' WHERE userid = '" + this.userID + "'");
-
-                                    int enabledBadgeAmount = 0;
-                                    string szWorkData = currentPacket.Substring(2);
-                                    while (szWorkData != "")
-                                    {
-                                        int slotID = Encoding.decodeVL64(szWorkData);
-                                        szWorkData = szWorkData.Substring(Encoding.encodeVL64(slotID).Length);
-
-                                        int badgeNameLength = Encoding.decodeB64(szWorkData.Substring(0, 2));
-
-                                        if (badgeNameLength > 0)
-                                        {
-                                            string Badge = szWorkData.Substring(2, badgeNameLength);
-                                            DB.runQuery("UPDATE users_badges SET slotid = '" + slotID + "' WHERE userid = '" + this.userID + "' AND badge = '" + Badge + "' LIMIT 1"); // update slot
-                                            enabledBadgeAmount++;
-                                        }
-
-                                        szWorkData = szWorkData.Substring(badgeNameLength + 2);
-                                    }
-                                    // Active badges have their badge slot set now, other ones have '0'
-
-                                    this.refreshBadges();
-
-                                    string szNotify = this.userID + Convert.ToChar(2).ToString() + Encoding.encodeVL64(enabledBadgeAmount);
-                                    for (int x = 0; x < _Badges.Count; x++)
-                                    {
-                                        if (_badgeSlotIDs[x] > 0) // Badge enabled
-                                        {
-                                            szNotify += Encoding.encodeVL64(_badgeSlotIDs[x]);
-                                            szNotify += _Badges[x];
-                                            szNotify += Convert.ToChar(2);
-                                        }
-                                    }
-
-                                    this.Room.sendData("Cd" + szNotify);
-                                }
-                                break;
-                            }
-
-
-                        case "DG": // Tags - get tags of virtual user
-                            {
-                                int ownerID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                string[] Tags = DB.runReadColumn("SELECT tag FROM cms_tags WHERE ownerid = '" + ownerID + "'", 20);
-                                StringBuilder List = new StringBuilder(Encoding.encodeVL64(ownerID) + Encoding.encodeVL64(Tags.Length));
-                                for (int i = 0; i < Tags.Length; i++)
-                                    List.Append(Tags[i] + Convert.ToChar(2));
-                                sendData("E^" + List.ToString());
-                                break;
-                            }
-
-                        case "Cg": // Group badges - get details about a group [click badge]
-                            {
-                                if (Room != null && roomUser != null)
-                                {
-                                    int groupID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    if (DB.checkExists("SELECT id FROM groups_details WHERE id = '" + groupID + "'"))
-                                    {
-                                        string Name = DB.runRead("SELECT name FROM groups_details WHERE id = '" + groupID + "'");
-                                        string Description = DB.runRead("SELECT description FROM groups_details WHERE id = '" + groupID + "'");
-
-                                        int roomID = DB.runRead("SELECT roomid FROM groups_details WHERE id = '" + groupID + "'", null);
-                                        string roomName = "";
-                                        if (roomID > 0)
-                                            roomName = DB.runRead("SELECT name FROM rooms WHERE id = '" + roomID + "'");
-                                        else
-                                            roomID = -1;
-
-                                        sendData("Dw" + Encoding.encodeVL64(groupID) + Name + Convert.ToChar(2) + Description + Convert.ToChar(2) + Encoding.encodeVL64(roomID) + roomName + Convert.ToChar(2));
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "D": // Ignore User
-                            {
-                                try
-                                {
-                                    virtualUser Target = userManager.getUser(DB.Stripslash(currentPacket.Substring(4)));
-                                    if (Target._Rank > 3)
-                                        return;
-                                    DB.runQuery("INSERT INTO user_ignores(userid,targetid) VALUES ('" + userID + "','" + Target.userID + "')");
-                                    ignoreList.Add(Target.userID);
-                                    sendData("FcI");
-                                }
-                                catch { }
-                                break;
-                            }
-
-                        case "EB": // Unignore User
-                            {
-                                try
-                                {
-                                    virtualUser Target = userManager.getUser(DB.Stripslash(currentPacket.Substring(4)));
-                                    if (Target._Rank > 3)
-                                        return;
-                                    DB.runQuery("DELETE FROM user_ignores WHERE userid = '" + userID + "' AND targetid = '" + Target.userID + "'");
-                                    ignoreList.Remove(Target.userID);
-                                    sendData("FcK");
-                                }
-                                catch { }
-                                break;
-                            }
-
-                        case "AX": // Statuses - stop status
-                            {
-                                if (statusManager != null)
-                                {
-                                    string Status = currentPacket.Substring(2);
-                                    if (Status == "CarryItem")
-                                        statusManager.dropCarrydItem();
-                                    else if (Status == "Dance")
-                                    {
-                                        statusManager.removeStatus("dance");
-                                        statusManager.Refresh();
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "A^": // Statuses - wave
-                            {
-                                if (Room != null && roomUser != null && statusManager.containsStatus("wave") == false)
-                                {
-                                    statusManager.removeStatus("dance");
-                                    statusManager.handleStatus("wave", "", Config.Statuses_Wave_waveDuration);
-                                }
-                                break;
-                            }
-
-                        case "A]": // Statuses - dance
-                            {
-                                if (Room != null && roomUser != null && statusManager.containsStatus("sit") == false && statusManager.containsStatus("lay") == false)
-                                {
-                                    statusManager.dropCarrydItem();
-                                    if (currentPacket.Length == 2)
-                                        statusManager.addStatus("dance", "");
-                                    else
-                                    {
-                                        if (rankManager.containsRight(_Rank, "fuse_use_club_dance") == false) { return; }
-                                        int danceID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                        if (danceID < 0 || danceID > 4) { return; }
-                                        statusManager.addStatus("dance", danceID.ToString());
-                                    }
-
-                                    statusManager.Refresh();
-                                }
-                                break;
-                            }
-
-                        case "AP": // Statuses - carry item
-                            {
-                                if (Room != null && roomUser != null)
-                                {
-                                    string Item = currentPacket.Substring(2);
-                                    if (statusManager.containsStatus("lay") || Item.Contains("/"))
-                                        return; // THE HAX! \o/
-
-                                    try
-                                    {
-                                        int nItem = int.Parse(Item);
-                                        if (nItem < 1 || nItem > 26)
-                                            return;
-                                    }
-                                    catch
-                                    {
-                                        if (_inPublicroom == false && Item != "Water" && Item != "Milk" && Item != "Juice") // Not a drink that can be retrieved from the infobus minibar
-                                            return;
-                                    }
-                                    statusManager.carryItem(Item);
-                                }
-                                break;
-                            }
-
-                        case "Cl": // Room Poll - answer
-                            {
-                                if (Room == null || roomUser == null)
-                                    return;
-                                int subStringSkip = 2;
-                                int pollID = Encoding.decodeVL64(currentPacket.Substring(subStringSkip));
-                                if (DB.checkExists("SELECT aid FROM poll_results WHERE uid = '" + userID + "' AND pid = '" + pollID + "'"))
-                                    return;
-                                subStringSkip += Encoding.encodeVL64(pollID).Length;
-                                int questionID = Encoding.decodeVL64(currentPacket.Substring(subStringSkip));
-                                subStringSkip += Encoding.encodeVL64(questionID).Length;
-                                bool typeThree = DB.checkExists("SELECT type FROM poll_questions WHERE qid = '" + questionID + "' AND type = '3'");
-                                if (typeThree)
-                                {
-                                    int countAnswers = Encoding.decodeB64(currentPacket.Substring(subStringSkip, 2));
-                                    subStringSkip += 2;
-                                    string Answer = DB.Stripslash(currentPacket.Substring(subStringSkip, countAnswers));
-                                    DB.runQuery("INSERT INTO poll_results (pid,qid,aid,answers,uid) VALUES ('" + pollID + "','" + questionID + "','0','" + Answer + "','" + userID + "')");
-                                }
-                                else
-                                {
-                                    int countAnswers = Encoding.decodeVL64(currentPacket.Substring(subStringSkip));
-                                    subStringSkip += Encoding.encodeVL64(countAnswers).Length;
-                                    int[] Answer = new int[countAnswers];
-                                    for (int i = 0; i < countAnswers; i++)
-                                    {
-                                        Answer[i] = Encoding.decodeVL64(currentPacket.Substring(subStringSkip));
-                                        subStringSkip += Encoding.encodeVL64(Answer[i]).Length;
-                                    }
-                                    foreach (int a in Answer)
-                                    {
-                                        DB.runQuery("INSERT INTO poll_results (pid,qid,aid,answers,uid) VALUES ('" + pollID + "','" + questionID + "','" + a + "',' ','" + userID + "')");
-                                    }
-                                }
-                                break;
-                            }
-
-                        #region Chat
-                        case "@t": // Chat - say
-                        case "@w": // Chat - shout
-                            {
-                                string persnlGesture = Constants.vbNullString;
-                                string Message = currentPacket.Substring(4);
-                                //statusManager.showTalkAnimation((Message.Length + 50) * 30, persnlGesture);
-                                if (_isMuted == false && (Room != null && roomUser != null) || (Room == null && gamePlayer != null))
-                                {
-                                    userManager.addChatMessage(_Username, _roomID, Message);
-                                    Message = stringManager.filterSwearwords(Message);
-                                    if (Message.Substring(0, 1) == ":" && isSpeechCommand(Message.Substring(1))) // Speechcommand invoked!
-                                    {
-                                        if (roomUser != null)
-                                        {
-                                            if (roomUser.isTyping)
-                                            {
-                                                Room.sendData("FO" + Encoding.encodeVL64(roomUser.roomUID) + "H");
-                                                roomUser.isTyping = false;
-                                            }
-                                        }
-                                        else
-                                            gamePlayer.Game.sendData("FO" + Encoding.encodeVL64(gamePlayer.roomUID) + "H");
-                                    }
-                                    else
-                                    {
-                                        if (currentPacket.Substring(1, 1) == "w") // Shout
-                                        {
-                                            if (gamePlayer == null)
-                                                Room.sendShout(roomUser, Message);
-                                            else
-                                                gamePlayer.Game.sendData("Ei" + Encoding.encodeVL64(gamePlayer.roomUID) + "H" + Convert.ToChar(1) + "@Z" + Encoding.encodeVL64(gamePlayer.roomUID) + Message + Convert.ToChar(2));
-                                        }
-                                        else
-                                        {
-                                            if (gamePlayer == null)
-                                                Room.sendSaying(roomUser, Message);
-                                            else
-                                                gamePlayer.Game.sendData("Ei" + Encoding.encodeVL64(gamePlayer.roomUID) + "H" + Convert.ToChar(1) + "@X" + Encoding.encodeVL64(gamePlayer.roomUID) + Message + Convert.ToChar(2));
-                                        }
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "@x": // Chat - whisper
-                            {
-                                // * muted
-                                string Receiver = currentPacket.Substring(4).Split(' ')[0];
-                                string Message = currentPacket.Substring(Receiver.Length + 5);
-                                string persnlGesture = Constants.vbNullString;
-                                //statusManager.showTalkAnimation((Message.Length + 50) * 30, persnlGesture);
-                                if (_isMuted == false && Room != null && roomUser != null)
-                                {
-                                    //string Receiver = currentPacket.Substring(4).Split(' ')[0];
-                                    //string Message = currentPacket.Substring(Receiver.Length + 5);
-                                    if (Receiver == "" && Message.Substring(0, 1) == ":" && isSpeechCommand(Message.Substring(1))) // Speechcommand invoked!
-                                    {
-                                        if (roomUser.isTyping)
-                                        {
-                                            Room.sendData("FO" + Encoding.encodeVL64(roomUser.roomUID) + "H");
-                                            roomUser.isTyping = false;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        userManager.addChatMessage(_Username, _roomID, Message);
-
-                                        Message = stringManager.filterSwearwords(Message);
-                                        Room.sendWhisper(roomUser, Receiver, Message);
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "D}": // Chat - show speech bubble
-                            {
-                                if (_isMuted == false && Room != null && roomUser != null)
-                                {
-                                    Room.sendData("Ei" + Encoding.encodeVL64(roomUser.roomUID) + "I");
-                                    roomUser.isTyping = true;
-                                }
-                                break;
-                            }
-
-                        case "D~": // Chat - hide speech bubble
-                            {
-                                if (Room != null && roomUser != null)
-                                {
-                                    Room.sendData("Ei" + Encoding.encodeVL64(roomUser.roomUID) + "H");
-                                    roomUser.isTyping = false;
-                                }
-                                break;
-                            }
-                        #endregion
-
-                        #region Guestroom - rights, kicking, roombans and room voting
-                        case "A`": // Give rights
-                            {
-                                if (Room == null || roomUser == null || _inPublicroom || _isOwner == false)
-                                    return;
-
-                                string Target = currentPacket.Substring(2);
-                                if (userManager.containsUser(Target) == false)
-                                    return;
-
-                                virtualUser _Target = userManager.getUser(Target);
-                                if (_Target._roomID != _roomID || _Target._hasRights || _Target._isOwner)
-                                    return;
-
-                                DB.runQuery("INSERT INTO room_rights(roomid,userid) VALUES ('" + _roomID + "','" + _Target.userID + "')");
-                                _Target._hasRights = true;
-                                _Target.statusManager.addStatus("flatctrl", "onlyfurniture");
-                                _Target.roomUser.Refresh();
-                                _Target.sendData("@j");
-                                break;
-                            }
-
-                        case "Aa": // Take rights
-                            {
-                                if (Room == null || roomUser == null || _inPublicroom || _isOwner == false)
-                                    return;
-
-                                string Target = currentPacket.Substring(2);
-                                if (userManager.containsUser(Target) == false)
-                                    return;
-
-                                virtualUser _Target = userManager.getUser(Target);
-                                if (_Target._roomID != _roomID || _Target._hasRights == false || _Target._isOwner)
-                                    return;
-
-                                DB.runQuery("DELETE FROM room_rights WHERE roomid = '" + _roomID + "' AND userid = '" + _Target.userID + "' LIMIT 1");
-                                _Target._hasRights = false;
-                                _Target.statusManager.removeStatus("flatctrl");
-                                _Target.roomUser.Refresh();
-                                _Target.sendData("@k");
-                                break;
-                            }
-
-                        case "A_": // Kick user
-                            {
-                                if (Room == null || roomUser == null || _inPublicroom || _hasRights == false)
-                                    return;
-
-                                string Target = currentPacket.Substring(2);
-                                if (userManager.containsUser(Target) == false)
-                                    return;
-
-                                virtualUser _Target = userManager.getUser(Target);
-                                if (_Target._roomID != _roomID)
-                                    return;
-
-                                if (_Target._isOwner && (_Target._Rank > _Rank || rankManager.containsRight(_Target._Rank, "fuse_any_room_controller")))
-                                    return;
-
-                                _Target.roomUser.walkLock = true;
-                                _Target.roomUser.walkDoor = true;
-                                _Target.roomUser.goalX = Room.doorX;
-                                _Target.roomUser.goalY = Room.doorY;
-                                break;
-                            }
-
-                        case "E@": // Kick and apply roomban
-                            {
-                                if (_hasRights == false || _inPublicroom || Room == null || roomUser == null)
-                                    return;
-
-                                string Target = currentPacket.Substring(2);
-                                if (userManager.containsUser(Target) == false)
-                                    return;
-
-                                virtualUser _Target = userManager.getUser(Target);
-                                if (_Target._roomID != _roomID)
-                                    return;
-
-                                if (_Target._isOwner && (_Target._Rank > _Rank || rankManager.containsRight(_Target._Rank, "fuse_any_room_controller")))
-                                    return;
-
-                                string banExpireMoment = DateTime.Now.AddMinutes(Config.Rooms_roomBan_banDuration).ToString();
-                                DB.runQuery("INSERT INTO room_bans (roomid,userid,ban_expire) VALUES ('" + _roomID + "','" + _Target.userID + "','" + banExpireMoment + "')");
-
-                                _Target.roomUser.walkLock = true;
-                                _Target.roomUser.walkDoor = true;
-                                _Target.roomUser.goalX = Room.doorX;
-                                _Target.roomUser.goalY = Room.doorY;
-                                break;
-                            }
-
-                        case "DE": // Vote -1 or +1 on room
-                            {
-                                if (_inPublicroom || Room == null || roomUser == null)
-                                    return;
-
-                                int Vote = Encoding.decodeVL64(currentPacket.Substring(2));
-                                if ((Vote == 1 || Vote == -1) && DB.checkExists("SELECT userid FROM room_votes WHERE userid = '" + userID + "' AND roomid = '" + _roomID + "'") == false)
-                                {
-                                    DB.runQuery("INSERT INTO room_votes (userid,roomid,vote) VALUES ('" + userID + "','" + _roomID + "','" + Vote + "')");
-                                    int voteAmount = DB.runRead("SELECT SUM(vote) FROM room_votes WHERE roomid = '" + _roomID + "'", null);
-                                    if (voteAmount < 0)
-                                        voteAmount = 0;
-                                    roomUser.hasVoted = true;
-                                    if (_isOwner == true)
-                                    Room.sendNewVoteAmount(voteAmount);
-                                    sendData("EY" + Encoding.encodeVL64(voteAmount));
-                                    sendData("Er" + eventManager.getEvent(_roomID));
-                                }
-                                break;
-                            }
-
-                        #endregion
-
-                        #region Catalogue and Recycler
-                        case "Ae": // Catalogue - open, retrieve index of pages
-                            {
-                                sendData("A~" + catalogueManager.getPageIndex(_Rank));
-
-                                break;
-                            }
-
-                        case "Af": // Catalogue, open page, get page content
-                            {
-                                {
-                                    string pageIndexName = currentPacket.Split('/')[1];
-                                    sendData("A" + catalogueManager.getPage(pageIndexName, _Rank));
-                                }
-                                break;
-                            }
-
-                        case "Ad": // Catalogue - purchase
-                            {
-                                string[] packetContent = currentPacket.Split(Convert.ToChar(13));
-                                string Page = packetContent[1];
-                                string Item = packetContent[3];
-                                int pageID = DB.runRead("SELECT indexid FROM catalogue_pages WHERE indexname = '" + DB.Stripslash(Page) + "' AND minrank <= " + _Rank, null);
-                                int templateID = DB.runRead("SELECT tid FROM catalogue_items WHERE name_cct = '" + DB.Stripslash(Item) + "'", null);
-                                int Cost = DB.runRead("SELECT catalogue_cost FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' AND tid = '" + templateID + "'", null);
-                                if (Cost == 0 || Cost > _Credits) { sendData("AD"); return; }
-
-                                int receiverID = userID;
-                                int presentBoxID = 0;
-                                int roomID = 0; // -1 = present box, 0 = inhand
-
-                                if (packetContent[5] == "1") // Purchased as present
-                                {
-                                    string receiverName = packetContent[6];
-                                    if (receiverName != _Username)
-                                    {
-                                        int i = DB.runRead("SELECT id FROM users WHERE name = '" + DB.Stripslash(receiverName) + "'", null);
-                                        if (i > 0)
-                                            receiverID = i;
-                                        else
-                                        {
-                                            sendData("AL" + receiverName);
-                                            return;
-                                        }
-                                    }
-
-                                    string boxSprite = "present_gen" + new Random().Next(1, 7);
-                                    string boxTemplateID = DB.runRead("SELECT tid FROM catalogue_items WHERE name_cct = '" + boxSprite + "'");
-                                    string boxNote = DB.Stripslash(stringManager.filterSwearwords(packetContent[7]));
-                                    DB.runQuery("INSERT INTO furniture(tid,ownerid,var) VALUES ('" + boxTemplateID + "','" + receiverID + "','!" + boxNote + "')");
-                                    presentBoxID = catalogueManager.lastItemID;
-                                    roomID = -1;
-                                }
-
-                                _Credits -= Cost;
-                                sendData("@F" + _Credits);
-                                DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
-
-                                if (stringManager.getStringPart(Item, 0, 4) == "deal")
-                                {
-                                    int dealID = int.Parse(Item.Substring(4));
-                                    int[] itemIDs = DB.runReadColumn("SELECT tid FROM catalogue_deals WHERE id = '" + dealID + "'", 0, null);
-                                    int[] itemAmounts = DB.runReadColumn("SELECT amount FROM catalogue_deals WHERE id = '" + dealID + "'", 0, null);
-
-                                    for (int i = 0; i < itemIDs.Length; i++)
-                                        for (int j = 1; j <= itemAmounts[i]; j++)
-                                        {
-                                            DB.runQuery("INSERT INTO furniture(tid,ownerid,roomid) VALUES ('" + itemIDs[i] + "','" + receiverID + "','" + roomID + "')");
-                                            catalogueManager.handlePurchase(itemIDs[i], receiverID, roomID, 0, presentBoxID);
-                                        }
-                                }
-                                else
-                                {
-                                    DB.runQuery("INSERT INTO furniture(tid,ownerid,roomid) VALUES ('" + templateID + "','" + receiverID + "','" + roomID + "')");
-                                    if (catalogueManager.getTemplate(templateID).Sprite == "wallpaper" || catalogueManager.getTemplate(templateID).Sprite == "floor" || catalogueManager.getTemplate(templateID).Sprite.Contains("landscape"))
-                                    {
-                                        string decorID = packetContent[4];
-                                        catalogueManager.handlePurchase(templateID, receiverID, 0, decorID, presentBoxID);
-                                    }
-                                    else if (stringManager.getStringPart(Item, 0, 11) == "prizetrophy")
-                                    {
-                                        string Inscription = DB.Stripslash(stringManager.filterSwearwords(packetContent[4]));
-                                        //string itemVariable = _Username + Convert.ToChar(9) + DateTime.Today.ToShortDateString() + Convert.ToChar(9) + Inscription;
-                                        string itemVariable = _Username + "\t" + DateTime.Today.ToShortDateString().Replace('/', '-') + "\t" + packetContent[4];
-                                        DB.runQuery("UPDATE furniture SET var = '" + itemVariable + "' WHERE id = '" + catalogueManager.lastItemID + "' LIMIT 1");
-                                        //"H" + GIVERNAME + [09] + GIVEDATE + [09] + MSG
-                                        catalogueManager.handlePurchase(templateID, receiverID, 0, "0", presentBoxID);
-                                    }
-                                    else if (stringManager.getStringPart(Item, 0, 11) == "greektrophy")
-                                    {
-                                        string Inscription = DB.Stripslash(stringManager.filterSwearwords(packetContent[4]));
-                                        //string itemVariable = _Username + Convert.ToChar(9) + DateTime.Today.ToShortDateString() + Convert.ToChar(9) + Inscription;
-                                        string itemVariable = _Username + "\t" + DateTime.Today.ToShortDateString().Replace('/', '-') + "\t" + packetContent[4];
-                                        DB.runQuery("UPDATE furniture SET var = '" + itemVariable + "' WHERE id = '" + catalogueManager.lastItemID + "' LIMIT 1");
-                                        //"H" + GIVERNAME + [09] + GIVEDATE + [09] + MSG
-                                        catalogueManager.handlePurchase(templateID, receiverID, 0, "0", presentBoxID);
-                                    }
-                                    else
-                                        catalogueManager.handlePurchase(templateID, receiverID, roomID, "0", presentBoxID);
-                                }
-
-                                if (receiverID == userID)
-                                    refreshHand("last");
-                                else
-                                    if (userManager.containsUser(receiverID)) { userManager.getUser(receiverID).refreshHand("last"); }
-                                //if (presentBoxID > 0)
-                                //Out.WriteLine(_Username + " Buy a present.");
-                                break;
-                            }
-
-                        case "Ca": // Recycler - proceed input items
-                            {
-                                if (Config.enableRecycler == false || Room == null || recyclerManager.sessionExists(userID))
-                                    return;
-
-                                int itemCount = Encoding.decodeVL64(currentPacket.Substring(2));
-                                if (recyclerManager.rewardExists(itemCount))
-                                {
-                                    recyclerManager.createSession(userID, itemCount);
-                                    currentPacket = currentPacket.Substring(Encoding.encodeVL64(itemCount).Length + 2);
-                                    for (int i = 0; i < itemCount; i++)
-                                    {
-                                        int itemID = Encoding.decodeVL64(currentPacket);
-                                        if (DB.checkExists("SELECT id FROM furniture WHERE ownerid = '" + userID + "' AND roomid = '0'"))
-                                        {
-                                            DB.runQuery("UPDATE furniture SET roomid = '-2' WHERE id = '" + itemID + "' LIMIT 1");
-                                            currentPacket = currentPacket.Substring(Encoding.encodeVL64(itemID).Length);
-                                        }
-                                        else
-                                        {
-                                            recyclerManager.dropSession(userID, true);
-                                            sendData("DpH");
-                                            return;
-                                        }
-
-                                    }
-
-                                    sendData("Dp" + recyclerManager.sessionString(userID));
-                                    refreshHand("update");
-                                }
-
-                                break;
-                            }
-
-                        case "Cb": // Recycler - redeem/cancel session
-                            {
-                                if (Config.enableRecycler == false || Room != null && recyclerManager.sessionExists(userID))
-                                {
-                                    bool Redeem = (currentPacket.Substring(2) == "I");
-                                    if (Redeem && recyclerManager.sessionReady(userID))
-                                        recyclerManager.rewardSession(userID);
-                                    recyclerManager.dropSession(userID, Redeem);
-
-                                    sendData("Dp" + recyclerManager.sessionString(userID));
-                                    if (Redeem)
-                                        refreshHand("last");
-                                    else
-                                        refreshHand("new");
-                                }
-                                break;
-                            }
-                        #endregion
-
-                        #region Hand and item handling
-                        case "AA": // Hand
-                            {
-                                if (Room == null || roomUser == null)
-                                    return;
-
-                                string Mode = currentPacket.Substring(2);
-                                refreshHand(Mode);
-                                break;
-                            }
-
-                        case "LB": // Hand
-                            {
-                                if (Room == null || roomUser == null)
-                                    return;
-
-                                string Mode = currentPacket.Substring(2);
-                                refreshHand(Mode);
-                                break;
-                            }
-
-                        case "AB": // Item handling - apply wallpaper/floor/landscape to room
-                            {
-                                if (_hasRights == false || _inPublicroom || Room == null || roomUser == null)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Split('/')[1]);
-                                string decorType = currentPacket.Substring(2).Split('/')[0];
-                                if (decorType != "wallpaper" && decorType != "floor" && decorType != "landscape")
-                                    return;
-
-                                int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemID + "' AND ownerid = '" + userID + "' AND roomid = '0'", null);
-                                if (catalogueManager.getTemplate(templateID).Sprite != decorType)
-                                    return;
-
-                                string decorVal = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
-                                DB.runQuery("UPDATE rooms SET " + decorType + " = '" + decorVal + "' WHERE id = '" + _roomID + "' LIMIT 1");
-                                Room.sendData("@n" + decorType + "/" + decorVal);
-
-                                DB.runQuery("DELETE FROM furniture WHERE id = '" + itemID + "' LIMIT 1");
-                            }
-                            break;   
-                    
-                        case "AZ": // Item handling - place item down
-                            {
-                                if (_hasRights == false || _inPublicroom || Room == null || roomUser == null)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Split(' ')[0].Substring(2));
-                                int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemID + "' AND ownerid = '" + userID + "' AND roomid = '0'", null);
-                                if (templateID == 0)
-                                    return;
-
-                                if (catalogueManager.getTemplate(templateID).typeID == 0)
-                                {
-                                    string _INPUTPOS = currentPacket.Substring(itemID.ToString().Length + 3);
-                                    string _CHECKEDPOS = catalogueManager.wallPositionOK(_INPUTPOS);
-                                    if (_CHECKEDPOS != _INPUTPOS)
-                                        return;
-
-                                    string Var = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
-                                    if (stringManager.getStringPart(catalogueManager.getTemplate(templateID).Sprite, 0, 7) == "post.it")
-                                    {
-                                        if (int.Parse(Var) > 1)
-                                            DB.runQuery("UPDATE furniture SET var = var - 1 WHERE id = '" + itemID + "' LIMIT 1");
-                                        else
-                                            DB.runQuery("DELETE FROM furniture WHERE id = '" + itemID + "' LIMIT 1");
-                                        DB.runQuery("INSERT INTO furniture(tid,ownerid) VALUES ('" + templateID + "','" + userID + "')");
-                                        itemID = catalogueManager.lastItemID;
-                                        DB.runQuery("INSERT INTO furniture_stickies(id) VALUES ('" + itemID + "')");
-                                        Var = "FFFF33";
-                                        DB.runQuery("UPDATE furniture SET var = '" + Var + "' WHERE id = '" + itemID + "' LIMIT 1");
-                                    }
-                                    Room.wallItemManager.addItem(itemID, templateID, _CHECKEDPOS, Var, true);
-                                }
-                                else
-                                {
-                                    string[] locDetails = currentPacket.Split(' ');
-                                    int X = int.Parse(locDetails[1]);
-                                    int Y = int.Parse(locDetails[2]);
-                                    byte Z = byte.Parse(locDetails[3]);
-                                    byte typeID = catalogueManager.getTemplate(templateID).typeID;
-                                    Room.floorItemManager.placeItem(itemID, templateID, X, Y, typeID, Z);
-                                }
-                                break;
-                            }
-
-                        case "AC": // Item handling - pickup item
-                            {
-                                if (_isOwner == false || _inPublicroom || Room == null || roomUser == null)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Split(' ')[2]);
-                                if (Room.floorItemManager.containsItem(itemID))
-                                    Room.floorItemManager.removeItem(itemID, userID);
-                                else if (Room.wallItemManager.containsItem(itemID) && stringManager.getStringPart(Room.wallItemManager.getItem(itemID).Sprite, 0, 7) != "post.it") // Can't pickup stickies from room
-                                    Room.wallItemManager.removeItem(itemID, userID);
-                                else
-                                    return;
-
-                                refreshHand("update");
-                                break;
-                            }
-
-                        case "AI": // Item handling - move/rotate item
-                            {
-                                if (_hasRights == false || _inPublicroom || Room == null || roomUser == null)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Split(' ')[0].Substring(2));
-                                if (Room.floorItemManager.containsItem(itemID))
-                                {
-                                    string[] locDetails = currentPacket.Split(' ');
-                                    int X = int.Parse(locDetails[1]);
-                                    int Y = int.Parse(locDetails[2]);
-                                    byte Z = byte.Parse(locDetails[3]);
-
-                                    Room.floorItemManager.relocateItem(itemID, X, Y, Z);
-                                }
-                                break;
-                            }
-
-                        case "CV": // Item handling - toggle wallitem status
-                            {
-                                if (_inPublicroom || Room == null || roomUser == null)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Substring(4, Encoding.decodeB64(currentPacket.Substring(2, 2))));
-                                int toStatus = Encoding.decodeVL64(currentPacket.Substring(itemID.ToString().Length + 4));
-                                Room.wallItemManager.toggleItemStatus(itemID, toStatus);
-                                break;
-                            }
-
-                        case "AJ": // Item handling - toggle flooritem status
-                            {
-                                try
-                                {
-                                    int itemID = int.Parse(currentPacket.Substring(4, Encoding.decodeB64(currentPacket.Substring(2, 2))));
-                                    string toStatus = DB.Stripslash(currentPacket.Substring(itemID.ToString().Length + 6));
-                                    Room.floorItemManager.toggleItemStatus(itemID, toStatus, _hasRights);
-                                }
-                                catch { }
-                                break;
-                            }
-
-                        case "AN": // Item handling - open presentbox
-                            {
-                                if (_isOwner == false || _inPublicroom || Room == null || roomUser == null)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Substring(2));
-                                if (Room.floorItemManager.containsItem(itemID) == false)
-                                    return;
-
-                                int[] itemIDs = DB.runReadColumn("SELECT itemid FROM furniture_presents WHERE id = '" + itemID + "'", 0, null);
-                                if (itemIDs.Length > 0)
-                                {
-                                    for (int i = 0; i < itemIDs.Length; i++)
-                                        DB.runQuery("UPDATE furniture SET roomid = '0' WHERE id = '" + itemIDs[i] + "' LIMIT 1");
-                                    Room.floorItemManager.removeItem(itemID, 0);
-
-                                    int lastItemTID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemIDs[itemIDs.Length - 1] + "'", null);
-                                    catalogueManager.itemTemplate Template = catalogueManager.getTemplate(lastItemTID);
-
-                                    if (Template.typeID > 0)
-                                        sendData("BA" + Template.Sprite + Convert.ToChar(13) + Template.Sprite + Convert.ToChar(13) + Template.Length + Convert.ToChar(30) + Template.Width + Convert.ToChar(30) + Template.Colour);
-                                    else
-                                        sendData("BA" + Template.Sprite + Convert.ToChar(13) + Template.Sprite + " " + Template.Colour + Convert.ToChar(13));
-                                }
-                                DB.runQuery("DELETE FROM furniture_presents WHERE id = '" + itemID + "' LIMIT " + itemIDs.Length);
-                                DB.runQuery("DELETE FROM furniture WHERE id = '" + itemID + "' LIMIT 1");
-                                refreshHand("last");
-                                break;
-                            }
-
-                        case "Bw": // Item handling - redeem credit item
-                            {
-                                if (_isOwner == false || _inPublicroom || Room == null || roomUser == null)
-                                    return;
-
-                                int itemID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                if (Room.floorItemManager.containsItem(itemID))
-                                {
-                                    string Sprite = Room.floorItemManager.getItem(itemID).Sprite;
-                                    if (Sprite.Substring(0, 3).ToLower() != "cf_" && Sprite.Substring(0, 4).ToLower() != "cfc_")
-                                        return;
-                                    int redeemValue = 0;
-                                    try { redeemValue = int.Parse(Sprite.Split('_')[1]); }
-                                    catch { return; }
-
-                                    Room.floorItemManager.removeItem(itemID, 0);
-
-                                    _Credits += redeemValue;
-                                    sendData("@F" + _Credits);
-                                    DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
-                                }
-                                break;
-                            }
-
-                        case "AQ": // Item handling - teleporters - enter teleporter
-                            {
-                                if (_inPublicroom || Room == null || roomUser == null)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Substring(2));
-                                if (Room.floorItemManager.containsItem(itemID))
-                                {
-                                    Rooms.Items.floorItem Teleporter = Room.floorItemManager.getItem(itemID);
-                                    // Prevent clientside 'jumps' to teleporter, check if user is removed one coord from teleporter entrance
-                                    if (Teleporter.Z == 2 && roomUser.X != Teleporter.X + 1 && roomUser.Y != Teleporter.Y)
-                                        return;
-                                    else if (Teleporter.Z == 4 && roomUser.X != Teleporter.X && roomUser.Y != Teleporter.Y + 1)
-                                        return;
-                                    roomUser.goalX = -1;
-                                    Room.moveUser(this.roomUser, Teleporter.X, Teleporter.Y, true);
-                                }
-                                break;
-                            }
-
-                        case @"@\": // Item handling - teleporters - flash teleporter
-                            {
-                                if (_inPublicroom || Room == null || roomUser == null)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Substring(2));
-                                if (Room.floorItemManager.containsItem(itemID))
-                                {
-                                    Rooms.Items.floorItem Teleporter1 = Room.floorItemManager.getItem(itemID);
-                                    if (roomUser.X != Teleporter1.X && roomUser.Y != Teleporter1.Y)
-                                        return;
-
-                                    int idTeleporter2 = DB.runRead("SELECT teleportid FROM furniture WHERE id = '" + itemID + "'", null);
-                                    int roomIDTeleporter2 = DB.runRead("SELECT roomid FROM furniture WHERE id = '" + idTeleporter2 + "'", null);
-                                    if (roomIDTeleporter2 > 0)
-                                        new TeleporterUsageSleep(useTeleporter).BeginInvoke(Teleporter1, idTeleporter2, roomIDTeleporter2, null, null);
-                                }
-                                break;
-                            }
-
-                        case "AM": // Item handling - dices - close dice
-                            {
-                                if (Room == null || roomUser == null || _inPublicroom)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Substring(2));
-                                if (Room.floorItemManager.containsItem(itemID))
-                                {
-                                    Rooms.Items.floorItem Item = Room.floorItemManager.getItem(itemID);
-                                    string Sprite = Item.Sprite;
-                                    if (Sprite != "edice" && Sprite != "edicehc") // Not a dice item
-                                        return;
-
-                                    if (!(Math.Abs(roomUser.X - Item.X) > 1 || Math.Abs(roomUser.Y - Item.Y) > 1)) // User is not more than one square removed from dice
-                                    {
-                                        Item.Var = "0";
-                                        Room.sendData("AZ" + itemID + " " + (itemID * 38));
-                                        DB.runQuery("UPDATE furniture SET var = '0' WHERE id = '" + itemID + "' LIMIT 1");
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "AL": // Item handling - dices - spin dice
-                            {
-                                if (Room == null || roomUser == null || _inPublicroom)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Substring(2));
-                                if (Room.floorItemManager.containsItem(itemID))
-                                {
-                                    Rooms.Items.floorItem Item = Room.floorItemManager.getItem(itemID);
-                                    string Sprite = Item.Sprite;
-                                    if (Sprite != "edice" && Sprite != "edicehc") // Not a dice item
-                                        return;
-
-                                    if (!(Math.Abs(roomUser.X - Item.X) > 1 || Math.Abs(roomUser.Y - Item.Y) > 1)) // User is not more than one square removed from dice
-                                    {
-                                        Room.sendData("AZ" + itemID);
-
-                                        int rndNum = new Random(DateTime.Now.Millisecond).Next(1, 7);
-                                        Room.sendData("AZ" + itemID + " " + ((itemID * 38) + rndNum), 2000);
-                                        Item.Var = rndNum.ToString();
-                                        DB.runQuery("UPDATE furniture SET var = '" + rndNum + "' WHERE id = '" + itemID + "' LIMIT 1");
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "Cw": // Item handling - spin Wheel of fortune
-                            {
-                                if (_hasRights == false || Room == null || roomUser == null || _inPublicroom)
-                                    return;
-
-                                int itemID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                if (Room.wallItemManager.containsItem(itemID))
-                                {
-                                    Rooms.Items.wallItem Item = Room.wallItemManager.getItem(itemID);
-                                    if (Item.Sprite == "habbowheel")
-                                    {
-                                        int rndNum = new Random(DateTime.Now.Millisecond).Next(0, 10);
-                                        Room.sendData("AU" + itemID + Convert.ToChar(9) + "habbowheel" + Convert.ToChar(9) + " " + Item.wallPosition + Convert.ToChar(9) + "-1");
-                                        Room.sendData("AU" + itemID + Convert.ToChar(9) + "habbowheel" + Convert.ToChar(9) + " " + Item.wallPosition + Convert.ToChar(9) + rndNum, 4250);
-                                        DB.runQuery("UPDATE furniture SET var = '" + rndNum + "' WHERE id = '" + itemID + "' LIMIT 1");
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "Dz": // Item handling - activate Love shuffler sofa
-                            {
-                                string Message = currentPacket.Substring(4);
-                                if (Room == null || roomUser == null || _inPublicroom)
-                                    return;
-
-                                int itemID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                if (Room.floorItemManager.containsItem(itemID) && Room.floorItemManager.getItem(itemID).Sprite == "val_randomizer")
-                                {
-                                    int rndNum = new Random(DateTime.Now.Millisecond).Next(1, 5);
-                                    Room.sendData("AX" + itemID + Convert.ToChar(2) + "123456789" + Convert.ToChar(2));
-                                    Room.sendData("AX" + itemID + Convert.ToChar(2) + rndNum + Convert.ToChar(2), 5000);
-                                    DB.runQuery("UPDATE furniture SET var = '" + rndNum + "' WHERE id = '" + itemID + "' LIMIT 1");
-                                }
-                                break;
-                            }
-
-                        case "AS": // Item handling - stickies/photo's - open stickie/photo
-                            {
-                                string Message = currentPacket.Substring(4);
-                                if (Room == null || roomUser == null || _inPublicroom)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Substring(2));
-                                if (Room.wallItemManager.containsItem(itemID))
-                                {
-                                    Message = DB.runRead("SELECT text FROM furniture_stickies WHERE id = '" + itemID + "'");
-                                    string Colour = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
-                                    sendData("@p" + itemID + Convert.ToChar(9) + Colour + " " + Message);
-                                }
-                                break;
-                            }
-
-                        case "AT": // Item handling - stickies - edit stickie colour/message
-                            {
-                                if (_hasRights == false || Room == null || roomUser == null || _inPublicroom)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Substring(2, currentPacket.IndexOf("/") - 2));
-                                if (Room.wallItemManager.containsItem(itemID))
-                                {
-                                    Rooms.Items.wallItem Item = Room.wallItemManager.getItem(itemID);
-                                    string Sprite = Item.Sprite;
-                                    if (Sprite != "post.it" && Sprite != "post.it.vd")
-                                        return;
-                                    string Colour = "FFFFFF"; // Valentine stickie default colour
-                                    if (Sprite == "post.it") // Normal stickie
-                                    {
-                                        Colour = currentPacket.Substring(2 + itemID.ToString().Length + 1, 6);
-                                        if (Colour != "FFFF33" && Colour != "FF9CFF" && Colour != "9CFF9C" && Colour != "9CCEFF")
-                                            return;
-                                    }
-
-                                    string Message = currentPacket.Substring(2 + itemID.ToString().Length + 7);
-                                    if (Message.Length > 684)
-                                        return;
-                                    if (Colour != Item.Var)
-                                        DB.runQuery("UPDATE furniture SET var = '" + Colour + "' WHERE id = '" + itemID + "' LIMIT 1");
-                                    Item.Var = Colour;
-                                    Room.sendData("AU" + itemID + Convert.ToChar(9) + Sprite + Convert.ToChar(9) + " " + Item.wallPosition + Convert.ToChar(9) + Colour);
-
-                                    Message = DB.Stripslash(stringManager.filterSwearwords(Message)).Replace("/r", Convert.ToChar(13).ToString());
-                                    DB.runQuery("UPDATE furniture_stickies SET text = '" + Message + "' WHERE id = '" + itemID + "' LIMIT 1");
-                                }
-                                break;
-                            }
-
-                        case "AU": // Item handling - stickies/photo - delete stickie/photo
-                            {
-                                if (_isOwner == false || Room == null || roomUser == null || _inPublicroom)
-                                    return;
-
-                                int itemID = int.Parse(currentPacket.Substring(2));
-                                if (Room.wallItemManager.containsItem(itemID) && stringManager.getStringPart(Room.wallItemManager.getItem(itemID).Sprite, 0, 7) == "post.it")
-                                {
-                                    Room.wallItemManager.removeItem(itemID, 0);
-                                    DB.runQuery("DELETE FROM furniture_stickies WHERE id = '" + itemID + "' LIMIT 1");
-                                }
-                                break;
-                            }
-
-                        case "Ah": // Statuses - Lido Voting
-                            {
-                                if (Room != null && roomUser != null && statusManager.containsStatus("sit") == false && statusManager.containsStatus("lay") == false)
-                                {
-                                    if (currentPacket.Length == 2)
-                                        statusManager.addStatus("sign", "");
-                                    else
-                                    {
-                                        string signID = currentPacket.Substring(2);
-                                        statusManager.handleStatus("sign", signID, Config.Statuses_Wave_waveDuration);
-                                    }
-
-                                    statusManager.Refresh();
-                                }
-                                break;
-                            }
-                        #endregion
-
-                        #region Soundmachines
-                        case "Ct": // Soundmachine - initialize songs in soundmachine
-                            {
-                                if (_isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
-                                    sendData("EB" + soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID));
-                                break;
-                            }
-
-                        case "Cu": // Soundmachine - enter room initialize playlist
-                            {
-                                if (Room != null && Room.floorItemManager.soundMachineID > 0)
-                                    sendData("EC" + soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID));
-                                break;
-                            }
-
-                        case "C]": // Soundmachine - get song title and data of certain song
-                            {
-                                if (Room != null && Room.floorItemManager.soundMachineID > 0)
-                                {
-                                    int songID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    sendData("Dl" + soundMachineManager.getSong(songID));
-                                }
-                                break;
-                            }
-
-                        case "Cs": // Soundmachine - save playlist
-                            {
-                                if (_isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
-                                {
-                                    int Amount = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    if (Amount < 6) // Max playlist size
-                                    {
-                                        currentPacket = currentPacket.Substring(Encoding.encodeVL64(Amount).Length + 2);
-                                        DB.runQuery("DELETE FROM soundmachine_playlists WHERE machineid = '" + Room.floorItemManager.soundMachineID + "'");
-                                        for (int i = 0; i < Amount; i++)
-                                        {
-                                            int songID = Encoding.decodeVL64(currentPacket);
-                                            DB.runQuery("INSERT INTO soundmachine_playlists(machineid,songid,pos) VALUES ('" + Room.floorItemManager.soundMachineID + "','" + songID + "','" + i + "')");
-                                            currentPacket = currentPacket.Substring(Encoding.encodeVL64(songID).Length);
-                                        }
-                                        Room.sendData("EC" + soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID)); // Refresh playlist
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "C~": // Sound machine - burn song to disk
-                            {
-                                if (_isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
-                                {
-                                    int songID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    if (_Credits > 0 && DB.checkExists("SELECT id FROM soundmachine_songs WHERE id = '" + songID + "' AND userid = '" + userID + "' AND machineid = '" + Room.floorItemManager.soundMachineID + "'"))
-                                    {
-                                        string[] songData = DB.runReadRow("SELECT title,length FROM soundmachine_songs WHERE id = '" + songID + "'");
-                                        int Length = DB.runRead("SELECT length FROM soundmachine_songs WHERE id = '" + songID + "'", null);
-                                        string Status = Encoding.encodeVL64(songID) + _Username + Convert.ToChar(10) + DateTime.Today.Day + Convert.ToChar(10) + DateTime.Today.Month + Convert.ToChar(10) + DateTime.Today.Year + Convert.ToChar(10) + songData[1] + Convert.ToChar(10) + songData[0];
-
-                                        DB.runQuery("INSERT INTO furniture(tid,ownerid,var) VALUES ('" + Config.Soundmachine_burnToDisk_diskTemplateID + "','" + userID + "','" + Status + "')");
-                                        DB.runQuery("UPDATE soundmachine_songs SET burnt = '1' WHERE id = '" + songID + "' LIMIT 1");
-                                        DB.runQuery("UPDATE users SET credits = credits - 1 WHERE id = '" + userID + "' LIMIT 1");
-
-                                        _Credits--;
-                                        sendData("@F" + _Credits);
-                                        sendData("EB" + soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID));
-                                        refreshHand("last");
-                                    }
-                                    else // Virtual user doesn't has enough credits to burn this song to disk, or this song doesn't exist in his/her soundmachine
-                                        sendData("AD");
-                                }
-                                break;
-                            }
-
-                        case "Cx": // Sound machine - delete song
-                            {
-                                if (_isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
-                                {
-                                    int songID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    if (DB.checkExists("SELECT id FROM soundmachine_songs WHERE id = '" + songID + "' AND machineid = '" + Room.floorItemManager.soundMachineID + "'"))
-                                    {
-                                        DB.runQuery("UPDATE soundmachine_songs SET machineid = '0' WHERE id = '" + songID + "' AND burnt = '1'"); // If the song is burnt atleast once, then the song is removed from this machine
-                                        DB.runQuery("DELETE FROM soundmachine_songs WHERE id = '" + songID + "' AND burnt = '0' LIMIT 1"); // If the song isn't burnt; delete song from database
-                                        DB.runQuery("DELETE FROM soundmachine_playlists WHERE machineid = '" + Room.floorItemManager.soundMachineID + "' AND songid = '" + songID + "'"); // Remove song from playlist
-                                        Room.sendData("EC" + soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID));
-                                    }
-                                }
-                                break;
-                            }
-
-                        #region Song editor
-                        case "Co": // Soundmachine - song editor - initialize soundsets and samples
-                            {
-                                if (_isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
-                                {
-                                    songEditor = new virtualSongEditor(Room.floorItemManager.soundMachineID, userID);
-                                    songEditor.loadSoundsets();
-                                    sendData("Dm" + songEditor.getSoundsets());
-                                    sendData("Dn" + soundMachineManager.getHandSoundsets(userID));
-                                }
-                                break;
-                            }
-
-                        case "C[": // Soundmachine - song editor - add soundset
-                            {
-                                if (songEditor != null && _isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
-                                {
-                                    int soundSetID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    int slotID = Encoding.decodeVL64(currentPacket.Substring(Encoding.encodeVL64(soundSetID).Length + 2));
-                                    if (slotID > 0 && slotID < 5 && songEditor.slotFree(slotID))
-                                    {
-                                        songEditor.addSoundset(soundSetID, slotID);
-                                        sendData("Dn" + soundMachineManager.getHandSoundsets(userID));
-                                        sendData("Dm" + songEditor.getSoundsets());
-                                    }
-                                }
-                                break;
-                            }
-
-                        case @"C\": // Soundmachine - song editor - remove soundset
-                            {
-                                if (songEditor != null && _isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
-                                {
-                                    int slotID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    if (songEditor.slotFree(slotID) == false)
-                                    {
-                                        songEditor.removeSoundset(slotID);
-                                        sendData("Dm" + songEditor.getSoundsets());
-                                        sendData("Dn" + soundMachineManager.getHandSoundsets(userID));
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "Cp": // Soundmachine - song editor - save new song                        
-                            {
-                                if (songEditor != null && _isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
-                                {
-                                    int nameLength = Encoding.decodeB64(currentPacket.Substring(2, 2));
-                                    string Title = currentPacket.Substring(4, nameLength);
-                                    string Data = currentPacket.Substring(nameLength + 6);
-                                    int Length = soundMachineManager.calculateSongLength(Data);
-
-                                    if (Length != -1)
-                                    {
-                                        Title = DB.Stripslash(stringManager.filterSwearwords(Title));
-                                        Data = DB.Stripslash(Data);
-                                        DB.runQuery("INSERT INTO soundmachine_songs (userid,machineid,title,length,data) VALUES ('" + userID + "','" + Room.floorItemManager.soundMachineID + "','" + Title + "','" + Length + "','" + DB.Stripslash(Data) + "')");
-
-                                        sendData("EB" + soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID));
-                                        sendData("EK" + Encoding.encodeVL64(Room.floorItemManager.soundMachineID) + Title + Convert.ToChar(2));
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "Cq": // Soundmachine - song editor - request edit of existing song
-                            {
-                                if (_isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
-                                {
-                                    int songID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    sendData("Dl" + soundMachineManager.getSong(songID));
-
-                                    songEditor = new virtualSongEditor(Room.floorItemManager.soundMachineID, userID);
-                                    songEditor.loadSoundsets();
-
-                                    sendData("Dm" + songEditor.getSoundsets());
-                                    sendData("Dn" + soundMachineManager.getHandSoundsets(userID));
-                                }
-                                break;
-                            }
-
-                        case "Cr": // Soundmachine - song editor - save edited existing song
-                            {
-                                if (songEditor != null && _isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
-                                {
-                                    int songID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    if (DB.checkExists("SELECT id FROM soundmachine_songs WHERE id = '" + songID + "' AND userid = '" + userID + "' AND machineid = '" + Room.floorItemManager.soundMachineID + "'"))
-                                    {
-                                        int idLength = Encoding.encodeVL64(songID).Length;
-                                        int nameLength = Encoding.decodeB64(currentPacket.Substring(idLength + 2, 2));
-                                        string Title = currentPacket.Substring(idLength + 4, nameLength);
-                                        string Data = currentPacket.Substring(idLength + nameLength + 6);
-                                        int Length = soundMachineManager.calculateSongLength(Data);
-                                        if (Length != -1)
-                                        {
-                                            Title = DB.Stripslash(stringManager.filterSwearwords(Title));
-                                            Data = DB.Stripslash(Data);
-                                            DB.runQuery("UPDATE soundmachine_songs SET title = '" + Title + "',data = '" + Data + "',length = '" + Length + "' WHERE id = '" + songID + "' LIMIT 1");
-
-                                            sendData("ES");
-                                            sendData("EB" + soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID));
-                                            Room.sendData("EC" + soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID));
-                                        }
-                                    }
-                                }
-                                break;
-                            }
-                        #endregion Song editor
-                        #endregion
-
-                        #region Trading
-                        case "AG": // Trading - start
-                            {
-                                if (Room != null || roomUser != null || _tradePartnerRoomUID == -1)
-                                {
-                                    if (Config.enableTrading == false) { sendData("BK" + stringManager.getString("trading_disabled")); return; }
-
-                                    int partnerUID = int.Parse(currentPacket.Substring(2));
-                                    if (Room.containsUser(partnerUID))
-                                    {
-                                        virtualUser Partner = Room.getUser(partnerUID);
-                                        if (Partner.statusManager.containsStatus("trd"))
-                                            return;
-
-                                        this._tradePartnerRoomUID = partnerUID;
-                                        this.statusManager.addStatus("trd", "");
-                                        this.roomUser.Refresh();
-
-                                        Partner._tradePartnerRoomUID = this.roomUser.roomUID;
-                                        Partner.statusManager.addStatus("trd", "");
-                                        Partner.roomUser.Refresh();
-
-                                        this.refreshTradeBoxes();
-                                        Partner.refreshTradeBoxes();
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "AH": // Trading - offer item
-                            {
-                                if (Room != null && roomUser != null && _tradePartnerRoomUID != -1 && Room.containsUser(_tradePartnerRoomUID))
-                                {
-                                    int itemID = int.Parse(currentPacket.Substring(2));
-                                    int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemID + "' AND ownerid = '" + userID + "' AND roomid = '0'", null);
-                                    if (templateID == 0)
-                                        return;
-
-
-
-                                    _tradeItems[_tradeItemCount] = itemID;
-                                    _tradeItemCount++;
-                                    virtualUser Partner = Room.getUser(_tradePartnerRoomUID);
-
-                                    this._tradeAccept = false;
-                                    Partner._tradeAccept = false;
-
-                                    this.refreshTradeBoxes();
-                                    Partner.refreshTradeBoxes();
-                                }
-                                break;
-                            }
-
-                        case "AD": // Trading - decline trade
-                            {
-                                if (Room != null && roomUser != null && _tradePartnerRoomUID != -1 && Room.containsUser(_tradePartnerRoomUID))
-                                {
-                                    virtualUser Partner = Room.getUser(_tradePartnerRoomUID);
-                                    this._tradeAccept = false;
-                                    Partner._tradeAccept = false;
-                                    this.refreshTradeBoxes();
-                                    Partner.refreshTradeBoxes();
-                                }
-                                break;
-                            }
-
-                        case "AE": // Trading - accept trade (and, if both partners accept, swap items]
-                            {
-                                if (Room != null && roomUser != null && _tradePartnerRoomUID != -1 && Room.containsUser(_tradePartnerRoomUID))
-                                {
-                                    virtualUser Partner = Room.getUser(_tradePartnerRoomUID);
-                                    this._tradeAccept = true;
-                                    this.refreshTradeBoxes();
-                                    Partner.refreshTradeBoxes();
-
-                                    if (Partner._tradeAccept)
-                                    {
-                                        for (int i = 0; i < _tradeItemCount; i++)
-                                            if (_tradeItems[i] > 0)
-                                                DB.runQuery("UPDATE furniture SET ownerid = '" + Partner.userID + "',roomid = '0' WHERE id = '" + this._tradeItems[i] + "' LIMIT 1");
-
-                                        for (int i = 0; i < Partner._tradeItemCount; i++)
-                                            if (Partner._tradeItems[i] > 0)
-                                                DB.runQuery("UPDATE furniture SET ownerid = '" + this.userID + "',roomid = '0' WHERE id = '" + Partner._tradeItems[i] + "' LIMIT 1");
-
-                                        abortTrade();
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "AF": // Trading - abort trade
-                            {
-                                if (Room != null && roomUser != null && _tradePartnerRoomUID != -1 && Room.containsUser(_tradePartnerRoomUID))
-                                {
-                                    abortTrade();
-                                    refreshHand("update");
-                                }
-                                break;
-                            }
-
-
-                        #endregion
-
-                        #region Games
-                        case "B_": // Gamelobby - refresh gamelist
-                            {
-                                if (Room != null && Room.Lobby != null)
-                                    sendData("Ch" + Room.Lobby.gameList());
-                                break;
-                            }
-
-                        case "B`": // Gamelobby - checkout single game sub
-                            {
-                                if (Room != null && roomUser != null && Room.Lobby != null && gamePlayer == null)
-                                {
-                                    int gameID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    if (Room.Lobby.Games.ContainsKey(gameID))
-                                    {
-                                        this.gamePlayer = new gamePlayer(this, roomUser.roomUID, (Game)Room.Lobby.Games[gameID]);
-                                        gamePlayer.Game.Subviewers.Add(gamePlayer);
-                                        sendData("Ci" + gamePlayer.Game.Sub);
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "Bb": // Gamelobby - request new game create
-                            {
-                                if (Room != null && roomUser != null && Room.Lobby != null && gamePlayer == null)
-                                {
-                                    if (_Tickets > 1) // Atleast two tickets in inventory
-                                    {
-                                        if (Room.Lobby.validGamerank(roomUser.gamePoints))
-                                        {
-                                            if (Room.Lobby.isBattleBall)
-                                                sendData("Ck" + Room.Lobby.getCreateGameSettings());
-                                            else
-                                                sendData("Ck" + "RA" + "secondsUntilRestart" + Convert.ToChar(2) + "HIRGIHHfieldType" + Convert.ToChar(2) + "HKIIIISAnumTeams" + Convert.ToChar(2) + "HJJIII" + "PA" + "gameLengthChoice" + Convert.ToChar(2) + "HJIIIIK" + "name" + Convert.ToChar(2) + "IJ" + Convert.ToChar(2) + "H" + "secondsUntilStart" + Convert.ToChar(2) + "HIRBIHH");
-                                        }
-                                        else
-                                            sendData("Cl" + "K"); // Error [3] = Skillevel not valid in this lobby
-                                    }
-                                    else
-                                        sendData("Cl" + "J"); // Error [2] = Not enough tickets
-                                }
-                                break;
-                            }
-
-                        case "Bc": // Gamelobby - process new created game
-                            {
-                                if (Room != null && roomUser != null && Room.Lobby != null && gamePlayer == null)
-                                {
-                                    if (_Tickets > 1) // Atleast two tickets in inventory
-                                    {
-                                        if (Room.Lobby.validGamerank(roomUser.gamePoints))
-                                        {
-                                            try
-                                            {
-                                                int mapID = -1;
-                                                int teamAmount = -1;
-                                                int[] Powerups = null;
-                                                string Name = "";
-
-                                                #region Game settings decoding
-                                                int keyAmount = Encoding.decodeVL64(currentPacket.Substring(2));
-                                                currentPacket = currentPacket.Substring(Encoding.encodeVL64(keyAmount).Length + 2);
-                                                for (int i = 0; i < keyAmount; i++)
-                                                {
-                                                    int j = Encoding.decodeB64(currentPacket.Substring(0, 2));
-                                                    string Key = currentPacket.Substring(2, j);
-                                                    if (currentPacket.Substring(j + 2, 1) == "H") // VL64 value
-                                                    {
-                                                        int Value = Encoding.decodeVL64(currentPacket.Substring(j + 3));
-                                                        switch (Key)
-                                                        {
-                                                            case "fieldType":
-                                                                //if (Value != 5)
-                                                                //{
-                                                                //    sendData("BK" + "Soz but only the maps for Oldskool are added to db yet kthx.");
-                                                                //    return;
-                                                                //}
-                                                                mapID = Value;
-                                                                break;
-
-                                                            case "numTeams":
-                                                                teamAmount = Value;
-                                                                break;
-                                                        }
-                                                        int k = Encoding.encodeVL64(Value).Length;
-                                                        currentPacket = currentPacket.Substring(j + k + 3);
-                                                    }
-                                                    else // B64 value
-                                                    {
-
-                                                        int valLen = Encoding.decodeB64(currentPacket.Substring(j + 3, 2));
-                                                        string Value = currentPacket.Substring(j + 5, valLen);
-
-                                                        switch (Key)
-                                                        {
-                                                            case "allowedPowerups":
-                                                                string[] ps = Value.Split(',');
-                                                                Powerups = new int[ps.Length];
-                                                                for (int p = 0; p < ps.Length; p++)
-                                                                {
-                                                                    int P = int.Parse(ps[p]);
-                                                                    if (Room.Lobby.allowsPowerup(P))
-                                                                        Powerups[p] = P;
-                                                                    else // Powerup not allowed in this lobby
-                                                                        return;
-                                                                }
-                                                                break;
-
-                                                            case "name":
-                                                                Name = stringManager.filterSwearwords(Value);
-                                                                break;
-                                                        }
-                                                        currentPacket = currentPacket.Substring(j + valLen + 5);
-                                                    }
-                                                }
-                                                #endregion
-
-                                                if (mapID == -1 || teamAmount == -1 || Name == "") // Incorrect keys supplied by client
-                                                    return;
-                                                this.gamePlayer = new gamePlayer(this, roomUser.roomUID, null);
-                                                Room.Lobby.createGame(this.gamePlayer, Name, mapID, teamAmount, Powerups);
-                                            }
-                                            catch { }
-                                        }
-                                        else
-                                            sendData("Cl" + "K"); // Error [3] = Skillevel not valid in this lobby
-                                    }
-                                    else
-                                        sendData("Cl" + "J"); // Error [2] = Not enough tickets
-                                }
-                                break;
-                            }
-
-                        case "Be": // Gamelobby - switch team in game
-                            {
-                                if (Room != null && Room.Lobby != null && gamePlayer != null && gamePlayer.Game.State == Game.gameState.Waiting)
-                                {
-                                    if (_Tickets > 1) // Atleast two tickets in inventory
-                                    {
-                                        if (Room.Lobby.validGamerank(roomUser.gamePoints))
-                                        {
-                                            int j = Encoding.decodeVL64(currentPacket.Substring(2));
-                                            int teamID = Encoding.decodeVL64(currentPacket.Substring(Encoding.encodeVL64(j).Length + 2));
-
-                                            if (teamID != gamePlayer.teamID && gamePlayer.Game.teamHasSpace(teamID))
-                                            {
-                                                if (gamePlayer.teamID == -1) // User was a subviewer
-                                                    gamePlayer.Game.Subviewers.Remove(gamePlayer);
-                                                gamePlayer.Game.movePlayer(gamePlayer, gamePlayer.teamID, teamID);
-                                            }
-                                            else
-                                                sendData("Cl" + "H"); // Error [0] = Team full
-                                        }
-                                        else
-                                            sendData("Cl" + "K"); // Error [3] = Skillevel not valid in this lobby
-                                    }
-                                    else
-                                        sendData("Cl" + "J"); // Error [2] = Not enough tickets
-                                }
-                                break;
-                            }
-
-                        case "Bg": // Gamelobby - leave single game sub
-                            {
-                                leaveGame();
-                                break;
-                            }
-
-                        case "Bh": // Gamelobby - kick player from game
-                            {
-                                if (Room != null && Room.Lobby != null && gamePlayer != null && gamePlayer.Game != null && gamePlayer == gamePlayer.Game.Owner)
-                                {
-                                    int roomUID = Encoding.decodeVL64(currentPacket.Substring(2));
-                                    for (int i = 0; i < gamePlayer.Game.Teams.Length; i++)
-                                    {
-                                        foreach (gamePlayer Member in gamePlayer.Game.Teams[i])
-                                        {
-                                            if (Member.roomUID == roomUID)
-                                            {
-                                                Member.sendData("Cl" + "RA"); // Error [6] = kicked from game
-                                                gamePlayer.Game.movePlayer(Member, i, -1);
-                                                return;
-                                            }
-                                        }
-                                    }
-                                }
-                                break;
-                            }
-
-                        case "Bj": // Gamelobby - start game
-                            {
-                                if (Room != null && Room.Lobby != null && gamePlayer != null && gamePlayer == gamePlayer.Game.Owner)
-                                {
-                                    //if(Game.Launchable)
-                                    //{
-                                    gamePlayer.Game.startGame();
-                                    //}
-                                    //else
-                                    //    sendData("Cl" + "I");
-                                }
-                                break;
-                            }
-
-                        case "Bk": // Game - ingame - move unit
-                            {
-                                if (gamePlayer != null && gamePlayer.Game.State == Game.gameState.Started && gamePlayer.teamID != -1)
-                                {
-                                    gamePlayer.goalX = Encoding.decodeVL64(currentPacket.Substring(3));
-                                    gamePlayer.goalY = Encoding.decodeVL64(currentPacket.Substring(Encoding.encodeVL64(gamePlayer.goalX).Length + 3));
-                                    Out.WriteLine(_Username + ": " + gamePlayer.goalX + "," + gamePlayer.goalY);
-                                }
-                                break;
-                            }
-
-                        case "Bl": // Game - ingame - proceed with restart of game
-                            {
-                                if (gamePlayer != null && gamePlayer.Game.State == Game.gameState.Ended && gamePlayer.teamID != -1)
-                                {
-                                    //sendData("Ck" + "RA" + "secondsUntilRestart" + Convert.ToChar(2) + "HIRGIHHfieldType" + Convert.ToChar(2) + "HKIIIISAnumTeams" + Convert.ToChar(2) + "HJJIII" + "PA" + "gameLengthChoice" + Convert.ToChar(2) + "HJIIIIK" + "name" + Convert.ToChar(2) + "IJ" + Convert.ToChar(2) + "H" + "secondsUntilStart" + Convert.ToChar(2) + "HIRBIHH");
-                                    gamePlayer.Game.sendData("BK" + "" + _Username + " wants to replay!");
-                                }
-                                break;
-                            }
-                        #endregion
-
-                        #endregion
-                        
-                        #region Moodlight
-
-                        case "EW": // Turn moodlight on/off
-                            {
-                                if (_isOwner == false)
-                                    return;
-                                roomManager.moodlight.setSettings(_roomID, false, 0, 0, null, 0);
-                                break;
-                            }
-
-                        case "EU": // Load moodlight settings
-                            {
-                                if (_isOwner == false)
-                                    return;
-                                string settingData = roomManager.moodlight.getSettings(_roomID);
-                                if (settingData != null)
-                                    sendData("Em" + settingData);
-                                break;
-                            }
-
-                        case "EV": // Update Room dimmer
-                            if (_hasRights == false || Room == null || roomUser == null || _inPublicroom)
-                            {
-                                return;
-                            }
-                            else
-                            {
-                                int presetID = Encoding.decodeVL64(currentPacket.Substring(2, 1));
-                                int bgState = Encoding.decodeVL64(currentPacket.Substring(3, 1));
-                                currentPacket = DB.Stripslash(currentPacket);
-                                string presetColour = currentPacket.Substring(6, Encoding.decodeB64(currentPacket.Substring(4, 2)));
-                                int presetDarkF = Encoding.decodeVL64(currentPacket.Substring((presetColour.Length + 6)));
-                                roomManager.moodlight.setSettings(_roomID, true, presetID, bgState, presetColour, presetDarkF);
-
-                                string settingData = roomManager.moodlight.getSettings(_roomID);
-                                if (settingData != null)
-                                {
-                                    Room.sendData("Em" + settingData);
-                                }
-                            }
-
-                            break;
-                        #endregion
-                        #endregion
-                    }
-                }
-                #endregion
+                user.sendData(builder);
             }
         }
 
-        private void sendData(int myID)
+        // Logged in handlers
+        private static void HandleRequestDate(virtualUser user, PacketReader reader)
         {
-            throw new NotImplementedException();
+            if (!user._isLoggedIn) return;
+            user.sendData("Bc" + DateTime.Today.ToShortDateString());
         }
+
+        private static void HandleInitializeMessenger(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.Messenger = new Messenger.virtualMessenger(user.userID);
+            user.sendData("@L" + user.Messenger.friendList());
+            user.sendData("Dz" + user.Messenger.friendRequests());
+        }
+
+        private static void HandleInitializeClub(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.refreshClub();
+        }
+
+        private static void HandleRefreshAppearance(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.refreshAppearance(false, true, false);
+        }
+
+        private static void HandleRefreshValueables(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.refreshValueables(true, true);
+        }
+
+        private static void HandleRefreshBadges(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.refreshBadges();
+        }
+
+        private static void HandleRefreshGroupStatus(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.refreshGroupStatus();
+        }
+
+        private static void HandleRecyclerSetup(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.sendData("Do" + recyclerManager.setupString);
+        }
+
+        private static void HandleRecyclerSession(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.sendData("Dp" + recyclerManager.sessionString(user.userID));
+        }
+
+        private static void HandleSetGuideAvailable(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            _userDataAccess.SetGuideAvailability(user.userID, true);
+        }
+
+        private static void HandleSetGuideUnavailable(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            _userDataAccess.SetGuideAvailability(user.userID, false);
+        }
+
+        private static void HandleBuyGameTickets(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            int amount = reader.PopVL64();
+            string receiver = reader.PopString();
+            
+            int ticketAmount = 0;
+            int price = 0;
+
+            if (amount == 1)
+            {
+                ticketAmount = 2;
+                price = 1;
+            }
+            else if (amount == 2)
+            {
+                ticketAmount = 20;
+                price = 6;
+            }
+            else
+                return;
+
+            if (price > user._Credits)
+            {
+                user.sendData("AD");
+                return;
+            }
+
+            int receiverID = _userDataAccess.GetUserIdByUsername(DB.Stripslash(receiver));
+            if (receiverID <= 0)
+            {
+                user.sendData("AL" + receiver);
+                return;
+            }
+
+            user._Credits -= price;
+            user.sendData(PacketBuilder.Create("@F").AppendInt(user._Credits));
+            _userDataAccess.UpdateUserCredits(user.userID, user._Credits);
+            _userDataAccess.AddUserTickets(receiverID, ticketAmount);
+
+            if (userManager.containsUser(receiverID))
+            {
+                virtualUser receiverUser = userManager.getUser(receiverID);
+                receiverUser._Tickets += ticketAmount;
+
+                if (receiverID == user.userID)
+                    receiverUser.refreshValueables(false, true);
+                else
+                    receiverUser.refreshValueables(true, true);
+            }
+        }
+
+        private static void HandleRedeemVoucher(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            string code = DB.Stripslash(reader.PopString());
+            if (_voucherDataAccess.VoucherExists(code))
+            {
+                int voucherAmount = _voucherDataAccess.GetVoucherCredits(code);
+                _voucherDataAccess.RedeemVoucher(code);
+
+                user._Credits += voucherAmount;
+                user.sendData(PacketBuilder.Create("@F").AppendInt(user._Credits));
+                user.sendData("CT");
+                _userDataAccess.UpdateUserCredits(user.userID, user._Credits);
+            }
+            else
+            {
+                user.sendData("CU1");
+            }
+        }
+
+        private static void HandleSearchConsole(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.sendData("HR" + "L");
+        }
+
+        private static void HandleSearchInConsole(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Messenger == null) return;
+
+            string search = DB.Stripslash(reader.PopString());
+            var searchResults = _userDataAccess.SearchUsersByName(search, 50);
+
+            PacketBuilder friendsBuilder = PacketBuilder.Create("Fs");
+            PacketBuilder othersBuilder = new PacketBuilder();
+            int countFriends = 0;
+            int countOthers = 0;
+
+            foreach (var result in searchResults)
+            {
+                int thisID = result.UserId;
+                bool online = userManager.containsUser(thisID);
+                string onlineStr = online ? "I" : "H";
+
+                PacketBuilder userBuilder = new PacketBuilder()
+                    .AppendVL64(thisID)
+                    .AppendString(result.Name)
+                    .AppendString(result.Mission)
+                    .Append(onlineStr).Append(onlineStr).AppendDelimiter()
+                    .Append(onlineStr).Append(online ? result.Figure : "").AppendDelimiter()
+                    .Append(online ? "" : result.LastVisit).AppendDelimiter();
+
+                if (user.Messenger.hasFriendship(thisID))
+                {
+                    countFriends++;
+                    friendsBuilder.Append(userBuilder.Build());
+                }
+                else
+                {
+                    countOthers++;
+                    othersBuilder.Append(userBuilder.Build());
+                }
+            }
+
+            PacketBuilder finalBuilder = PacketBuilder.Create("Fs")
+                .AppendVL64(countFriends)
+                .Append(friendsBuilder.Build().Substring(2)) // Skip "Fs" header
+                .AppendVL64(countOthers)
+                .Append(othersBuilder.Build());
+
+            user.sendData(finalBuilder);
+        }
+
+        private static void HandleRequestFriend(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Messenger == null) return;
+
+            string username = DB.Stripslash(reader.PopString());
+            int toID = _userDataAccess.GetUserIdByUsername(username);
+            
+            if (toID > 0 && !user.Messenger.hasFriendRequests(toID) && !user.Messenger.hasFriendship(toID))
+            {
+                int requestID = _messengerDataAccess.GetNextFriendRequestId(toID);
+                _messengerDataAccess.CreateFriendRequest(toID, user.userID, requestID);
+                
+                virtualUser targetUser = userManager.getUser(toID);
+                if (targetUser != null)
+                {
+                    targetUser.sendData(PacketBuilder.Create("BD")
+                        .Append("I")
+                        .AppendString(user._Username)
+                        .AppendInt(user.userID)
+                        .AppendDelimiter());
+                }
+            }
+        }
+        private static void HandleAcceptFriendRequest(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Messenger == null) return;
+
+            int amount = reader.PopVL64();
+            if (amount <= 0) return;
+
+            PacketBuilder updatesBuilder = new PacketBuilder();
+            virtualBuddy me = new virtualBuddy(user.userID);
+            int updateAmount = 0;
+
+            for (int i = 0; i < amount; i++)
+            {
+                if (!reader.HasMore) break;
+
+                int requestID = reader.PopVL64();
+                int fromUserID = _messengerDataAccess.GetFriendRequestSenderId(user.userID, requestID);
+                if (fromUserID == 0) continue;
+
+                virtualBuddy buddy = new virtualBuddy(fromUserID);
+                updatesBuilder.Append(buddy.ToString(false));
+                updateAmount++;
+
+                user.Messenger.addBuddy(buddy, true);
+                if (userManager.containsUser(fromUserID))
+                {
+                    virtualUser fromUser = userManager.getUser(fromUserID);
+                    if (fromUser != null && fromUser.Messenger != null)
+                        fromUser.Messenger.addBuddy(me, true);
+                }
+
+                _messengerDataAccess.CreateFriendship(fromUserID, user.userID);
+                _messengerDataAccess.DeleteFriendRequest(user.userID, requestID);
+            }
+
+            if (updateAmount > 0)
+            {
+                user.sendData(PacketBuilder.Create("@M")
+                    .Append("HH")
+                    .AppendVL64(updateAmount)
+                    .Append(updatesBuilder.Build()));
+            }
+        }
+
+        private static void HandleDeclineFriendRequest(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Messenger == null) return;
+
+            int amount = reader.PopVL64();
+            for (int i = 0; i < amount; i++)
+            {
+                if (!reader.HasMore) break;
+                int requestID = reader.PopVL64();
+                _messengerDataAccess.DeleteFriendRequest(user.userID, requestID);
+            }
+        }
+
+        private static void HandleRemoveBuddy(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Messenger == null) return;
+
+            reader.Skip(1); // Skip first character after header
+            int buddyID = reader.PopVL64();
+            
+            user.Messenger.removeBuddy(buddyID);
+            if (userManager.containsUser(buddyID))
+            {
+                virtualUser buddy = userManager.getUser(buddyID);
+                if (buddy != null && buddy.Messenger != null)
+                    buddy.Messenger.removeBuddy(user.userID);
+            }
+            _messengerDataAccess.DeleteFriendship(user.userID, buddyID);
+        }
+
+        private static void HandleSendInstantMessage(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Messenger == null) return;
+
+            int buddyID = reader.PopVL64();
+            string message = reader.PopString();
+            message = stringManager.filterSwearwords(message);
+
+            if (user.Messenger.containsOnlineBuddy(buddyID))
+            {
+                virtualUser buddy = userManager.getUser(buddyID);
+                if (buddy != null)
+                {
+                    buddy.sendData(PacketBuilder.Create("BF")
+                        .AppendVL64(user.userID)
+                        .AppendString(message));
+                }
+            }
+            else
+            {
+                user.sendData(PacketBuilder.Create("DE")
+                    .AppendVL64(5)
+                    .AppendVL64(user.userID));
+            }
+        }
+
+        private static void HandleRefreshFriendList(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Messenger == null) return;
+            user.sendData("@M" + user.Messenger.getUpdates());
+        }
+        private static void HandleFollowBuddy(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Messenger == null) return;
+
+            int id = reader.PopVL64();
+            int errorID = -1;
+
+            if (user.Messenger.hasFriendship(id))
+            {
+                if (userManager.containsUser(id))
+                {
+                    virtualUser targetUser = userManager.getUser(id);
+                    if (targetUser._roomID > 0)
+                    {
+                        user.sendData(PacketBuilder.Create("D^")
+                            .Append(targetUser._inPublicroom ? "I" : "H")
+                            .AppendVL64(targetUser._roomID));
+                        return;
+                    }
+                    else
+                    {
+                        errorID = 2;
+                    }
+                }
+                else
+                {
+                    errorID = 1;
+                }
+            }
+            else
+            {
+                errorID = 0;
+            }
+
+            if (errorID != -1)
+            {
+                user.sendData(PacketBuilder.Create("E]").AppendVL64(errorID));
+            }
+        }
+
+        private static void HandleInviteBuddies(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Messenger == null || user.roomUser == null) return;
+
+            int amount = reader.PopVL64();
+            List<int> validIDs = new List<int>();
+
+            for (int i = 0; i < amount; i++)
+            {
+                if (!reader.HasMore) break;
+                int id = reader.PopVL64();
+                if (user.Messenger.hasFriendship(id) && userManager.containsUser(id))
+                    validIDs.Add(id);
+            }
+
+            foreach (int id in validIDs)
+            {
+                virtualUser buddy = userManager.getUser(id);
+                if (buddy != null && user.roomUser != null && user.Room != null)
+                {
+                    string roomName = _roomDataAccess.GetRoomName(user._roomID);
+                    buddy.sendData(PacketBuilder.Create("BG")
+                        .AppendVL64(user.userID)
+                        .AppendString(roomName + " - " + user._Username)
+                        .AppendDelimiter());
+                }
+            }
+        }
+        private static void HandleNavigateRooms(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            int hideFull = reader.PopVL64();
+            int cataID = reader.PopVL64();
+            
+            string name = _roomCategoryDataAccess.GetCategoryName(cataID, user._Rank);
+            if (string.IsNullOrEmpty(name))
+                return;
+            
+            int type = _roomCategoryDataAccess.GetCategoryType(cataID);
+            int parentID = _roomCategoryDataAccess.GetCategoryParentId(cataID);
+            
+            PacketBuilder navigator = PacketBuilder.Create(@"C\")
+                .AppendVL64(hideFull)
+                .AppendVL64(cataID)
+                .AppendVL64(type)
+                .AppendString(name)
+                .AppendVL64(0)
+                .AppendVL64(10000)
+                .AppendVL64(parentID);
+            
+            string sqlOrderHelper = "";
+            if (type == 0) // Publicrooms
+            {
+                sqlOrderHelper = hideFull == 1 
+                    ? "AND visitors_now < visitors_max ORDER BY id ASC"
+                    : "ORDER BY id ASC";
+            }
+            else // Guestrooms
+            {
+                sqlOrderHelper = hideFull == 1
+                    ? "AND visitors_now < visitors_max ORDER BY visitors_now DESC LIMIT 30"
+                    : "ORDER BY visitors_now DESC LIMIT " + Config.Navigator_openCategory_maxResults;
+            }
+            
+            List<int> roomIDs = _roomDataAccess.GetRoomIdsByCategory(cataID, sqlOrderHelper);
+            if (type == 2)
+                navigator.AppendVL64(roomIDs.Count);
+            
+            if (roomIDs.Count > 0)
+            {
+                bool canSeeHiddenNames = false;
+                List<int> roomStates = _roomDataAccess.GetRoomStatesByCategory(cataID, sqlOrderHelper);
+                List<int> showNameFlags = _roomDataAccess.GetRoomShowNameFlagsByCategory(cataID, sqlOrderHelper);
+                List<int> nowVisitors = _roomDataAccess.GetRoomVisitorsNowByCategory(cataID, sqlOrderHelper);
+                List<int> maxVisitors = _roomDataAccess.GetRoomVisitorsMaxByCategory(cataID, sqlOrderHelper);
+                List<string> roomNames = _roomDataAccess.GetRoomNamesByCategory(cataID, sqlOrderHelper);
+                List<string> roomDescriptions = _roomDataAccess.GetRoomDescriptionsByCategory(cataID, sqlOrderHelper);
+                List<string> roomOwners = _roomDataAccess.GetRoomOwnersByCategory(cataID, sqlOrderHelper);
+                List<string> roomCCTs = null;
+                
+                if (type == 0)
+                    roomCCTs = _roomDataAccess.GetRoomCCTsByCategory(cataID, sqlOrderHelper);
+                else
+                    canSeeHiddenNames = rankManager.containsRight(user._Rank, "fuse_enter_locked_rooms");
+                
+                for (int i = 0; i < roomIDs.Count; i++)
+                {
+                    if (type == 0) // Publicroom
+                    {
+                        navigator.AppendVL64(roomIDs[i])
+                            .AppendVL64(1)
+                            .AppendString(roomNames[i])
+                            .AppendVL64(nowVisitors[i])
+                            .AppendVL64(maxVisitors[i])
+                            .AppendVL64(cataID)
+                            .AppendString(roomDescriptions[i])
+                            .AppendVL64(roomIDs[i])
+                            .AppendVL64(0)
+                            .AppendString(roomCCTs[i])
+                            .Append("HI");
+                    }
+                    else // Guestroom
+                    {
+                        if (showNameFlags[i] == 0 && !canSeeHiddenNames)
+                            continue;
+                        navigator.AppendVL64(roomIDs[i])
+                            .AppendString(roomNames[i])
+                            .AppendString(roomOwners[i])
+                            .AppendString(roomManager.getRoomState(roomStates[i]))
+                            .AppendVL64(nowVisitors[i])
+                            .AppendVL64(maxVisitors[i])
+                            .AppendString(roomDescriptions[i]);
+                    }
+                }
+            }
+            
+            List<int> subCataIDs = _roomCategoryDataAccess.GetSubCategoryIds(cataID, user._Rank);
+            if (subCataIDs.Count > 0)
+            {
+                for (int i = 0; i < subCataIDs.Count; i++)
+                {
+                    int visitorCount = _roomDataAccess.GetTotalVisitorsNowByCategory(subCataIDs[i]);
+                    int visitorMax = _roomDataAccess.GetTotalVisitorsMaxByCategory(subCataIDs[i]);
+                    if (visitorMax > 0 && hideFull == 1 && visitorCount >= visitorMax)
+                        continue;
+                    
+                    string subName = _roomCategoryDataAccess.GetSubCategoryName(subCataIDs[i]);
+                    navigator.AppendVL64(subCataIDs[i])
+                        .AppendVL64(0)
+                        .AppendString(subName)
+                        .AppendVL64(visitorCount)
+                        .AppendVL64(visitorMax)
+                        .AppendVL64(cataID);
+                }
+            }
+            
+            user.sendData(navigator);
+        }
+
+        private static void HandleRequestCategoryIndex(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            PacketBuilder categories = PacketBuilder.Create("C]");
+            List<int> cataIDs = _roomCategoryDataAccess.GetCategoryIdsByTypeAndRank(2, user._Rank);
+            List<string> cataNames = _roomCategoryDataAccess.GetCategoryNamesByTypeAndRank(2, user._Rank);
+            
+            categories.AppendVL64(cataIDs.Count);
+            for (int i = 0; i < cataIDs.Count; i++)
+            {
+                categories.AppendVL64(cataIDs[i]).AppendString(cataNames[i]);
+            }
+            
+            user.sendData(categories);
+        }
+
+        private static void HandleRefreshRecommendedRooms(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            PacketBuilder rooms = PacketBuilder.Create("E_").AppendVL64(3);
+            for (int i = 0; i <= 3; i++)
+            {
+                var roomDetails = _roomDataAccess.GetRandomRoomWithOwner();
+                if (roomDetails == null)
+                    return;
+                
+                rooms.AppendVL64(roomDetails.RoomId)
+                    .AppendString(roomDetails.Name)
+                    .AppendString(roomDetails.Owner)
+                    .AppendString(roomManager.getRoomState(roomDetails.State))
+                    .AppendVL64(roomDetails.VisitorsNow)
+                    .AppendVL64(roomDetails.VisitorsMax)
+                    .AppendString(roomDetails.Description);
+            }
+            
+            user.sendData(rooms);
+        }
+
+        private static void HandleViewOwnRooms(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            List<int> roomIDs = _roomDataAccess.GetRoomIdsByOwner(user._Username);
+            if (roomIDs.Count > 0)
+            {
+                PacketBuilder rooms = PacketBuilder.Create("@P");
+                for (int i = 0; i < roomIDs.Count; i++)
+                {
+                    var roomDetails = _roomDataAccess.GetRoomBasicInfo(roomIDs[i]);
+                    if (roomDetails != null)
+                    {
+                        rooms.AppendInt(roomIDs[i]).AppendChar((char)9)
+                            .Append(roomDetails.Name).AppendChar((char)9)
+                            .Append(user._Username).AppendChar((char)9)
+                            .Append(roomManager.getRoomState(roomDetails.State)).AppendChar((char)9)
+                            .Append("x").AppendChar((char)9)
+                            .AppendInt(roomDetails.VisitorsNow).AppendChar((char)9)
+                            .AppendInt(roomDetails.VisitorsMax).AppendChar((char)9)
+                            .Append("null").AppendChar((char)9)
+                            .Append(roomDetails.Description).AppendChar((char)9)
+                            .Append(roomDetails.Description).AppendChar((char)9)
+                            .AppendChar((char)13);
+                    }
+                }
+                user.sendData(rooms);
+            }
+            else
+            {
+                user.sendData("@y" + user._Username);
+            }
+        }
+
+        private static void HandleSearchRooms(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            bool seeAllRoomOwners = rankManager.containsRight(user._Rank, "fuse_see_all_roomowners");
+            string search = DB.Stripslash(reader.PopString());
+            List<int> roomIDs = _roomDataAccess.SearchRooms(search, Config.Navigator_roomSearch_maxResults);
+            
+            if (roomIDs.Count > 0)
+            {
+                PacketBuilder rooms = PacketBuilder.Create("@w");
+                for (int i = 0; i < roomIDs.Count; i++)
+                {
+                    var roomDetails = _roomDataAccess.GetRoomSearchInfo(roomIDs[i]);
+                    if (roomDetails != null)
+                    {
+                        string ownerName = roomDetails.Owner;
+                        if (roomDetails.ShowName == 0 && ownerName != user._Username && !seeAllRoomOwners)
+                            ownerName = "-";
+                        
+                        rooms.AppendInt(roomIDs[i]).AppendChar((char)9)
+                            .Append(roomDetails.Name).AppendChar((char)9)
+                            .Append(ownerName).AppendChar((char)9)
+                            .Append(roomManager.getRoomState(roomDetails.State)).AppendChar((char)9)
+                            .Append("x").AppendChar((char)9)
+                            .AppendInt(roomDetails.VisitorsNow).AppendChar((char)9)
+                            .AppendInt(roomDetails.VisitorsMax).AppendChar((char)9)
+                            .Append("null").AppendChar((char)9)
+                            .Append(roomDetails.Description).AppendChar((char)9)
+                            .AppendChar((char)13);
+                    }
+                }
+                user.sendData(rooms);
+            }
+            else
+            {
+                user.sendData("@z");
+            }
+        }
+
+        private static void HandleGetRoomDetails(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            int roomID = reader.PopInt();
+            var roomDetails = _roomDataAccess.GetRoomDetails(roomID);
+            
+            if (roomDetails != null)
+            {
+                PacketBuilder details = PacketBuilder.Create("@v")
+                    .AppendVL64(int.Parse(roomDetails.SuperUsers))
+                    .AppendVL64(roomDetails.State)
+                    .AppendVL64(roomID);
+                
+                if (roomDetails.ShowName == 0 && rankManager.containsRight(user._Rank, "fuse_see_all_roomowners"))
+                    details.Append("-");
+                else
+                    details.Append(roomDetails.Owner);
+                
+                details.AppendDelimiter()
+                    .Append("model_").Append(roomDetails.Model).AppendDelimiter()
+                    .Append(roomDetails.Name).AppendDelimiter()
+                    .Append(roomDetails.Description).AppendDelimiter()
+                    .AppendVL64(roomDetails.ShowName);
+                
+                if (_roomCategoryDataAccess.CategoryAllowsTrading(roomDetails.Category))
+                    details.Append("I");
+                else
+                    details.Append("H");
+                
+                details.AppendVL64(roomDetails.VisitorsNow).AppendVL64(roomDetails.VisitorsMax);
+                user.sendData(details);
+            }
+        }
+
+        private static void HandleInitializeFavorites(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            List<int> roomIDs = _favoriteRoomDataAccess.GetFavoriteRoomIds(user.userID, Config.Navigator_Favourites_maxRooms);
+            if (roomIDs.Count > 0)
+            {
+                int deletedAmount = 0;
+                int guestRoomAmount = 0;
+                bool seeHiddenRoomOwners = rankManager.containsRight(user._Rank, "fuse_enter_locked_rooms");
+                StringBuilder roomsBuilder = new StringBuilder();
+                
+                for (int i = 0; i < roomIDs.Count; i++)
+                {
+                    var roomData = _roomDataAccess.GetRoomFavoriteInfo(roomIDs[i]);
+                    if (roomData == null)
+                    {
+                        if (guestRoomAmount > 0)
+                            deletedAmount++;
+                        _favoriteRoomDataAccess.RemoveFavoriteRoom(user.userID, roomIDs[i]);
+                    }
+                    else
+                    {
+                        if (string.IsNullOrEmpty(roomData.Owner)) // Publicroom
+                        {
+                            int categoryID = _roomDataAccess.GetRoomCategory(roomIDs[i]);
+                            List<string> cctsList = _roomDataAccess.GetRoomCCTsByCategory(categoryID);
+                            string ccts = cctsList.Count > 0 ? cctsList[0] : string.Empty;
+                            
+                            roomsBuilder.Append(Encoding.encodeVL64(roomIDs[i]))
+                                .Append("I")
+                                .Append(roomData.Name).Append((char)2)
+                                .Append(Encoding.encodeVL64(roomData.VisitorsNow))
+                                .Append(Encoding.encodeVL64(roomData.VisitorsMax))
+                                .Append(Encoding.encodeVL64(categoryID))
+                                .Append(roomData.Description).Append((char)2)
+                                .Append(Encoding.encodeVL64(roomIDs[i]))
+                                .Append("H")
+                                .Append(ccts).Append((char)2)
+                                .Append("HI");
+                        }
+                        else // Guestroom
+                        {
+                            string ownerName = roomData.Owner;
+                            if (roomData.ShowName == 0 && user._Username != ownerName && !seeHiddenRoomOwners)
+                                ownerName = "-";
+                            
+                            roomsBuilder.Append(Encoding.encodeVL64(roomIDs[i]))
+                                .Append(roomData.Name).Append((char)2)
+                                .Append(ownerName).Append((char)2)
+                                .Append(roomManager.getRoomState(roomData.State)).Append((char)2)
+                                .Append(Encoding.encodeVL64(roomData.VisitorsNow))
+                                .Append(Encoding.encodeVL64(roomData.VisitorsMax))
+                                .Append(roomData.Description).Append((char)2);
+                            guestRoomAmount++;
+                        }
+                    }
+                }
+                
+                user.sendData("@}" + "HHJ" + (char)2 + "HHH" + Encoding.encodeVL64(guestRoomAmount - deletedAmount) + roomsBuilder.ToString());
+            }
+        }
+
+        private static void HandleAddFavorite(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            reader.Skip(1); // Skip character after header
+            int roomID = reader.PopVL64();
+            
+            if (_roomDataAccess.RoomExists(roomID) && !_favoriteRoomDataAccess.IsRoomInFavorites(user.userID, roomID))
+            {
+                if (_favoriteRoomDataAccess.GetFavoriteRoomCount(user.userID) < Config.Navigator_Favourites_maxRooms)
+                    _favoriteRoomDataAccess.AddFavoriteRoom(user.userID, roomID);
+                else
+                    user.sendData("@a" + "nav_error_toomanyfavrooms");
+            }
+        }
+
+        private static void HandleRemoveFavorite(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            reader.Skip(1); // Skip character after header
+            int roomID = reader.PopVL64();
+            _favoriteRoomDataAccess.RemoveFavoriteRoom(user.userID, roomID);
+        }
+
+        private static void HandleGetEventSetup(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.sendData(PacketBuilder.Create("Ep").AppendVL64(eventManager.categoryAmount));
+        }
+
+        private static void HandleToggleEventButton(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            if (user._inPublicroom || user.roomUser == null || user._hostsEvent)
+                user.sendData("Eo" + "H");
+            else
+                user.sendData("Eo" + "I");
+        }
+
+        private static void HandleCheckEventCategory(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            int categoryID = reader.PopVL64();
+            if (eventManager.categoryOK(categoryID))
+                user.sendData(PacketBuilder.Create("Eb").AppendVL64(categoryID));
+        }
+
+        private static void HandleOpenEventCategory(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            int categoryID = reader.PopVL64();
+            if (categoryID >= 1 && categoryID <= 11)
+                user.sendData(PacketBuilder.Create("Eq").AppendVL64(categoryID).Append(eventManager.getEvents(categoryID)));
+        }
+        private static void HandleCreateEvent(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user._hostsEvent || user._inPublicroom || user.roomUser == null)
+                return;
+            
+            int categoryID = reader.PopVL64();
+            if (!eventManager.categoryOK(categoryID))
+                return;
+            
+            string name = reader.PopB64String();
+            string description = reader.PopString();
+            
+            user._hostsEvent = true;
+            eventManager.createEvent(categoryID, user.userID, user._roomID, name, description);
+            if (user.Room != null)
+                user.Room.sendData("Er" + eventManager.getEvent(user._roomID));
+        }
+
+        private static void HandleEndEvent(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._hostsEvent || !user._isOwner || user._inPublicroom || user.roomUser == null)
+                return;
+            
+            user._hostsEvent = false;
+            eventManager.removeEvent(user._roomID);
+            if (user.Room != null)
+                user.Room.sendData("Er" + "-1");
+        }
+        private static void HandleCreateRoomPhase1(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            string remaining = reader.GetRemaining();
+            string[] roomSettings = remaining.Split('/');
+            
+            if (_userDataAccess.GetUserRoomCount(user._Username) < Config.Navigator_createRoom_maxRooms)
+            {
+                roomSettings[2] = stringManager.filterSwearwords(roomSettings[2]);
+                roomSettings[3] = roomSettings[3].Substring(6, 1);
+                roomSettings[4] = roomManager.getRoomState(roomSettings[4]).ToString();
+                if (roomSettings[5] != "0" && roomSettings[5] != "1")
+                    return;
+                
+                _roomDataAccess.CreateRoom(DB.Stripslash(roomSettings[2]), user._Username, roomSettings[3], int.Parse(roomSettings[4]), int.Parse(roomSettings[5]));
+                int roomID = _userDataAccess.GetMaxRoomIdByOwner(user._Username);
+                user.sendData("@{" + roomID + (char)13 + roomSettings[2]);
+            }
+            else
+            {
+                user.sendData("@a" + "Error creating a private room");
+            }
+        }
+
+        private static void HandleCreateRoomPhase2(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            string remaining = reader.GetRemaining();
+            int roomID = 0;
+            
+            if (remaining.StartsWith("/"))
+                roomID = int.Parse(remaining.Split('/')[1]);
+            else
+                roomID = int.Parse(remaining.Split('/')[0]);
+            
+            int superUsers = 0;
+            int maxVisitors = 25;
+            string roomDescription = "";
+            string roomPassword = "";
+            
+            string[] packetContent = remaining.Split((char)13);
+            for (int i = 1; i < packetContent.Length; i++)
+            {
+                string[] parts = packetContent[i].Split('=');
+                if (parts.Length != 2) continue;
+                
+                string updHeader = parts[0];
+                string updValue = parts[1];
+                
+                switch (updHeader)
+                {
+                    case "description":
+                        roomDescription = stringManager.filterSwearwords(updValue);
+                        roomDescription = DB.Stripslash(roomDescription);
+                        break;
+                    case "allsuperuser":
+                        superUsers = int.Parse(updValue);
+                        if (superUsers != 0 && superUsers != 1)
+                            superUsers = 0;
+                        break;
+                    case "maxvisitors":
+                        maxVisitors = int.Parse(updValue);
+                        if (maxVisitors < 10 || maxVisitors > 25)
+                            maxVisitors = 25;
+                        break;
+                    case "password":
+                        roomPassword = DB.Stripslash(updValue);
+                        break;
+                    default:
+                        return;
+                }
+            }
+            
+            _roomDataAccess.UpdateRoomSettings(roomID, roomDescription, superUsers.ToString(), maxVisitors, roomPassword, user._Username);
+        }
+
+        private static void HandleModifyRoom(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            string remaining = reader.GetRemaining();
+            string[] packetContent = remaining.Split('/');
+            if (packetContent.Length < 3) return;
+            
+            int roomID = int.Parse(packetContent[0]);
+            string roomName = DB.Stripslash(stringManager.filterSwearwords(packetContent[1]));
+            string showName = packetContent[2];
+            if (showName != "1" && showName != "0")
+                showName = "1";
+            int roomState = roomManager.getRoomState(packetContent[2]);
+            
+            _roomDataAccess.UpdateRoomBasicInfo(roomID, roomName, roomState, int.Parse(showName), user._Username);
+        }
+
+        private static void HandleTriggerRoomModify(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            int roomID = reader.PopVL64();
+            int roomCategory = _roomDataAccess.GetRoomCategoryByOwner(roomID, user._Username);
+            if (roomCategory > 0)
+                user.sendData(PacketBuilder.Create("C^").AppendVL64(roomID).AppendVL64(roomCategory));
+        }
+
+        private static void HandleEditRoomCategory(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            int roomID = reader.PopVL64();
+            int cataID = reader.PopVL64();
+            
+            if (_roomCategoryDataAccess.IsCategoryValidForRank(cataID, 2, user._Rank))
+                _roomDataAccess.UpdateRoomCategory(roomID, cataID, user._Username);
+        }
+
+        private static void HandleDeleteRoom(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            int roomID = reader.PopInt();
+            if (_roomDataAccess.UserOwnsRoom(roomID, user._Username))
+            {
+                _roomDataAccess.DeleteRoom(roomID, user._Username);
+            }
+            if (roomManager.containsRoom(roomID))
+            {
+                roomManager.getRoom(roomID).kickUsers(9, "This room has been deleted");
+            }
+        }
+
+        private static void HandleWhoIsInRoom(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            int roomID = reader.PopVL64();
+            if (roomManager.containsRoom(roomID))
+                user.sendData("C_" + roomManager.getRoom(roomID).Userlist);
+            else
+                user.sendData("C_");
+        }
+        private static void HandleLeaveRoom(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room != null && user.roomUser != null)
+            {
+                user.Room.removeUser(user.roomUser.roomUID, false, "");
+            }
+        }
+        private static void HandleRoomAdvertisement(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            Config.Rooms_LoadAvertisement_img = "";
+            if (string.IsNullOrEmpty(Config.Rooms_LoadAvertisement_img))
+                user.sendData("DB0");
+            else
+                user.sendData(PacketBuilder.Create("DB")
+                    .Append(Config.Rooms_LoadAvertisement_img)
+                    .AppendChar((char)9)
+                    .Append(Config.Rooms_LoadAvertisement_uri));
+        }
+
+        private static void HandleEnterRoom(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            char roomType = reader.PopChar();
+            int roomID = reader.PopVL64();
+            bool isPublicroom = (roomType == 'A');
+            
+            user.sendData("@S");
+            user.sendData("Bf" + "http://wwww.vista4life.com/bf.php?p=emu");
+            
+            if (user.gamePlayer != null && user.gamePlayer.Game != null)
+            {
+                if (user.gamePlayer.enteringGame)
+                {
+                    if (user.Room != null && user.roomUser != null)
+                        user.Room.removeUser(user.roomUser.roomUID, false, "");
+                    user.sendData("AE" + user.gamePlayer.Game.Lobby.Type + "_arena_" + user.gamePlayer.Game.mapID + " " + roomID);
+                    user.sendData("Cs" + user.gamePlayer.Game.getMap());
+                }
+                else
+                {
+                    user.leaveGame();
+                }
+            }
+            else
+            {
+                if (user.Room != null && user.roomUser != null)
+                    user.Room.removeUser(user.roomUser.roomUID, false, "");
+                
+                if (user._teleporterID == 0)
+                {
+                    bool allowEnterLockedRooms = rankManager.containsRight(user._Rank, "fuse_enter_locked_rooms");
+                    int accessLevel = _roomDataAccess.GetRoomState(roomID);
+                    if (accessLevel == 3 && !user._clubMember && !allowEnterLockedRooms)
+                    {
+                        user.sendData("C`" + "Kc");
+                        return;
+                    }
+                    else if (accessLevel == 4 && !allowEnterLockedRooms)
+                    {
+                        user.sendData("BK" + stringManager.getString("room_stafflocked"));
+                        return;
+                    }
+                    
+                    int nowVisitors = _roomDataAccess.GetRoomVisitorsNow(roomID);
+                    if (nowVisitors > 0)
+                    {
+                        int maxVisitors = _roomDataAccess.GetRoomVisitorsMax(roomID);
+                        if (nowVisitors >= maxVisitors && !rankManager.containsRight(user._Rank, "fuse_enter_full_rooms"))
+                        {
+                            if (!isPublicroom)
+                                user.sendData("C`" + "I");
+                            else
+                                user.sendData("BK" + stringManager.getString("room_full"));
+                            return;
+                        }
+                    }
+                }
+                
+                user._roomID = roomID;
+                user._inPublicroom = isPublicroom;
+                user._ROOMACCESS_PRIMARY_OK = true;
+                
+                if (isPublicroom)
+                {
+                    string roomModel = _roomDataAccess.GetRoomModel(roomID);
+                    user.sendData("AE" + roomModel + " " + roomID);
+                    user._ROOMACCESS_SECONDARY_OK = true;
+                }
+            }
+        }
+
+        private static void HandleEnterRoomTeleporter(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.sendData("@S");
+        }
+        private static void HandleCheckRoomAccess(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user._inPublicroom)
+                return;
+            
+            user._isOwner = _roomDataAccess.UserOwnsRoom(user._roomID, user._Username);
+            if (!user._isOwner)
+                user._hasRights = _roomRightsDataAccess.UserHasRights(user._roomID, user.userID);
+            if (!user._hasRights)
+            {
+                var roomDetails = _roomDataAccess.GetRoomDetails(user._roomID);
+                user._hasRights = roomDetails != null && roomDetails.SuperUsers == "1";
+            }
+            
+            if (user._teleporterID == 0 && !user._isOwner && !rankManager.containsRight(user._Rank, "fuse_enter_locked_rooms"))
+            {
+                int accessFlag = _roomDataAccess.GetRoomState(user._roomID);
+                if (!user._ROOMACCESS_PRIMARY_OK && accessFlag != 2)
+                    return;
+                
+                // Check for roombans
+                if (_roomBanDataAccess.IsUserBannedFromRoom(user.userID, user._roomID))
+                {
+                    string banExpireDate = _roomBanDataAccess.GetBanExpirationDate(user.userID, user._roomID);
+                    if (!string.IsNullOrEmpty(banExpireDate))
+                    {
+                        DateTime banExpireMoment = DateTime.Parse(banExpireDate);
+                        if (DateTime.Compare(banExpireMoment, DateTime.Now) > 0)
+                        {
+                            user.sendData("C`" + "PA");
+                            user.sendData("@R");
+                            return;
+                        }
+                        else
+                        {
+                            _roomBanDataAccess.RemoveRoomBan(user._roomID, user.userID);
+                        }
+                    }
+                }
+                
+                if (accessFlag == 1) // Doorbell
+                {
+                    if (!roomManager.containsRoom(user._roomID))
+                    {
+                        user.sendData("BC");
+                        return;
+                    }
+                    else
+                    {
+                        roomManager.getRoom(user._roomID).sendDataToRights("A[" + user._Username);
+                        user.sendData("A[");
+                        return;
+                    }
+                }
+                else if (accessFlag == 5) // Password
+                {
+                    string password = reader.PopString();
+                    string roomPassword = _roomDataAccess.GetRoomPassword(user._roomID);
+                    if (password != roomPassword)
+                    {
+                        user.sendData("C`" + "E");
+                        user.sendData("@R");
+                        return;
+                    }
+                }
+            }
+            
+            user._ROOMACCESS_SECONDARY_OK = true;
+        }
+
+        private static void HandleAnswerDoorbell(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._hasRights && !rankManager.containsRight(user.roomUser.User._Rank, "fuse_enter_locked_rooms"))
+                return;
+            
+            string ringer = reader.PopB64String();
+            bool letIn = reader.PopBool();
+            
+            virtualUser ringerData = userManager.getUser(ringer);
+            if (ringerData == null || ringerData._roomID != user._roomID)
+                return;
+            
+            if (letIn)
+            {
+                ringerData._ROOMACCESS_SECONDARY_OK = true;
+                user.Room.sendDataToRights(PacketBuilder.Create("@i").AppendString(ringer));
+                ringerData.sendData("@i");
+            }
+            else
+            {
+                ringerData.sendData("BC");
+                ringerData._roomID = 0;
+                ringerData._inPublicroom = false;
+                ringerData._ROOMACCESS_PRIMARY_OK = false;
+                ringerData._ROOMACCESS_SECONDARY_OK = false;
+                ringerData._isOwner = false;
+                ringerData._hasRights = false;
+                ringerData.Room = null;
+                ringerData.roomUser = null;
+            }
+        }
+
+        private static void HandleEnterRoomData(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._ROOMACCESS_SECONDARY_OK || user._inPublicroom)
+                return;
+            
+            string model = "model_" + _roomDataAccess.GetRoomModel(user._roomID);
+            user.sendData("AE" + model + " " + user._roomID);
+            
+            int wallpaper = _roomDataAccess.GetRoomWallpaper(user._roomID);
+            int floor = _roomDataAccess.GetRoomFloor(user._roomID);
+            string landscape = _roomDataAccess.GetRoomLandscape(user._roomID);
+            
+            user.sendData("@n" + "landscape/" + landscape);
+            if (wallpaper > 0)
+                user.sendData("@n" + "wallpaper/" + wallpaper);
+            if (floor > 0)
+                user.sendData("@n" + "floor/" + floor);
+            
+            if (!user._isOwner)
+                user._isOwner = rankManager.containsRight(user._Rank, "fuse_any_room_controller");
+            if (user._isOwner)
+            {
+                user._hasRights = true;
+                user.sendData("@o");
+            }
+            if (user._hasRights)
+                user.sendData("@j");
+            
+            int voteAmount = -1;
+            if (_roomVoteDataAccess.HasUserVoted(user.userID, user._roomID))
+            {
+                voteAmount = _roomVoteDataAccess.GetRoomVoteSum(user._roomID);
+                if (voteAmount < 0)
+                    voteAmount = 0;
+            }
+            user.sendData(PacketBuilder.Create("EY").AppendVL64(voteAmount));
+            user.sendData("Er" + eventManager.getEvent(user._roomID));
+        }
+
+        private static void HandleGetRoomAd(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            if (user._inPublicroom && _roomDataAccess.RoomHasAdvertisement(user._roomID))
+            {
+                var ad = _roomDataAccess.GetRoomAdvertisement(user._roomID);
+                if (ad != null)
+                    user.sendData(PacketBuilder.Create("CP")
+                        .Append(ad.ImageUrl).AppendChar((char)9)
+                        .Append(ad.Uri));
+                else
+                    user.sendData("CP0");
+            }
+            else
+            {
+                user.sendData("CP0");
+            }
+        }
+
+        private static void HandleGetRoomClass(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._ROOMACCESS_SECONDARY_OK)
+            {
+                if (user.gamePlayer != null && user.gamePlayer.enteringGame && user.gamePlayer.teamID != -1 && user.gamePlayer.Game != null)
+                {
+                    user.sendData("@_" + user.gamePlayer.Game.Heightmap);
+                    user.sendData("Cs" + user.gamePlayer.Game.getPlayers());
+                }
+                if (user.gamePlayer != null)
+                    user.gamePlayer.enteringGame = false;
+                return;
+            }
+            
+            if (roomManager.containsRoom(user._roomID))
+                user.Room = roomManager.getRoom(user._roomID);
+            else
+            {
+                user.Room = new virtualRoom(user._roomID, user._inPublicroom);
+                roomManager.addRoom(user._roomID, user.Room);
+            }
+            
+            user.sendData("@_" + user.Room.Heightmap);
+            user.sendData(@"@\" + user.Room.dynamicUnits);
+        }
+
+        private static void HandleGetRoomItems(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._ROOMACCESS_SECONDARY_OK || user.Room == null)
+                return;
+            
+            user.sendData("@^" + user.Room.PublicroomItems);
+            user.sendData("@`" + user.Room.Flooritems);
+        }
+
+        private static void HandleGetRoomGroupBadges(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._ROOMACCESS_SECONDARY_OK || user.Room == null)
+                return;
+            
+            user.sendData("Du" + user.Room.Groups);
+            if (user.Room.Lobby != null)
+            {
+                user.sendData(PacketBuilder.Create("Cg")
+                    .Append("H")
+                    .AppendString(user.Room.Lobby.Rank.Title)
+                    .AppendVL64(user.Room.Lobby.Rank.minPoints)
+                    .AppendVL64(user.Room.Lobby.Rank.maxPoints));
+                user.sendData("Cz" + user.Room.Lobby.playerRanks);
+            }
+            user.sendData("DiH");
+            
+            if (!user._receivedSpriteIndex)
+            {
+                user._receivedSpriteIndex = true;
+                // Send sprite index - this is a large hardcoded string from the legacy code
+                user.sendData("Dg" + @"[SEshelves_norja" + (char)2 + "X~Dshelves_polyfon" + (char)2 + "YmAshelves_silo" + (char)2 + "XQHtable_polyfon_small" + (char)2 + "YmAchair_polyfon" + (char)2 + "ZbBtable_norja_med" + (char)2 + "Y_Itable_silo_med" + (char)2 + "X~Dtable_plasto_4leg" + (char)2 + "Y_Itable_plasto_round" + (char)2 + "Y_Itable_plasto_bigsquare" + (char)2 + "Y_Istand_polyfon_z" + (char)2 + "ZbBchair_silo" + (char)2 + "X~Dsofa_silo" + (char)2 + "X~Dcouch_norja" + (char)2 + "X~Dchair_norja" + (char)2 + "X~Dtable_polyfon_med" + (char)2 + "YmAdoormat_love" + (char)2 + "ZbBdoormat_plain" + (char)2 + "Z[Msofachair_polyfon" + (char)2 + "X~Dsofa_polyfon" + (char)2 + "Z[Msofachair_silo" + (char)2 + "X~Dchair_plasty" + (char)2 + "X~Dchair_plasto" + (char)2 + "YmAtable_plasto_square" + (char)2 + "Y_Ibed_polyfon" + (char)2 + "X~Dbed_polyfon_one" + (char)2 + "[dObed_trad_one" + (char)2 + "YmAbed_trad" + (char)2 + "YmAbed_silo_one" + (char)2 + "YmAbed_silo_two" + (char)2 + "YmAtable_silo_small" + (char)2 + "X~Dbed_armas_two" + (char)2 + "YmAbed_budget_one" + (char)2 + "XQHbed_budget" + (char)2 + "XQHshelves_armas" + (char)2 + "YmAbench_armas" + (char)2 + "YmAtable_armas" + (char)2 + "YmAsmall_table_armas" + (char)2 + "ZbBsmall_chair_armas" + (char)2 + "YmAfireplace_armas" + (char)2 + "YmAlamp_armas" + (char)2 + "YmAbed_armas_one" + (char)2 + "YmAcarpet_standard" + (char)2 + "Y_Icarpet_armas" + (char)2 + "YmAcarpet_polar" + (char)2 + "Y_Ifireplace_polyfon" + (char)2 + "Y_I");
+            }
+        }
+
+        private static void HandleGetWallItems(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._ROOMACCESS_SECONDARY_OK || user.Room == null)
+                return;
+            
+            user.sendData("@|" + user.Room.Wallitems);
+        }
+
+        private static void HandleAddUserToRoom(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._ROOMACCESS_SECONDARY_OK || user.Room == null || user.roomUser != null)
+                return;
+            
+            user.sendData("@b" + user.Room.dynamicStatuses);
+            user.Room.addUser(user);
+        }
+        private static void HandleModTool(virtualUser user, PacketReader reader) { if (!user._isLoggedIn) return; /* TODO: Implement */ }
+        private static void HandleSendCFHMessage(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            var cfhStats = _helpDataAccess.GetPendingHelpRequest(user._Username);
+            if (cfhStats == null)
+                user.sendData("D\x7F" + "H");
+            else
+            {
+                user.sendData(PacketBuilder.Create("D\x7F")
+                    .Append("I")
+                    .AppendInt(cfhStats.Id).AppendDelimiter()
+                    .AppendString(cfhStats.Date)
+                    .AppendString(cfhStats.Message));
+            }
+        }
+
+        private static void HandleDeleteCFHMessage(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            int cfhID = _helpDataAccess.GetPendingHelpRequestId(user._Username);
+            _helpDataAccess.DeletePendingHelpRequest(user._Username);
+            user.sendData("D\x7F" + "H");
+            userManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
+                .AppendVL64(cfhID).AppendDelimiter()
+                .Append("I").AppendString("User Deleted!").AppendString("User Deleted!").AppendString("User Deleted!")
+                .AppendVL64(0).AppendDelimiter()
+                .Append("").AppendDelimiter()
+                .Append("H").AppendDelimiter()
+                .AppendVL64(0));
+        }
+
+        private static void HandleSubmitCFHMessage(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (_helpDataAccess.HasPendingHelpRequest(user._Username))
+                return;
+            
+            string cfhMessage = reader.PopB64String();
+            if (string.IsNullOrEmpty(cfhMessage))
+                return;
+            
+            string ipAddress = user.connectionSocket.RemoteEndPoint.ToString().Split(':')[0];
+            _helpDataAccess.CreateHelpRequest(user._Username, ipAddress, DB.Stripslash(cfhMessage), DateTime.Now.ToString(), user._roomID);
+            int cfhID = _helpDataAccess.GetPendingHelpRequestId(user._Username);
+            string roomName = _roomDataAccess.GetRoomName(user._roomID);
+            
+            user.sendData("EAH");
+            userManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
+                .AppendVL64(cfhID).AppendDelimiter()
+                .Append("I").AppendString("Sent: " + DateTime.Now).AppendString(user._Username).AppendString(cfhMessage)
+                .AppendVL64(user._roomID).AppendDelimiter()
+                .Append(roomName).AppendDelimiter()
+                .Append("I").AppendDelimiter()
+                .AppendVL64(user._roomID));
+        }
+
+        private static void HandleReplyCFH(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!rankManager.containsRight(user._Rank, "fuse_receive_calls_for_help"))
+                return;
+            
+            // Packet format: B64 length of ID, then VL64 ID, then reply message
+            string cfhIDStr = reader.PopB64String();
+            if (!int.TryParse(cfhIDStr, out int cfhID))
+            {
+                // Alternative format: skip B64 length, read VL64 directly
+                reader.Reset().Skip(4);
+                cfhID = reader.PopVL64();
+            }
+            
+            string cfhReply = reader.PopString();
+            
+            string toUserName = _helpDataAccess.GetHelpRequestUsername(cfhID);
+            if (string.IsNullOrEmpty(toUserName))
+            {
+                user.sendData("BK" + stringManager.getString("cfh_fail"));
+                return;
+            }
+            
+            int toUserID = userManager.getUserID(toUserName);
+            virtualUser toVirtualUser = userManager.getUser(toUserID);
+            if (toVirtualUser != null && toVirtualUser._isLoggedIn)
+            {
+                toVirtualUser.sendData(PacketBuilder.Create("DR").AppendString(cfhReply));
+                _helpDataAccess.PickupHelpRequest(cfhID, user._Username);
+            }
+        }
+
+        private static void HandleDeleteCFH(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!rankManager.containsRight(user._Rank, "fuse_receive_calls_for_help"))
+                return;
+            
+            // Packet format: B64 length of ID, then VL64 ID
+            reader.Skip(2); // Skip first B64 length indicator
+            int cfhID = reader.PopVL64();
+            
+            var cfhStats = _helpDataAccess.GetHelpRequestDetails(cfhID);
+            if (cfhStats == null)
+                return;
+            
+            if (cfhStats.PickedUp == "1")
+            {
+                user.sendData("BK" + stringManager.getString("cfh_picked_up"));
+            }
+            else
+            {
+                _helpDataAccess.DeleteHelpRequest(cfhID);
+                userManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
+                    .AppendVL64(cfhID).AppendDelimiter()
+                    .Append("H").AppendString("Staff Deleted!").AppendString("Staff Deleted!").AppendString("Staff Deleted!")
+                    .AppendVL64(0).AppendDelimiter()
+                    .Append("").AppendDelimiter()
+                    .Append("H").AppendDelimiter()
+                    .AppendVL64(0));
+            }
+        }
+
+        private static void HandlePickupCFH(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            reader.Skip(2); // Skip characters after header
+            int cfhID = reader.PopVL64();
+            
+            if (!_helpDataAccess.HelpRequestExists(cfhID))
+            {
+                user.sendData(stringManager.getString("cfh_deleted"));
+                return;
+            }
+            
+            var cfhData = _helpDataAccess.GetHelpRequestDetails(cfhID);
+            if (cfhData == null)
+                return;
+            
+            string roomName = _roomDataAccess.GetRoomName(cfhData.RoomId);
+            if (cfhData.PickedUp == "1")
+            {
+                user.sendData("BK" + stringManager.getString("cfh_picked_up"));
+            }
+            else
+            {
+                userManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
+                    .AppendVL64(cfhID).AppendDelimiter()
+                    .Append("I").AppendString("Picked up: " + DateTime.Now).AppendString(cfhData.Username).AppendString(cfhData.Message)
+                    .AppendVL64(cfhData.RoomId).AppendDelimiter()
+                    .Append(roomName).AppendDelimiter()
+                    .Append("I").AppendDelimiter()
+                    .AppendVL64(cfhData.RoomId));
+                _helpDataAccess.MarkHelpRequestAsPickedUp(cfhID);
+            }
+        }
+
+        private static void HandleGoToCFHRoom(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!rankManager.containsRight(user._Rank, "fuse_receive_calls_for_help"))
+                return;
+            
+            // Packet format: B64 length of ID, then VL64 ID
+            reader.Skip(2); // Skip B64 length indicator
+            int cfhID = reader.PopVL64();
+            int roomID = _helpDataAccess.GetHelpRequestRoomId(cfhID);
+            if (roomID == 0)
+                return;
+            
+            virtualRoom room = roomManager.getRoom(roomID);
+            if (room != null)
+            {
+                user.sendData(PacketBuilder.Create("D^")
+                    .Append(room.isPublicroom ? "I" : "H")
+                    .AppendVL64(roomID));
+            }
+        }
+        private static void HandleIgnoreUser(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            try
+            {
+                reader.Skip(2); // Skip characters after header
+                string username = DB.Stripslash(reader.PopString());
+                virtualUser target = userManager.getUser(username);
+                if (target != null && target._Rank <= 3)
+                {
+                    _ignoreDataAccess.AddIgnoredUser(user.userID, target.userID);
+                    user.ignoreList.Add(target.userID);
+                    user.sendData("FcI");
+                }
+            }
+            catch { }
+        }
+
+        private static void HandleUnignoreUser(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            try
+            {
+                string username = DB.Stripslash(reader.PopString());
+                virtualUser target = userManager.getUser(username);
+                if (target != null && target._Rank <= 3)
+                {
+                    _ignoreDataAccess.RemoveIgnoredUser(user.userID, target.userID);
+                    user.ignoreList.Remove(target.userID);
+                    user.sendData("FcK");
+                }
+            }
+            catch { }
+        }
+        private static void HandleRotateUser(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+
+            int rotation = reader.PopInt();
+            if (rotation >= 0 && rotation <= 7)
+            {
+                user.roomUser.Z2 = (byte)rotation;
+                user.Room.sendData(PacketBuilder.Create("@\\").Append(user.roomUser.detailsString));
+            }
+        }
+
+        private static void HandleWalkTo(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user.roomUser.walkLock) return;
+
+            int x = reader.PopVL64();
+            int y = reader.PopVL64();
+            
+            // Calculate max dimensions from heightmap
+            if (user.Room != null && user.Room.Heightmap != null)
+            {
+                string[] heightmapLines = user.Room.Heightmap.Split((char)13);
+                int maxX = heightmapLines[0].Length;
+                int maxY = heightmapLines.Length - 1;
+                
+                if (x >= 0 && y >= 0 && x < maxX && y < maxY)
+                {
+                    user.roomUser.goalX = x;
+                    user.roomUser.goalY = y;
+                }
+            }
+        }
+        private static void HandleClickDoor(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+            
+            user.roomUser.walkDoor = true;
+            user.roomUser.goalX = user.Room.doorX;
+            user.roomUser.goalY = user.Room.doorY;
+        }
+
+        private static void HandleSelectSwimmingOutfit(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || !user.Room.hasSwimmingPool) return;
+            
+            virtualRoom.squareTrigger trigger = user.Room.getTrigger(user.roomUser.X, user.roomUser.Y);
+            if (trigger.Object == "curtains1" || trigger.Object == "curtains2")
+            {
+                string outfit = DB.Stripslash(reader.PopString());
+                user.roomUser.SwimOutfit = outfit;
+                user.Room.sendData(@"@\" + user.roomUser.detailsString);
+                user.Room.sendSpecialCast(trigger.Object, "open");
+                user.roomUser.walkLock = false;
+                user.roomUser.goalX = trigger.goalX;
+                user.roomUser.goalY = trigger.goalY;
+                _userDataAccess.UpdateUserSwimOutfit(user.userID, outfit);
+                virtualUser userObj = userManager.getUser(user.userID);
+                if (userObj != null)
+                    userObj.refreshAppearance(true, true, true);
+            }
+        }
+
+        private static void HandleSwitchBadge(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+            
+            _badgeDataAccess.ResetUserBadgeSlots(user.userID);
+            int enabledBadgeAmount = 0;
+            
+            while (reader.HasMore)
+            {
+                int slotID = reader.PopVL64();
+                string badge = reader.PopB64String();
+                
+                if (!string.IsNullOrEmpty(badge))
+                {
+                    _badgeDataAccess.UpdateBadgeSlot(user.userID, badge, slotID);
+                    enabledBadgeAmount++;
+                }
+            }
+            
+            user.refreshBadges();
+            
+            PacketBuilder notify = PacketBuilder.Create("Cd")
+                .AppendInt(user.userID)
+                .AppendDelimiter()
+                .AppendVL64(enabledBadgeAmount);
+            
+            for (int x = 0; x < user._Badges.Count; x++)
+            {
+                if (user._badgeSlotIDs[x] > 0)
+                {
+                    notify.AppendVL64(user._badgeSlotIDs[x])
+                        .Append(user._Badges[x])
+                        .AppendDelimiter();
+                }
+            }
+            
+            user.Room.sendData(notify);
+        }
+
+        private static void HandleGetTags(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            int ownerID = reader.PopVL64();
+            var tags = _tagDataAccess.GetUserTags(ownerID, 20);
+            
+            PacketBuilder list = PacketBuilder.Create("E^")
+                .AppendVL64(ownerID)
+                .AppendVL64(tags.Count);
+            
+            for (int i = 0; i < tags.Count; i++)
+                list.AppendString(tags[i]);
+            
+            user.sendData(list);
+        }
+
+        private static void HandleGetGroupBadgeDetails(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+            
+            int groupID = reader.PopVL64();
+            if (!_groupDataAccess.GroupExists(groupID))
+                return;
+            
+            var groupDetails = _groupDataAccess.GetGroupDetails(groupID);
+            if (groupDetails == null)
+                return;
+            
+            int roomID = groupDetails.RoomId;
+            string roomName = "";
+            if (roomID > 0)
+                roomName = _roomDataAccess.GetRoomName(roomID);
+            else
+                roomID = -1;
+            
+            user.sendData(PacketBuilder.Create("Dw")
+                .AppendVL64(groupID)
+                .AppendString(groupDetails.Name)
+                .AppendString(groupDetails.Description)
+                .AppendVL64(roomID)
+                .AppendString(roomName));
+        }
+        private static void HandleIgnoreUser2(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            try
+            {
+                string username = DB.Stripslash(reader.PopString());
+                virtualUser target = userManager.getUser(username);
+                if (target != null && target._Rank <= 3)
+                {
+                    _ignoreDataAccess.AddIgnoredUser(user.userID, target.userID);
+                    user.ignoreList.Add(target.userID);
+                    user.sendData("FcI");
+                }
+            }
+            catch { }
+        }
+
+        private static void HandleUnignoreUser2(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            try
+            {
+                string username = DB.Stripslash(reader.PopString());
+                virtualUser target = userManager.getUser(username);
+                if (target != null && target._Rank <= 3)
+                {
+                    _ignoreDataAccess.RemoveIgnoredUser(user.userID, target.userID);
+                    user.ignoreList.Remove(target.userID);
+                    user.sendData("FcK");
+                }
+            }
+            catch { }
+        }
+        private static void HandleStopStatus(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.statusManager == null) return;
+
+            string status = reader.PopString();
+            if (status == "CarryItem")
+                user.statusManager.dropCarrydItem();
+            else if (status == "Dance")
+            {
+                user.statusManager.removeStatus("dance");
+                user.statusManager.Refresh();
+            }
+        }
+
+        private static void HandleWave(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+            if (user.statusManager == null || user.statusManager.containsStatus("wave")) return;
+
+            user.statusManager.removeStatus("dance");
+            user.statusManager.handleStatus("wave", "", Config.Statuses_Wave_waveDuration);
+        }
+
+        private static void HandleDance(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+            if (user.statusManager == null) return;
+
+            if (user.statusManager.containsStatus("sit") || user.statusManager.containsStatus("lay"))
+                return;
+
+            user.statusManager.dropCarrydItem();
+            
+            if (!reader.HasMore)
+            {
+                user.statusManager.addStatus("dance", "");
+            }
+            else
+            {
+                if (!rankManager.containsRight(user._Rank, "fuse_use_club_dance"))
+                    return;
+                int danceID = reader.PopVL64();
+                if (danceID < 0 || danceID > 4)
+                    return;
+                user.statusManager.addStatus("dance", danceID.ToString());
+            }
+            user.statusManager.Refresh();
+        }
+
+        private static void HandleCarryItem(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user.statusManager == null) return;
+
+            string item = reader.PopString();
+            if (user.statusManager.containsStatus("lay") || item.Contains("/"))
+                return;
+
+            try
+            {
+                int nItem = int.Parse(item);
+                if (nItem < 1 || nItem > 26)
+                    return;
+            }
+            catch
+            {
+                if (!user._inPublicroom && item != "Water" && item != "Milk" && item != "Juice")
+                    return;
+            }
+            user.statusManager.carryItem(item);
+        }
+        private static void HandleAnswerPoll(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+            
+            int pollID = reader.PopVL64();
+            if (_pollDataAccess.UserHasAnsweredPoll(user.userID, pollID))
+                return;
+            
+            int questionID = reader.PopVL64();
+            bool typeThree = _pollDataAccess.IsPollQuestionTypeThree(questionID);
+            
+            if (typeThree)
+            {
+                string answer = DB.Stripslash(reader.PopB64String());
+                _pollDataAccess.CreatePollResultText(pollID, questionID, answer, user.userID);
+            }
+            else
+            {
+                int countAnswers = reader.PopVL64();
+                for (int i = 0; i < countAnswers; i++)
+                {
+                    int answer = reader.PopVL64();
+                    _pollDataAccess.CreatePollResultChoice(pollID, questionID, answer, user.userID);
+                }
+            }
+        }
+        private static void HandleSay(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            string message = reader.PopString();
+            if (user._isMuted || (user.Room == null || user.roomUser == null) && (user.Room == null && user.gamePlayer == null))
+                return;
+
+            userManager.addChatMessage(user._Username, user._roomID, message);
+            message = stringManager.filterSwearwords(message);
+
+            if (message.Length > 0 && message[0] == ':' && user.isSpeechCommand(message.Substring(1)))
+            {
+                if (user.roomUser != null)
+                {
+                    if (user.roomUser.isTyping)
+                    {
+                        user.Room.sendData(PacketBuilder.Create("FO").AppendVL64(user.roomUser.roomUID).Append("H"));
+                        user.roomUser.isTyping = false;
+                    }
+                }
+                else if (user.gamePlayer != null)
+                {
+                    user.gamePlayer.Game.sendData(PacketBuilder.Create("FO").AppendVL64(user.gamePlayer.roomUID).Append("H"));
+                }
+            }
+            else
+            {
+                if (user.gamePlayer == null && user.Room != null && user.roomUser != null)
+                    user.Room.sendSaying(user.roomUser, message);
+            }
+        }
+
+        private static void HandleShout(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            string message = reader.PopString();
+            if (user._isMuted || (user.Room == null || user.roomUser == null) && (user.Room == null && user.gamePlayer == null))
+                return;
+
+            userManager.addChatMessage(user._Username, user._roomID, message);
+            message = stringManager.filterSwearwords(message);
+
+            if (message.Length > 0 && message[0] == ':' && user.isSpeechCommand(message.Substring(1)))
+            {
+                if (user.roomUser != null)
+                {
+                    if (user.roomUser.isTyping)
+                    {
+                        user.Room.sendData(PacketBuilder.Create("FO").AppendVL64(user.roomUser.roomUID).Append("H"));
+                        user.roomUser.isTyping = false;
+                    }
+                }
+                else if (user.gamePlayer != null)
+                {
+                    user.gamePlayer.Game.sendData(PacketBuilder.Create("FO").AppendVL64(user.gamePlayer.roomUID).Append("H"));
+                }
+            }
+            else
+            {
+                if (user.gamePlayer == null && user.Room != null && user.roomUser != null)
+                    user.Room.sendShout(user.roomUser, message);
+                else if (user.gamePlayer != null)
+                {
+                    user.gamePlayer.Game.sendData(PacketBuilder.Create("Ei")
+                        .AppendVL64(user.gamePlayer.roomUID)
+                        .Append("H")
+                        .AppendChar((char)1)
+                        .Append("@Z")
+                        .AppendVL64(user.gamePlayer.roomUID)
+                        .AppendString(message));
+                }
+            }
+        }
+
+        private static void HandleWhisper(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._isMuted) return;
+
+            string remaining = reader.GetRemaining();
+            string[] parts = remaining.Split(' ');
+            if (parts.Length < 2) return;
+
+            string receiver = parts[0];
+            string message = remaining.Substring(receiver.Length + 1);
+
+            if (receiver == "" && message.Length > 0 && message[0] == ':' && user.isSpeechCommand(message.Substring(1)))
+            {
+                if (user.roomUser.isTyping)
+                {
+                    user.Room.sendData(PacketBuilder.Create("FO").AppendVL64(user.roomUser.roomUID).Append("H"));
+                    user.roomUser.isTyping = false;
+                }
+            }
+            else
+            {
+                userManager.addChatMessage(user._Username, user._roomID, message);
+                message = stringManager.filterSwearwords(message);
+                user.Room.sendWhisper(user.roomUser, receiver, message);
+            }
+        }
+
+        private static void HandleShowSpeechBubble(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+            if (!user.roomUser.isTyping)
+            {
+                user.roomUser.isTyping = true;
+                user.Room.sendData(PacketBuilder.Create("FO").AppendVL64(user.roomUser.roomUID).Append("I"));
+            }
+        }
+
+        private static void HandleHideSpeechBubble(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+            if (user.roomUser.isTyping)
+            {
+                user.roomUser.isTyping = false;
+                user.Room.sendData(PacketBuilder.Create("FO").AppendVL64(user.roomUser.roomUID).Append("H"));
+            }
+        }
+        private static void HandleGiveRights(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._inPublicroom || !user._isOwner)
+                return;
+            
+            string target = reader.PopString();
+            if (!userManager.containsUser(target))
+                return;
+            
+            virtualUser targetUser = userManager.getUser(target);
+            if (targetUser._roomID != user._roomID || targetUser._hasRights || targetUser._isOwner)
+                return;
+            
+            _roomRightsDataAccess.GrantRoomRights(user._roomID, targetUser.userID);
+            targetUser._hasRights = true;
+            targetUser.statusManager.addStatus("flatctrl", "onlyfurniture");
+            targetUser.roomUser.Refresh();
+            targetUser.sendData("@j");
+        }
+
+        private static void HandleTakeRights(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._inPublicroom || !user._isOwner)
+                return;
+            
+            string target = reader.PopString();
+            if (!userManager.containsUser(target))
+                return;
+            
+            virtualUser targetUser = userManager.getUser(target);
+            if (targetUser._roomID != user._roomID || !targetUser._hasRights || targetUser._isOwner)
+                return;
+            
+            _roomRightsDataAccess.RevokeRoomRights(user._roomID, targetUser.userID);
+            targetUser._hasRights = false;
+            targetUser.statusManager.removeStatus("flatctrl");
+            targetUser.roomUser.Refresh();
+            targetUser.sendData("@k");
+        }
+
+        private static void HandleKickUser(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._inPublicroom || !user._hasRights)
+                return;
+            
+            string target = reader.PopString();
+            if (!userManager.containsUser(target))
+                return;
+            
+            virtualUser targetUser = userManager.getUser(target);
+            if (targetUser._roomID != user._roomID)
+                return;
+            
+            if (targetUser._isOwner && (targetUser._Rank > user._Rank || rankManager.containsRight(targetUser._Rank, "fuse_any_room_controller")))
+                return;
+            
+            targetUser.roomUser.walkLock = true;
+            targetUser.roomUser.walkDoor = true;
+            targetUser.roomUser.goalX = user.Room.doorX;
+            targetUser.roomUser.goalY = user.Room.doorY;
+        }
+
+        private static void HandleKickAndBan(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._hasRights || user._inPublicroom || user.Room == null || user.roomUser == null)
+                return;
+            
+            string target = reader.PopString();
+            if (!userManager.containsUser(target))
+                return;
+            
+            virtualUser targetUser = userManager.getUser(target);
+            if (targetUser._roomID != user._roomID)
+                return;
+            
+            if (targetUser._isOwner && (targetUser._Rank > user._Rank || rankManager.containsRight(targetUser._Rank, "fuse_any_room_controller")))
+                return;
+            
+            string banExpireMoment = DateTime.Now.AddMinutes(Config.Rooms_roomBan_banDuration).ToString();
+            _roomBanDataAccess.CreateRoomBan(user._roomID, targetUser.userID, banExpireMoment);
+            
+            targetUser.roomUser.walkLock = true;
+            targetUser.roomUser.walkDoor = true;
+            targetUser.roomUser.goalX = user.Room.doorX;
+            targetUser.roomUser.goalY = user.Room.doorY;
+        }
+
+        private static void HandleVoteRoom(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user._inPublicroom || user.Room == null || user.roomUser == null)
+                return;
+            
+            int vote = reader.PopVL64();
+            if ((vote == 1 || vote == -1) && !_roomVoteDataAccess.HasUserVoted(user.userID, user._roomID))
+            {
+                _roomVoteDataAccess.CreateRoomVote(user.userID, user._roomID, vote);
+                int voteAmount = _roomVoteDataAccess.GetRoomVoteSum(user._roomID);
+                if (voteAmount < 0)
+                    voteAmount = 0;
+                user.roomUser.hasVoted = true;
+                if (user._isOwner)
+                    user.Room.sendNewVoteAmount(voteAmount);
+                user.sendData(PacketBuilder.Create("EY").AppendVL64(voteAmount));
+                user.sendData("Er" + eventManager.getEvent(user._roomID));
+            }
+        }
+        private static void HandleOpenCatalogue(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.sendData("A~" + catalogueManager.getPageIndex(user._Rank));
+        }
+
+        private static void HandleOpenCataloguePage(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            string remaining = reader.GetRemaining();
+            string pageIndexName = remaining.Split('/')[0];
+            user.sendData("A\x7F" + catalogueManager.getPage(pageIndexName, user._Rank));
+        }
+        private static void HandlePurchaseItem(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            
+            string remaining = reader.GetRemaining();
+            string[] packetContent = remaining.Split((char)13);
+            if (packetContent.Length < 4) return;
+            
+            string page = packetContent[1];
+            string item = packetContent[3];
+            int pageID = _catalogueDataAccess.GetPageIdByIndexName(DB.Stripslash(page), user._Rank);
+            int templateID = _catalogueDataAccess.GetTemplateIdByItemName(DB.Stripslash(item));
+            int cost = _catalogueDataAccess.GetCatalogueCost(pageID, templateID);
+            
+            if (cost == 0 || cost > user._Credits)
+            {
+                user.sendData("AD");
+                return;
+            }
+            
+            int receiverID = user.userID;
+            int presentBoxID = 0;
+            int roomID = 0;
+            
+            if (packetContent.Length > 5 && packetContent[5] == "1") // Purchased as present
+            {
+                string receiverName = packetContent[6];
+                if (receiverName != user._Username)
+                {
+                    int receiverUserId = _userDataAccess.GetUserIdByUsername(DB.Stripslash(receiverName));
+                    if (receiverUserId > 0)
+                        receiverID = receiverUserId;
+                    else
+                    {
+                        user.sendData("AL" + receiverName);
+                        return;
+                    }
+                }
+                
+                string boxSprite = "present_gen" + new Random().Next(1, 7);
+                int boxTemplateID = _catalogueDataAccess.GetTemplateIdByItemName(boxSprite);
+                string boxNote = DB.Stripslash(stringManager.filterSwearwords(packetContent[7]));
+                _furnitureDataAccess.CreateFurnitureItem(boxTemplateID, receiverID, null, "!" + boxNote);
+                presentBoxID = catalogueManager.lastItemID;
+                roomID = -1;
+            }
+            
+            user._Credits -= cost;
+            user.sendData(PacketBuilder.Create("@F").AppendInt(user._Credits));
+            _userDataAccess.UpdateUserCredits(user.userID, user._Credits);
+            
+            if (stringManager.getStringPart(item, 0, 4) == "deal")
+            {
+                int dealID = int.Parse(item.Substring(4));
+                List<int> itemIDs = _catalogueDataAccess.GetDealTemplateIds(dealID);
+                List<int> itemAmounts = _catalogueDataAccess.GetDealItemAmounts(dealID);
+                
+                for (int i = 0; i < itemIDs.Count; i++)
+                    for (int j = 1; j <= itemAmounts[i]; j++)
+                    {
+                        _furnitureDataAccess.CreateFurnitureItem(itemIDs[i], receiverID, roomID);
+                        catalogueManager.handlePurchase(itemIDs[i], receiverID, roomID, 0, presentBoxID);
+                    }
+            }
+            else
+            {
+                _furnitureDataAccess.CreateFurnitureItem(templateID, receiverID, roomID);
+                var template = catalogueManager.getTemplate(templateID);
+                if (template.Sprite == "wallpaper" || template.Sprite == "floor" || template.Sprite.Contains("landscape"))
+                {
+                    string decorID = packetContent[4];
+                    catalogueManager.handlePurchase(templateID, receiverID, 0, decorID, presentBoxID);
+                }
+                else if (stringManager.getStringPart(item, 0, 11) == "prizetrophy" || stringManager.getStringPart(item, 0, 11) == "greektrophy")
+                {
+                    string inscription = DB.Stripslash(stringManager.filterSwearwords(packetContent[4]));
+                    string itemVariable = user._Username + "\t" + DateTime.Today.ToShortDateString().Replace('/', '-') + "\t" + packetContent[4];
+                    _furnitureDataAccess.UpdateFurnitureVariable(catalogueManager.lastItemID, itemVariable);
+                    catalogueManager.handlePurchase(templateID, receiverID, 0, "0", presentBoxID);
+                }
+                else
+                {
+                    catalogueManager.handlePurchase(templateID, receiverID, roomID, "0", presentBoxID);
+                }
+            }
+            
+            if (receiverID == user.userID)
+                user.refreshHand("last");
+            else if (userManager.containsUser(receiverID))
+            {
+                virtualUser receiver = userManager.getUser(receiverID);
+                if (receiver != null)
+                    receiver.refreshHand("last");
+            }
+        }
+        private static void HandleRecyclerProceed(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!Config.enableRecycler || user.Room == null || recyclerManager.sessionExists(user.userID))
+                return;
+            
+            int itemCount = reader.PopVL64();
+            if (!recyclerManager.rewardExists(itemCount))
+                return;
+            
+            recyclerManager.createSession(user.userID, itemCount);
+            
+            for (int i = 0; i < itemCount; i++)
+            {
+                if (!reader.HasMore) break;
+                
+                int itemID = reader.PopVL64();
+                if (_furnitureDataAccess.UserHasInventoryItems(user.userID))
+                {
+                    _furnitureDataAccess.UpdateFurnitureRoomId(itemID, -2);
+                }
+                else
+                {
+                    recyclerManager.dropSession(user.userID, true);
+                    user.sendData("DpH");
+                    return;
+                }
+            }
+            
+            user.sendData("Dp" + recyclerManager.sessionString(user.userID));
+            user.refreshHand("update");
+        }
+
+        private static void HandleRecyclerRedeem(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!Config.enableRecycler || (user.Room != null && !recyclerManager.sessionExists(user.userID)))
+                return;
+            
+            bool redeem = reader.PopBool();
+            if (redeem && recyclerManager.sessionReady(user.userID))
+                recyclerManager.rewardSession(user.userID);
+            
+            recyclerManager.dropSession(user.userID, redeem);
+            user.sendData("Dp" + recyclerManager.sessionString(user.userID));
+            
+            if (redeem)
+                user.refreshHand("last");
+            else
+                user.refreshHand("new");
+        }
+
+        private static void HandleHand(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+            
+            string mode = reader.PopString();
+            user.refreshHand(mode);
+        }
+
+        private static void HandleHand2(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+            
+            string mode = reader.PopString();
+            user.refreshHand(mode);
+        }
+
+        private static void HandleApplyWallpaper(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._hasRights || user._inPublicroom || user.Room == null || user.roomUser == null)
+                return;
+            
+            string remaining = reader.GetRemaining();
+            string[] parts = remaining.Split('/');
+            if (parts.Length < 2) return;
+            
+            string decorType = parts[0];
+            int itemID = int.Parse(parts[1]);
+            
+            if (decorType != "wallpaper" && decorType != "floor" && decorType != "landscape")
+                return;
+            
+            int templateID = _furnitureDataAccess.GetInventoryItemTemplateId(itemID, user.userID);
+            if (templateID == 0 || catalogueManager.getTemplate(templateID).Sprite != decorType)
+                return;
+            
+            string decorVal = _furnitureDataAccess.GetFurnitureVariable(itemID);
+            if (decorType == "wallpaper")
+                _roomDataAccess.UpdateRoomWallpaper(user._roomID, decorVal);
+            else if (decorType == "floor")
+                _roomDataAccess.UpdateRoomFloor(user._roomID, decorVal);
+            else if (decorType == "landscape")
+                _roomDataAccess.UpdateRoomLandscape(user._roomID, decorVal);
+            
+            user.Room.sendData("@n" + decorType + "/" + decorVal);
+            _furnitureDataAccess.DeleteFurnitureItem(itemID);
+        }
+
+        private static void HandlePlaceItem(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._hasRights || user._inPublicroom || user.Room == null || user.roomUser == null)
+                return;
+            
+            string remaining = reader.GetRemaining();
+            string[] parts = remaining.Split(' ');
+            if (parts.Length < 1) return;
+            
+            int itemID = int.Parse(parts[0]);
+            int templateID = _furnitureDataAccess.GetInventoryItemTemplateId(itemID, user.userID);
+            if (templateID == 0)
+                return;
+            
+            var template = catalogueManager.getTemplate(templateID);
+            if (template.typeID == 0) // Wall item
+            {
+                string inputPos = remaining.Substring(itemID.ToString().Length + 3);
+                string checkedPos = catalogueManager.wallPositionOK(inputPos);
+                if (checkedPos != inputPos)
+                    return;
+                
+                string var = _furnitureDataAccess.GetFurnitureVariable(itemID);
+                if (stringManager.getStringPart(template.Sprite, 0, 7) == "post.it")
+                {
+                    if (int.Parse(var) > 1)
+                        _furnitureDataAccess.DecrementFurnitureVariable(itemID);
+                    else
+                        _furnitureDataAccess.DeleteFurnitureItem(itemID);
+                    
+                    _furnitureDataAccess.CreateFurnitureItem(templateID, user.userID);
+                    itemID = catalogueManager.lastItemID;
+                    _furnitureDataAccess.CreateStickyNote(itemID);
+                    var = "FFFF33";
+                    _furnitureDataAccess.UpdateFurnitureVariable(itemID, var);
+                }
+                user.Room.wallItemManager.addItem(itemID, templateID, checkedPos, var, true);
+            }
+            else // Floor item
+            {
+                if (parts.Length < 4) return;
+                int x = int.Parse(parts[1]);
+                int y = int.Parse(parts[2]);
+                byte z = byte.Parse(parts[3]);
+                byte typeID = template.typeID;
+                user.Room.floorItemManager.placeItem(itemID, templateID, x, y, typeID, z);
+            }
+        }
+
+        private static void HandlePickupItem(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user._inPublicroom || user.Room == null || user.roomUser == null)
+                return;
+            
+            string remaining = reader.GetRemaining();
+            int itemID = int.Parse(remaining.Contains(" ") ? remaining.Split(' ')[0] : remaining);
+            
+            if (user.Room.floorItemManager.containsItem(itemID))
+            {
+                user.Room.floorItemManager.removeItem(itemID, user.userID);
+                _furnitureDataAccess.UpdateFurnitureRoomId(itemID, 0);
+                user.refreshHand("new");
+            }
+            else if (user.Room.wallItemManager.containsItem(itemID))
+            {
+                user.Room.wallItemManager.removeItem(itemID, user.userID);
+                _furnitureDataAccess.UpdateFurnitureRoomId(itemID, 0);
+                user.refreshHand("new");
+            }
+        }
+        private static void HandleMoveItem(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._hasRights || user._inPublicroom || user.Room == null || user.roomUser == null)
+                return;
+            
+            string remaining = reader.GetRemaining();
+            string[] parts = remaining.Split(' ');
+            if (parts.Length < 4) return;
+            
+            int itemID = int.Parse(parts[0]);
+            if (user.Room.floorItemManager.containsItem(itemID))
+            {
+                int x = int.Parse(parts[1]);
+                int y = int.Parse(parts[2]);
+                byte z = byte.Parse(parts[3]);
+                user.Room.floorItemManager.relocateItem(itemID, x, y, z);
+            }
+        }
+
+        private static void HandleToggleWallItem(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user._inPublicroom || user.Room == null || user.roomUser == null)
+                return;
+            
+            // Read B64 length, then itemID as string and parse
+            string itemIDStr = reader.PopB64String();
+            if (!int.TryParse(itemIDStr, out int itemID))
+                return;
+            
+            int toStatus = reader.PopVL64();
+            user.Room.wallItemManager.toggleItemStatus(itemID, toStatus);
+        }
+
+        private static void HandleToggleFloorItem(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            try
+            {
+                // Read B64 length, then itemID as string and parse
+                string itemIDStr = reader.PopB64String();
+                if (!int.TryParse(itemIDStr, out int itemID))
+                    return;
+                
+                string toStatus = DB.Stripslash(reader.PopString());
+                if (user.Room != null)
+                    user.Room.floorItemManager.toggleItemStatus(itemID, toStatus, user._hasRights);
+            }
+            catch { }
+        }
+
+        private static void HandleOpenPresent(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user._inPublicroom || user.Room == null || user.roomUser == null)
+                return;
+            
+            int itemID = reader.PopInt();
+            if (!user.Room.floorItemManager.containsItem(itemID))
+                return;
+            
+            List<int> itemIDs = _furnitureDataAccess.GetPresentItemIds(itemID);
+            if (itemIDs.Count > 0)
+            {
+                _furnitureDataAccess.UpdatePresentItemsToInventory(itemIDs);
+                user.Room.floorItemManager.removeItem(itemID, 0);
+                
+                int lastItemTID = _furnitureDataAccess.GetFurnitureTemplateId(itemIDs[itemIDs.Count - 1]);
+                catalogueManager.itemTemplate template = catalogueManager.getTemplate(lastItemTID);
+                
+                if (template.typeID > 0)
+                {
+                    user.sendData(PacketBuilder.Create("BA")
+                        .Append(template.Sprite).AppendChar((char)13)
+                        .Append(template.Sprite).AppendChar((char)13)
+                        .AppendInt(template.Length).AppendChar((char)30)
+                        .AppendInt(template.Width).AppendChar((char)30)
+                        .Append(template.Colour));
+                }
+                else
+                {
+                    user.sendData(PacketBuilder.Create("BA")
+                        .Append(template.Sprite).AppendChar((char)13)
+                        .Append(template.Sprite).Append(" ").Append(template.Colour).AppendChar((char)13));
+                }
+            }
+            
+            _furnitureDataAccess.DeleteFurniturePresent(itemID, itemIDs.Count);
+            _furnitureDataAccess.DeleteFurnitureItem(itemID);
+            user.refreshHand("last");
+        }
+
+        private static void HandleRedeemCreditItem(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user._inPublicroom || user.Room == null || user.roomUser == null)
+                return;
+            
+            int itemID = reader.PopVL64();
+            if (!user.Room.floorItemManager.containsItem(itemID))
+                return;
+            
+            string sprite = user.Room.floorItemManager.getItem(itemID).Sprite;
+            if ((sprite.Length < 3 || sprite.Substring(0, 3).ToLower() != "cf_") && 
+                (sprite.Length < 4 || sprite.Substring(0, 4).ToLower() != "cfc_"))
+                return;
+            
+            int redeemValue = 0;
+            try
+            {
+                string[] parts = sprite.Split('_');
+                if (parts.Length >= 2)
+                    redeemValue = int.Parse(parts[1]);
+            }
+            catch { return; }
+            
+            if (redeemValue > 0)
+            {
+                user._Credits += redeemValue;
+                user.sendData(PacketBuilder.Create("@F").AppendInt(user._Credits));
+                _userDataAccess.UpdateUserCredits(user.userID, user._Credits);
+                user.Room.floorItemManager.removeItem(itemID, 0);
+                _furnitureDataAccess.DeleteFurnitureItem(itemID);
+            }
+        }
+        private static void HandleEnterTeleporter(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user._inPublicroom || user.Room == null || user.roomUser == null)
+                return;
+            
+            int itemID = reader.PopInt();
+            if (!user.Room.floorItemManager.containsItem(itemID))
+                return;
+            
+            Rooms.Items.floorItem teleporter = user.Room.floorItemManager.getItem(itemID);
+            // Prevent clientside 'jumps' to teleporter
+            if (teleporter.Z == 2 && user.roomUser.X != teleporter.X + 1 && user.roomUser.Y != teleporter.Y)
+                return;
+            else if (teleporter.Z == 4 && user.roomUser.X != teleporter.X && user.roomUser.Y != teleporter.Y + 1)
+                return;
+            
+            user.roomUser.goalX = -1;
+            user.Room.moveUser(user.roomUser, teleporter.X, teleporter.Y, true);
+        }
+
+        private static void HandleCloseDice(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._inPublicroom)
+                return;
+            
+            int itemID = reader.PopInt();
+            if (!user.Room.floorItemManager.containsItem(itemID))
+                return;
+            
+            Rooms.Items.floorItem item = user.Room.floorItemManager.getItem(itemID);
+            string sprite = item.Sprite;
+            if (sprite != "edice" && sprite != "edicehc")
+                return;
+            
+            if (!(Math.Abs(user.roomUser.X - item.X) > 1 || Math.Abs(user.roomUser.Y - item.Y) > 1))
+            {
+                item.Var = "0";
+                user.Room.sendData("AZ" + itemID + " " + (itemID * 38));
+                _furnitureDataAccess.UpdateFurnitureVariable(itemID, "0");
+            }
+        }
+
+        private static void HandleSpinDice(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._inPublicroom)
+                return;
+            
+            int itemID = reader.PopInt();
+            if (!user.Room.floorItemManager.containsItem(itemID))
+                return;
+            
+            Rooms.Items.floorItem item = user.Room.floorItemManager.getItem(itemID);
+            string sprite = item.Sprite;
+            if (sprite != "edice" && sprite != "edicehc")
+                return;
+            
+            if (Math.Abs(user.roomUser.X - item.X) > 1 || Math.Abs(user.roomUser.Y - item.Y) > 1)
+                return;
+            
+            Random random = new Random();
+            int result = random.Next(1, 7);
+            string var = result.ToString();
+            item.Var = var;
+            user.Room.sendData("AZ" + itemID + " " + (itemID * 38) + " " + var);
+            _furnitureDataAccess.UpdateFurnitureVariable(itemID, var);
+        }
+
+        private static void HandleSpinWheel(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._hasRights || user.Room == null || user.roomUser == null || user._inPublicroom)
+                return;
+            
+            int itemID = reader.PopVL64();
+            if (!user.Room.wallItemManager.containsItem(itemID))
+                return;
+            
+            Rooms.Items.wallItem item = user.Room.wallItemManager.getItem(itemID);
+            if (item.Sprite == "habbowheel")
+            {
+                int rndNum = new Random(DateTime.Now.Millisecond).Next(0, 10);
+                user.Room.sendData(PacketBuilder.Create("AU")
+                    .AppendInt(itemID).AppendChar((char)9)
+                    .Append("habbowheel").AppendChar((char)9)
+                    .Append(" ").Append(item.wallPosition).AppendChar((char)9)
+                    .Append("-1"));
+                user.Room.sendData(PacketBuilder.Create("AU")
+                    .AppendInt(itemID).AppendChar((char)9)
+                    .Append("habbowheel").AppendChar((char)9)
+                    .Append(" ").Append(item.wallPosition).AppendChar((char)9)
+                    .AppendInt(rndNum), 4250);
+                _furnitureDataAccess.UpdateFurnitureVariable(itemID, rndNum.ToString());
+            }
+        }
+        private static void HandleActivateLoveShuffler(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._inPublicroom)
+                return;
+            
+            int itemID = reader.PopVL64();
+            string message = reader.PopString();
+            
+            if (user.Room.floorItemManager.containsItem(itemID))
+            {
+                Rooms.Items.floorItem item = user.Room.floorItemManager.getItem(itemID);
+                if (item.Sprite == "val_randomizer")
+                {
+                    int rndNum = new Random(DateTime.Now.Millisecond).Next(1, 5);
+                    user.Room.sendData(PacketBuilder.Create("AX")
+                        .AppendInt(itemID).AppendDelimiter()
+                        .Append("123456789").AppendDelimiter());
+                    user.Room.sendData(PacketBuilder.Create("AX")
+                        .AppendInt(itemID).AppendDelimiter()
+                        .AppendInt(rndNum).AppendDelimiter(), 5000);
+                    _furnitureDataAccess.UpdateFurnitureVariable(itemID, rndNum.ToString());
+                }
+            }
+        }
+
+        private static void HandleOpenStickie(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._inPublicroom)
+                return;
+            
+            int itemID = reader.PopInt();
+            string message = reader.PopString();
+            
+            if (user.Room.wallItemManager.containsItem(itemID))
+            {
+                message = _furnitureDataAccess.GetStickyNoteText(itemID);
+                string colour = _furnitureDataAccess.GetFurnitureVariable(itemID);
+                user.sendData(PacketBuilder.Create("@p")
+                    .AppendInt(itemID).AppendChar((char)9)
+                    .Append(colour).Append(" ")
+                    .Append(message));
+            }
+        }
+
+        private static void HandleEditStickie(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._hasRights || user.Room == null || user.roomUser == null || user._inPublicroom)
+                return;
+            
+            string remaining = reader.GetRemaining();
+            int slashIndex = remaining.IndexOf('/');
+            if (slashIndex == -1) return;
+            
+            int itemID = int.Parse(remaining.Substring(0, slashIndex));
+            if (!user.Room.wallItemManager.containsItem(itemID))
+                return;
+            
+            Rooms.Items.wallItem item = user.Room.wallItemManager.getItem(itemID);
+            string sprite = item.Sprite;
+            if (sprite != "post.it" && sprite != "post.it.vd")
+                return;
+            
+            string colour = "FFFFFF"; // Valentine stickie default colour
+            if (sprite == "post.it") // Normal stickie
+            {
+                if (remaining.Length < slashIndex + 7) return;
+                colour = remaining.Substring(slashIndex + 1, 6);
+                if (colour != "FFFF33" && colour != "FF9CFF" && colour != "9CFF9C" && colour != "9CCEFF")
+                    return;
+            }
+            
+            string message = remaining.Substring(slashIndex + 7);
+            if (message.Length > 684)
+                return;
+            
+            if (colour != item.Var)
+                _furnitureDataAccess.UpdateFurnitureVariable(itemID, colour);
+            item.Var = colour;
+            
+            user.Room.sendData(PacketBuilder.Create("AU")
+                .AppendInt(itemID).AppendChar((char)9)
+                .Append(sprite).AppendChar((char)9)
+                .Append(" ").Append(item.wallPosition).AppendChar((char)9)
+                .Append(colour));
+            
+            message = DB.Stripslash(stringManager.filterSwearwords(message)).Replace("/r", ((char)13).ToString());
+            _furnitureDataAccess.UpdateStickyNoteText(itemID, message);
+        }
+
+        private static void HandleDeleteStickie(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user.Room == null || user.roomUser == null || user._inPublicroom)
+                return;
+            
+            int itemID = reader.PopInt();
+            if (user.Room.wallItemManager.containsItem(itemID))
+            {
+                Rooms.Items.wallItem item = user.Room.wallItemManager.getItem(itemID);
+                if (stringManager.getStringPart(item.Sprite, 0, 7) == "post.it")
+                {
+                    user.Room.wallItemManager.removeItem(itemID, 0);
+                    _furnitureDataAccess.DeleteStickyNote(itemID);
+                }
+            }
+        }
+
+        private static void HandleLidoVoting(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null) return;
+            if (user.statusManager == null) return;
+            
+            if (user.statusManager.containsStatus("sit") || user.statusManager.containsStatus("lay"))
+                return;
+            
+            if (!reader.HasMore)
+            {
+                user.statusManager.addStatus("sign", "");
+            }
+            else
+            {
+                string signID = reader.PopString();
+                user.statusManager.handleStatus("sign", signID, Config.Statuses_Wave_waveDuration);
+            }
+            user.statusManager.Refresh();
+        }
+        private static void HandleInitializeSoundMachine(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
+                return;
+            
+            user.sendData("EB" + soundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
+        }
+
+        private static void HandleEnterRoomPlaylist(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
+                return;
+            
+            user.sendData("EC" + soundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
+        }
+
+        private static void HandleGetSongData(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
+                return;
+            
+            int songID = reader.PopVL64();
+            user.sendData("Dl" + soundMachineManager.getSong(songID));
+        }
+        private static void HandleSavePlaylist(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
+                return;
+            
+            int amount = reader.PopVL64();
+            if (amount >= 6) return; // Max playlist size
+            
+            _soundMachineDataAccess.DeleteAllPlaylistsForMachine(user.Room.floorItemManager.soundMachineID);
+            for (int i = 0; i < amount; i++)
+            {
+                if (!reader.HasMore) break;
+                int songID = reader.PopVL64();
+                _soundMachineDataAccess.AddSongToPlaylist(user.Room.floorItemManager.soundMachineID, songID, i);
+            }
+            
+            // Refresh playlist
+            user.Room.sendData("EC" + soundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
+        }
+
+        private static void HandleBurnSong(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
+                return;
+            
+            int songID = reader.PopVL64();
+            if (user._Credits <= 0 || !_soundMachineDataAccess.SongExists(songID, user.userID, user.Room.floorItemManager.soundMachineID))
+            {
+                user.sendData("AD");
+                return;
+            }
+            
+            var songData = _soundMachineDataAccess.GetSongDetails(songID);
+            if (songData != null)
+            {
+                int length = songData.Length;
+                string status = Encoding.encodeVL64(songID) + user._Username + (char)10 + DateTime.Today.Day + (char)10 + 
+                               DateTime.Today.Month + (char)10 + DateTime.Today.Year + (char)10 + length + (char)10 + songData.Title;
+                
+                _furnitureDataAccess.CreateFurnitureItem(Config.Soundmachine_burnToDisk_diskTemplateID, user.userID, null, status);
+                _soundMachineDataAccess.MarkSongAsBurnt(songID);
+                _userDataAccess.DeductUserCredits(user.userID, 1);
+                
+                user._Credits--;
+                user.sendData(PacketBuilder.Create("@F").AppendInt(user._Credits));
+                user.sendData("EB" + soundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
+                user.refreshHand("last");
+            }
+            else
+            {
+                user.sendData("AD");
+            }
+        }
+
+        private static void HandleDeleteSong(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
+                return;
+            
+            int songID = reader.PopVL64();
+            if (_soundMachineDataAccess.SongExistsForMachine(songID, user.Room.floorItemManager.soundMachineID))
+            {
+                _soundMachineDataAccess.RemoveSongFromMachineIfBurnt(songID);
+                _soundMachineDataAccess.DeleteUnburntSong(songID);
+                _soundMachineDataAccess.DeleteSongFromPlaylist(user.Room.floorItemManager.soundMachineID, songID);
+                user.Room.sendData("EC" + soundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
+            }
+        }
+
+        private static void HandleInitializeSongEditor(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
+                return;
+            
+            user.songEditor = new virtualSongEditor(user.Room.floorItemManager.soundMachineID, user.userID);
+            user.songEditor.loadSoundsets();
+            user.sendData("Dm" + user.songEditor.getSoundsets());
+            user.sendData("Dn" + soundMachineManager.getHandSoundsets(user.userID));
+        }
+
+        private static void HandleAddSoundSet(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.songEditor == null || !user._isOwner || user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
+                return;
+            
+            int soundSetID = reader.PopVL64();
+            int slotID = reader.PopVL64();
+            
+            if (slotID > 0 && slotID < 5 && user.songEditor.slotFree(slotID))
+            {
+                user.songEditor.addSoundset(soundSetID, slotID);
+                user.sendData("Dn" + soundMachineManager.getHandSoundsets(user.userID));
+                user.sendData("Dm" + user.songEditor.getSoundsets());
+            }
+        }
+        private static void HandleSaveNewSong(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.songEditor == null || !user._isOwner || user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
+                return;
+            
+            string title = reader.PopB64String();
+            string data = reader.PopString();
+            int length = soundMachineManager.calculateSongLength(data);
+            
+            if (length != -1)
+            {
+                title = DB.Stripslash(stringManager.filterSwearwords(title));
+                data = DB.Stripslash(data);
+                _soundMachineDataAccess.CreateSong(user.userID, user.Room.floorItemManager.soundMachineID, title, length, DB.Stripslash(data));
+                
+                user.sendData("EB" + soundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
+                user.sendData(PacketBuilder.Create("EK")
+                    .AppendVL64(user.Room.floorItemManager.soundMachineID)
+                    .AppendString(title));
+            }
+        }
+
+        private static void HandleRequestEditSong(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
+                return;
+            
+            int songID = reader.PopVL64();
+            user.sendData("Dl" + soundMachineManager.getSong(songID));
+            
+            user.songEditor = new virtualSongEditor(user.Room.floorItemManager.soundMachineID, user.userID);
+            user.songEditor.loadSoundsets();
+            user.sendData("Dm" + user.songEditor.getSoundsets());
+            user.sendData("Dn" + soundMachineManager.getHandSoundsets(user.userID));
+        }
+
+        private static void HandleSaveEditedSong(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.songEditor == null || !user._isOwner || user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
+                return;
+            
+            int songID = reader.PopVL64();
+            if (_soundMachineDataAccess.SongExists(songID, user.userID, user.Room.floorItemManager.soundMachineID))
+            {
+                string title = reader.PopB64String();
+                string data = reader.PopString();
+                int length = soundMachineManager.calculateSongLength(data);
+                
+                if (length != -1)
+                {
+                    title = DB.Stripslash(stringManager.filterSwearwords(title));
+                    data = DB.Stripslash(data);
+                    _soundMachineDataAccess.UpdateSong(songID, title, data, length);
+                    
+                    user.sendData("ES");
+                    user.sendData("EB" + soundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
+                    user.Room.sendData("EC" + soundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
+                }
+            }
+        }
+        private static void HandleStartTrading(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._tradePartnerRoomUID != -1)
+                return;
+            
+            if (!Config.enableTrading)
+            {
+                user.sendData("BK" + stringManager.getString("trading_disabled"));
+                return;
+            }
+            
+            int partnerUID = reader.PopInt();
+            if (!user.Room.containsUser(partnerUID))
+                return;
+            
+            virtualUser partner = user.Room.getUser(partnerUID);
+            if (partner.statusManager.containsStatus("trd"))
+                return;
+            
+            user._tradePartnerRoomUID = partnerUID;
+            user.statusManager.addStatus("trd", "");
+            user.roomUser.Refresh();
+            
+            partner._tradePartnerRoomUID = user.roomUser.roomUID;
+            partner.statusManager.addStatus("trd", "");
+            partner.roomUser.Refresh();
+            
+            user.refreshTradeBoxes();
+            partner.refreshTradeBoxes();
+        }
+
+        private static void HandleOfferTradeItem(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._tradePartnerRoomUID == -1)
+                return;
+            
+            if (!user.Room.containsUser(user._tradePartnerRoomUID))
+                return;
+            
+            int itemID = reader.PopInt();
+            int templateID = _furnitureDataAccess.GetInventoryItemTemplateId(itemID, user.userID);
+            if (templateID == 0)
+                return;
+            
+            user._tradeItems[user._tradeItemCount] = itemID;
+            user._tradeItemCount++;
+            virtualUser partner = user.Room.getUser(user._tradePartnerRoomUID);
+            
+            user._tradeAccept = false;
+            partner._tradeAccept = false;
+            
+            user.refreshTradeBoxes();
+            partner.refreshTradeBoxes();
+        }
+
+        private static void HandleDeclineTrade(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._tradePartnerRoomUID == -1)
+                return;
+            
+            if (!user.Room.containsUser(user._tradePartnerRoomUID))
+                return;
+            
+            virtualUser partner = user.Room.getUser(user._tradePartnerRoomUID);
+            user._tradeAccept = false;
+            partner._tradeAccept = false;
+            user.refreshTradeBoxes();
+            partner.refreshTradeBoxes();
+        }
+
+        private static void HandleAcceptTrade(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._tradePartnerRoomUID == -1)
+                return;
+            
+            if (!user.Room.containsUser(user._tradePartnerRoomUID))
+                return;
+            
+            virtualUser partner = user.Room.getUser(user._tradePartnerRoomUID);
+            user._tradeAccept = true;
+            user.refreshTradeBoxes();
+            partner.refreshTradeBoxes();
+            
+            if (partner._tradeAccept)
+            {
+                // Swap items
+                for (int i = 0; i < user._tradeItemCount; i++)
+                {
+                    if (user._tradeItems[i] > 0)
+                        _furnitureDataAccess.UpdateFurnitureOwnerToInventory(user._tradeItems[i], partner.userID);
+                }
+                
+                for (int i = 0; i < partner._tradeItemCount; i++)
+                {
+                    if (partner._tradeItems[i] > 0)
+                        _furnitureDataAccess.UpdateFurnitureOwnerToInventory(partner._tradeItems[i], user.userID);
+                }
+                
+                user.abortTrade();
+            }
+        }
+
+        private static void HandleAbortTrade(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user._tradePartnerRoomUID == -1)
+                return;
+            
+            if (user.Room.containsUser(user._tradePartnerRoomUID))
+            {
+                user.abortTrade();
+                user.refreshHand("update");
+            }
+        }
+        private static void HandleRefreshGameList(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.Room.Lobby == null)
+                return;
+            user.sendData("Ch" + user.Room.Lobby.gameList());
+        }
+
+        private static void HandleCheckoutGame(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user.Room.Lobby == null || user.gamePlayer != null)
+                return;
+            
+            int gameID = reader.PopVL64();
+            if (user.Room.Lobby.Games.ContainsKey(gameID))
+            {
+                user.gamePlayer = new gamePlayer(user, user.roomUser.roomUID, (Game)user.Room.Lobby.Games[gameID]);
+                user.gamePlayer.Game.Subviewers.Add(user.gamePlayer);
+                user.sendData("Ci" + user.gamePlayer.Game.Sub);
+            }
+        }
+
+        private static void HandleRequestNewGame(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user.Room.Lobby == null || user.gamePlayer != null)
+                return;
+            
+            if (user._Tickets <= 1)
+            {
+                user.sendData("Cl" + "J"); // Error [2] = Not enough tickets
+                return;
+            }
+            
+            if (!user.Room.Lobby.validGamerank(user.roomUser.gamePoints))
+            {
+                user.sendData("Cl" + "K"); // Error [3] = Skillevel not valid in this lobby
+                return;
+            }
+            
+            if (user.Room.Lobby.isBattleBall)
+                user.sendData("Ck" + user.Room.Lobby.getCreateGameSettings());
+            else
+                user.sendData(PacketBuilder.Create("Ck")
+                    .Append("RA")
+                    .AppendString("secondsUntilRestart")
+                    .Append("HIRGIHH")
+                    .AppendString("fieldType")
+                    .Append("HKIIIISA")
+                    .AppendString("numTeams")
+                    .Append("HJJIII")
+                    .Append("PA")
+                    .AppendString("gameLengthChoice")
+                    .Append("HJIIIIK")
+                    .AppendString("name")
+                    .Append("IJ").AppendDelimiter().Append("H")
+                    .AppendString("secondsUntilStart")
+                    .Append("HIRBIHH"));
+        }
+        private static void HandleProcessNewGame(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.roomUser == null || user.Room.Lobby == null || user.gamePlayer != null)
+                return;
+            
+            if (user._Tickets <= 1)
+            {
+                user.sendData("Cl" + "J"); // Error [2] = Not enough tickets
+                return;
+            }
+            
+            if (!user.Room.Lobby.validGamerank(user.roomUser.gamePoints))
+            {
+                user.sendData("Cl" + "K"); // Error [3] = Skillevel not valid in this lobby
+                return;
+            }
+            
+            try
+            {
+                int mapID = -1;
+                int teamAmount = -1;
+                int[] powerups = null;
+                string name = "";
+                
+                int keyAmount = reader.PopVL64();
+                for (int i = 0; i < keyAmount; i++)
+                {
+                    if (!reader.HasMore) break;
+                    
+                    string key = reader.PopB64String();
+                    char valueType = reader.PopChar();
+                    
+                    if (valueType == 'H') // VL64 value
+                    {
+                        int value = reader.PopVL64();
+                        switch (key)
+                        {
+                            case "fieldType":
+                                mapID = value;
+                                break;
+                            case "numTeams":
+                                teamAmount = value;
+                                break;
+                        }
+                    }
+                    else // B64 value (string)
+                    {
+                        string value = reader.PopB64String();
+                        switch (key)
+                        {
+                            case "allowedPowerups":
+                                string[] ps = value.Split(',');
+                                powerups = new int[ps.Length];
+                                for (int p = 0; p < ps.Length; p++)
+                                {
+                                    int powerupID = int.Parse(ps[p]);
+                                    if (user.Room.Lobby.allowsPowerup(powerupID))
+                                        powerups[p] = powerupID;
+                                    else
+                                        return;
+                                }
+                                break;
+                            case "name":
+                                name = stringManager.filterSwearwords(value);
+                                break;
+                        }
+                    }
+                }
+                
+                if (mapID == -1 || teamAmount == -1 || name == "")
+                    return;
+                
+                user.gamePlayer = new gamePlayer(user, user.roomUser.roomUID, null);
+                user.Room.Lobby.createGame(user.gamePlayer, name, mapID, teamAmount, powerups);
+            }
+            catch { }
+        }
+
+        private static void HandleSwitchTeam(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.Room.Lobby == null || user.gamePlayer == null || 
+                user.gamePlayer.Game.State != Game.gameState.Waiting)
+                return;
+            
+            if (user._Tickets <= 1)
+            {
+                user.sendData("Cl" + "J"); // Error [2] = Not enough tickets
+                return;
+            }
+            
+            if (!user.Room.Lobby.validGamerank(user.roomUser.gamePoints))
+            {
+                user.sendData("Cl" + "K"); // Error [3] = Skillevel not valid in this lobby
+                return;
+            }
+            
+            reader.Skip(1); // Skip character after header
+            int teamID = reader.PopVL64();
+            
+            if (teamID != user.gamePlayer.teamID && user.gamePlayer.Game.teamHasSpace(teamID))
+            {
+                if (user.gamePlayer.teamID == -1) // User was a subviewer
+                    user.gamePlayer.Game.Subviewers.Remove(user.gamePlayer);
+                user.gamePlayer.Game.movePlayer(user.gamePlayer, user.gamePlayer.teamID, teamID);
+            }
+            else
+            {
+                user.sendData("Cl" + "H"); // Error [0] = Team full
+            }
+        }
+
+        private static void HandleLeaveGame(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            user.leaveGame();
+        }
+
+        private static void HandleKickPlayer(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.Room.Lobby == null || user.gamePlayer == null || 
+                user.gamePlayer.Game == null || user.gamePlayer != user.gamePlayer.Game.Owner)
+                return;
+            
+            int roomUID = reader.PopVL64();
+            for (int i = 0; i < user.gamePlayer.Game.Teams.Length; i++)
+            {
+                foreach (gamePlayer member in user.gamePlayer.Game.Teams[i])
+                {
+                    if (member.roomUID == roomUID)
+                    {
+                        member.sendData("Cl" + "RA"); // Error [6] = kicked from game
+                        user.gamePlayer.Game.movePlayer(member, i, -1);
+                        return;
+                    }
+                }
+            }
+        }
+
+        private static void HandleStartGame(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.Room == null || user.Room.Lobby == null || user.gamePlayer == null || 
+                user.gamePlayer != user.gamePlayer.Game.Owner)
+                return;
+            
+            user.gamePlayer.Game.startGame();
+        }
+
+        private static void HandleGameMove(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.gamePlayer == null || user.gamePlayer.Game.State != Game.gameState.Started || 
+                user.gamePlayer.teamID == -1)
+                return;
+            
+            reader.Skip(1); // Skip character after header
+            user.gamePlayer.goalX = reader.PopVL64();
+            user.gamePlayer.goalY = reader.PopVL64();
+        }
+
+        private static void HandleGameRestart(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (user.gamePlayer == null || user.gamePlayer.Game.State != Game.gameState.Ended || 
+                user.gamePlayer.teamID == -1)
+                return;
+            
+            user.gamePlayer.Game.sendData("BK" + "" + user._Username + " wants to replay!");
+        }
+
+        private static void HandleToggleMoodlight(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner)
+                return;
+            roomManager.moodlight.setSettings(user._roomID, false, 0, 0, null, 0);
+        }
+
+        private static void HandleLoadMoodlight(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner)
+                return;
+            string settingData = roomManager.moodlight.getSettings(user._roomID);
+            if (settingData != null)
+                user.sendData("Em" + settingData);
+        }
+
+        private static void HandleUpdateDimmer(virtualUser user, PacketReader reader)
+        {
+            if (!user._isLoggedIn) return;
+            if (!user._isOwner || user.Room == null)
+                return;
+            
+            string remaining = reader.GetRemaining();
+            string[] settings = remaining.Split(',');
+            if (settings.Length < 5) return;
+            
+            bool enabled = settings[0] == "2";
+            int presetID = int.Parse(settings[1]);
+            int backgroundID = int.Parse(settings[2]);
+            string colorCode = settings[3];
+            int intensity = int.Parse(settings[4]);
+            
+            roomManager.moodlight.setSettings(user._roomID, enabled, presetID, backgroundID, colorCode, intensity);
+            
+            if (user.Room != null)
+                user.Room.sendData("Em" + roomManager.moodlight.getSettings(user._roomID));
+        }
+        #endregion
 
         private void Refresh()
         {
@@ -3511,10 +3913,13 @@ namespace Holo.Virtual.Users
         {
             if (Reload)
             {
-                string[] userData = DB.runReadRow("SELECT figure,sex,mission FROM users WHERE id = '" + userID + "'");
-                _Figure = userData[0];
-                _Sex = char.Parse(userData[1]);
-                _Mission = userData[2];
+                var userAppearance = _userDataAccess.GetUserAppearance(userID);
+                if (userAppearance != null)
+                {
+                    _Figure = userAppearance.Figure;
+                    _Sex = userAppearance.Sex;
+                    _Mission = userAppearance.Mission;
+                }
             }
 
             if (refreshSettings)
@@ -3533,13 +3938,13 @@ namespace Holo.Virtual.Users
         {
             if (Credits)
             {
-                _Credits = DB.runRead("SELECT credits FROM users WHERE id = '" + userID + "'", null);
+                _Credits = _userDataAccess.GetUserCredits(userID);
                 sendData("@F" + _Credits);
             }
 
             if (Tickets)
             {
-                _Tickets = DB.runRead("SELECT tickets FROM users WHERE id = '" + userID + "'", null);
+                _Tickets = _userDataAccess.GetUserTickets(userID);
                 sendData("A|" + _Tickets);
             }
         }
@@ -3551,12 +3956,12 @@ namespace Holo.Virtual.Users
             int restingDays = 0;
             int passedMonths = 0;
             int restingMonths = 0;
-            string[] subscrDetails = DB.runReadRow("SELECT months_expired,months_left,date_monthstarted FROM users_club WHERE userid = '" + userID + "'");
-            if (subscrDetails.Length > 0)
+            var subscrDetails = _clubDataAccess.GetClubSubscription(userID);
+            if (subscrDetails != null)
             {
-                passedMonths = int.Parse(subscrDetails[0]);
-                restingMonths = int.Parse(subscrDetails[1]) - 1;
-                restingDays = (int)(DateTime.Parse(subscrDetails[2], new System.Globalization.CultureInfo("en-GB"))).Subtract(DateTime.Now).TotalDays + 32;
+                passedMonths = subscrDetails.MonthsExpired;
+                restingMonths = subscrDetails.MonthsLeft - 1;
+                restingDays = (int)(DateTime.Parse(subscrDetails.DateMonthStarted, new System.Globalization.CultureInfo("en-GB"))).Subtract(DateTime.Now).TotalDays + 32;
                 _clubMember = true;  
             }
             else
@@ -3571,12 +3976,12 @@ namespace Holo.Virtual.Users
             _Badges.Clear(); // Clear old badges
             _badgeSlotIDs.Clear(); // Clear old badge IDs
 
-            string[] myBadges = DB.runReadColumn("SELECT badge FROM users_badges WHERE userid = '" + userID + "' ORDER BY slotid ASC", 0);
-            int[] myBadgeSlotIDs = DB.runReadColumn("SELECT slotid FROM users_badges WHERE userid = '" + userID + "' ORDER BY slotid ASC", 0, null);
+            var myBadges = _badgeDataAccess.GetUserBadgeNames(userID);
+            var myBadgeSlotIDs = _badgeDataAccess.GetUserBadgeSlotIds(userID);
 
             StringBuilder sbMessage = new StringBuilder();
-            sbMessage.Append(Encoding.encodeVL64(myBadges.Length)); // Total amount of badges
-            for (int i = 0; i < myBadges.Length; i++)
+            sbMessage.Append(Encoding.encodeVL64(myBadges.Count)); // Total amount of badges
+            for (int i = 0; i < myBadges.Count; i++)
             {
                 sbMessage.Append(myBadges[i]);
                 sbMessage.Append(Convert.ToChar(2));
@@ -3584,9 +3989,9 @@ namespace Holo.Virtual.Users
                 _Badges.Add(myBadges[i]);
             }
 
-            for (int i = 0; i < myBadges.Length; i++)
+            for (int i = 0; i < myBadges.Count; i++)
             {
-                if (myBadgeSlotIDs[i] > 0) // Badge enabled!
+                if (i < myBadgeSlotIDs.Count && myBadgeSlotIDs[i] > 0) // Badge enabled!
                 {
                     sbMessage.Append(Encoding.encodeVL64(myBadgeSlotIDs[i]));
                     sbMessage.Append(myBadges[i]);
@@ -3607,9 +4012,9 @@ namespace Holo.Virtual.Users
         /// </summary>
         internal void refreshGroupStatus()
         {
-            _groupID = DB.runReadUnsafe("SELECT groupid FROM groups_memberships WHERE userid = '" + userID + "' AND is_current = '1'", null);
+            _groupID = _groupDataAccess.GetUserCurrentGroupId(userID);
             if (_groupID > 0) // User is member of a group
-                _groupMemberRank = Holo.DB.runRead("SELECT member_rank FROM groups_memberships WHERE userid = '" + userID + "' AND groupID = '" + _groupID + "'", null);
+                _groupMemberRank = _groupDataAccess.GetUserGroupMemberRank(userID, _groupID);
         }
         /// <summary>
         /// Refreshes the Hand, which contains virtual items, with a specified mode.
@@ -3617,10 +4022,10 @@ namespace Holo.Virtual.Users
         /// <param name="Mode">The refresh mode, available: 'next', 'prev', 'update', 'last' and 'new'.</param>
         internal void refreshHand(string Mode)
         {
-            int[] itemIDs = DB.runReadColumn("SELECT id FROM furniture WHERE ownerid = '" + userID + "' AND roomid = '0' ORDER BY id ASC", 0, null);
+            List<int> itemIDs = _furnitureDataAccess.GetInventoryItemIds(userID);
             StringBuilder Hand = new StringBuilder("BL");
             int startID = 0;
-            int stopID = itemIDs.Length;
+            int stopID = itemIDs.Count;
 
             switch (Mode)
             {
@@ -3642,7 +4047,7 @@ namespace Holo.Virtual.Users
 
             try
             {
-                if (itemIDs.Length > 0)
+                if (itemIDs.Count > 0)
                 {
                 reCount:
                     startID = _handPage * 9;
@@ -3651,7 +4056,7 @@ namespace Holo.Virtual.Users
 
                     for (int i = startID; i < stopID; i++)
                     {
-                        int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemIDs[i] + "'", null);
+                        int templateID = _furnitureDataAccess.GetFurnitureTemplateId(itemIDs[i]);
                         catalogueManager.itemTemplate Template = catalogueManager.getTemplate(templateID);
                         char Recycleable = '1';
                         if (Template.isRecycleable == false)
@@ -3661,14 +4066,14 @@ namespace Holo.Virtual.Users
                         {
                             string Colour = Template.Colour;
                             if (Template.Sprite == "post.it" || Template.Sprite == "post.it.vd") // Stickies - pad size
-                                Colour = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemIDs[i] + "'");
+                                Colour = _furnitureDataAccess.GetFurnitureVariable(itemIDs[i]);
                             Hand.Append("SI" + Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + i + Convert.ToChar(30).ToString() + "I" + Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + Template.Sprite + Convert.ToChar(30).ToString() + Colour + Convert.ToChar(30).ToString() + Recycleable + "/");
                         }
                         else // Flooritem
-                            Hand.Append("SI" + Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + i + Convert.ToChar(30).ToString() + "S" + Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + Template.Sprite + Convert.ToChar(30).ToString() + Template.Length + Convert.ToChar(30).ToString() + Template.Width + Convert.ToChar(30).ToString() + DB.runRead("SELECT var FROM furniture WHERE id = '" + itemIDs[i] + "'") + Convert.ToChar(30).ToString() + Template.Colour + Convert.ToChar(30).ToString() + Recycleable + Convert.ToChar(30).ToString() + Template.Sprite + Convert.ToChar(30).ToString() + "/");
+                            Hand.Append("SI" + Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + i + Convert.ToChar(30).ToString() + "S" + Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + Template.Sprite + Convert.ToChar(30).ToString() + Template.Length + Convert.ToChar(30).ToString() + Template.Width + Convert.ToChar(30).ToString() + _furnitureDataAccess.GetFurnitureVariable(itemIDs[i]) + Convert.ToChar(30).ToString() + Template.Colour + Convert.ToChar(30).ToString() + Recycleable + Convert.ToChar(30).ToString() + Template.Sprite + Convert.ToChar(30).ToString() + "/");
                     }
                 }
-                Hand.Append(Convert.ToChar(13).ToString() + itemIDs.Length);
+                Hand.Append(Convert.ToChar(13).ToString() + itemIDs.Count);
                 sendData(Hand.ToString());
             }
             catch
@@ -3743,7 +4148,7 @@ namespace Holo.Virtual.Users
 
                     case "emptyhand":
                         {
-                            DB.runQuery("DELETE FROM furniture WHERE ownerid = '" + userID + "' AND roomid = '0'");
+                            _furnitureDataAccess.DeleteUserInventoryFurniture(userID);
                             refreshHand("new");
                         }
                         break;
@@ -3892,10 +4297,10 @@ namespace Holo.Virtual.Users
                                 return false;
                             else
                             {
-                                int[] userDetails = DB.runReadRow("SELECT id,rank FROM users WHERE name = '" + DB.Stripslash(args[1]) + "'", null);
-                                if (userDetails.Length == 0)
+                                UserModerationDetails userDetails = _userDataAccess.GetUserModerationDetails(DB.Stripslash(args[1]));
+                                if (userDetails == null)
                                     sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_usernotfound"));
-                                else if ((byte)userDetails[1] > _Rank)
+                                else if (userDetails.Rank > _Rank)
                                     sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_rankerror"));
                                 else
                                 {
@@ -3905,9 +4310,9 @@ namespace Holo.Virtual.Users
                                         sendData("BK" + stringManager.getString("scommand_failed"));
                                     else
                                     {
-                                        staffManager.addStaffMessage("ban", userID, userDetails[0], Reason, "");
-                                        userManager.setBan(userDetails[0], banHours, Reason);
-                                        sendData("BK" + userManager.generateBanReport(userDetails[0]));
+                                        staffManager.addStaffMessage("ban", userID, userDetails.UserId, Reason, "");
+                                        userManager.setBan(userDetails.UserId, banHours, Reason);
+                                        sendData("BK" + userManager.generateBanReport(userDetails.UserId));
                                     }
                                 }
                             }
@@ -3920,10 +4325,10 @@ namespace Holo.Virtual.Users
                                 return false;
                             else
                             {
-                                int[] userDetails = DB.runReadRow("SELECT id,rank FROM users WHERE name = '" + DB.Stripslash(args[1]) + "'", null);
-                                if (userDetails.Length == 0)
+                                UserModerationDetails userDetails = _userDataAccess.GetUserModerationDetails(DB.Stripslash(args[1]));
+                                if (userDetails == null)
                                     sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_usernotfound"));
-                                else if ((byte)userDetails[1] > _Rank)
+                                else if (userDetails.Rank > _Rank)
                                     sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_rankerror"));
                                 else
                                 {
@@ -3933,8 +4338,8 @@ namespace Holo.Virtual.Users
                                         sendData("BK" + stringManager.getString("scommand_failed"));
                                     else
                                     {
-                                        string IP = DB.runRead("SELECT ipaddress_last FROM users WHERE id = '" + userDetails[0] + "'");
-                                        staffManager.addStaffMessage("ban", userID, userDetails[0], Reason, "");
+                                        string IP = userDetails.LastIpAddress;
+                                        staffManager.addStaffMessage("ban", userID, userDetails.UserId, Reason, "");
                                         userManager.setBan(IP, banHours, Reason);
                                         sendData("BK" + userManager.generateBanReport(IP));
                                     }
@@ -4097,7 +4502,7 @@ namespace Holo.Virtual.Users
                                 sendData("BK" + "You don't have the rights to give coins to someone!");
                             else
                             {
-                                DB.runQuery("UPDATE users SET credits = " + Target._Credits + " + " + Credits + " WHERE id = " + Target.userID + "");
+                                _userDataAccess.UpdateUserCredits(Target.userID, Target._Credits + Credits);
                                 Target.sendData("BK" + "You have recieved " + Credits + " credits from a staff member!");
                                 sendData("BK" + "You've succesfully sent " + Credits + " coins to " + Target._Username + ".");
                                 Room.Refresh(roomUser);

@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Threading;
 using System.Collections.ObjectModel;
+using Holo.Data.Repositories;
 
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms.Pathfinding;
@@ -9,6 +10,7 @@ namespace Holo.Virtual.Rooms.Games
 {
     internal class Game
     {
+        private static readonly GameDataAccess _gameDataAccess = new GameDataAccess();
         #region Declares
         /// <summary>
         /// The gameLobby object where this game is hosted in.
@@ -300,7 +302,7 @@ namespace Holo.Virtual.Rooms.Games
             foreach (gamePlayer subViewer in Subviewers)
                 subViewer.sendData(this.Sub);
 
-            this.Heightmap = DB.runRead("SELECT heightmap FROM games_maps WHERE type = '" + Lobby.Type + "' AND id = '" + mapID + "'");
+            this.Heightmap = _gameDataAccess.GetGameMapHeightmap(Lobby.Type, mapID);
             string[] _H = Heightmap.Split(Convert.ToChar(13));
             this.bX = _H[0].Length;
             this.bY = _H.Length - 1;
@@ -310,7 +312,7 @@ namespace Holo.Virtual.Rooms.Games
             {
                 this.bbTState = new bbTileState[bX, bY];
                 this.bbTColor = new bbTileColor[bX, bY];
-                _T = DB.runRead("SELECT bb_tilemap FROM games_maps WHERE type = 'bb' AND id = '" + mapID + "'").Split(Convert.ToChar(13));
+                _T = _gameDataAccess.GetBattleBallTilemap(mapID).Split(Convert.ToChar(13));
             }
             this.Height = new byte[bX, bY];
             this.Blocked = new bool[bX, bY];
@@ -352,10 +354,12 @@ namespace Holo.Virtual.Rooms.Games
                 if (Teams[i].Count == 0) // Empty team
                     continue;
 
-                int[] spawnData = DB.runReadRow("SELECT x,y,z FROM games_maps_playerspawns WHERE type = '" + Lobby.Type + "' AND mapid = '" + mapID + "' AND teamid = '" + i + "'", null);
-                int spawnX = spawnData[0];
-                int spawnY = spawnData[1];
-                byte spawnZ = (byte)spawnData[2];
+                var spawnData = _gameDataAccess.GetPlayerSpawnData(Lobby.Type, mapID, i);
+                if (spawnData == null)
+                    continue;
+                int spawnX = spawnData.X;
+                int spawnY = spawnData.Y;
+                byte spawnZ = spawnData.Z;
                 bool Flip = false;
 
                 foreach (gamePlayer Player in Teams[i])
@@ -416,7 +420,7 @@ namespace Holo.Virtual.Rooms.Games
                 {
                     Player.User._Tickets -= 2;
                     Player.User.sendData("A|" + Player.User._Tickets);
-                    DB.runQuery("UPDATE users SET tickets = '" + Player.User._Tickets + "' WHERE id = '" + Player.User.userID + "' LIMIT 1");
+                    _gameDataAccess.UpdateUserTickets(Player.User.userID, Player.User._Tickets);
                 }
 
             // Start game
@@ -591,7 +595,7 @@ namespace Holo.Virtual.Rooms.Games
                             Scores.Append(Encoding.encodeVL64(Player.roomUID));
                             if (Player.User != null)
                             {
-                                DB.runQuery("UPDATE users SET bb_playedgames = bb_playedgames + 1,bb_totalpoints = bb_totalpoints + " + Player.Score + " WHERE id = '" + Player.User.userID + "' LIMIT 1");
+                                _gameDataAccess.UpdateUserBattleBallStats(Player.User.userID, Player.Score);
                                 Scores.Append(Player.User._Username + Convert.ToChar(2));
                             }
                             else

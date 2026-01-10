@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Threading;
 using System.Collections;
+using Holo.Data.Repositories;
 
 using Holo.Virtual.Users;
 namespace Holo.Managers
@@ -11,6 +12,7 @@ namespace Holo.Managers
     /// </summary>
     public static class eventManager
     {
+        private static readonly EventDataAccess _eventDataAccess = new EventDataAccess();
         #region Declares
         /// <summary>
         /// Array of hashtables that keeps the virtualEvent structs.
@@ -62,7 +64,7 @@ namespace Holo.Managers
                     {
                         if (userManager.containsUser(Event.userID) == false)
                         {
-                            DB.runQuery("DELETE FROM events WHERE roomid = '" + Event.roomID + "'");
+                            _eventDataAccess.DeleteEvent(Event.roomID);
                             Events[i].Remove(Event.roomID);
                         }
                         else
@@ -70,7 +72,7 @@ namespace Holo.Managers
                             virtualUser Hoster = userManager.getUser(Event.userID);
                             if (Hoster._roomID != Event.roomID)
                             {
-                                DB.runQuery("DELETE FROM events WHERE roomid = '" + Event.roomID + "'");
+                                _eventDataAccess.DeleteEvent(Event.roomID);
                                 Events[i].Remove(Event.roomID);
                                 Hoster._hostsEvent = false;
                             }
@@ -97,7 +99,7 @@ namespace Holo.Managers
             if (Events[categoryID - 1].Contains(roomID) == false)
             {
                 virtualEvent Event = new virtualEvent(roomID, userID, Name, Description);
-                DB.runQuery("INSERT INTO events (name,description,userid,roomid,category,date) VALUES ('" + DB.Stripslash(Name) + "','" + DB.Stripslash(Description) + "','" + userID + "','" + roomID + "','" + categoryID + "','" + DateTime.Now.TimeOfDay.ToString() + "')");
+                _eventDataAccess.CreateEvent(userID, roomID, categoryID, DB.Stripslash(Name), DB.Stripslash(Description), DateTime.Now.TimeOfDay.ToString());
                 Events[categoryID - 1].Add(roomID, Event);
             }
         }
@@ -111,7 +113,7 @@ namespace Holo.Managers
             {
                 if (Events[i].ContainsKey(roomID))
                 {
-                    DB.runQuery("DELETE FROM events WHERE roomid = '" + roomID + "'");
+                    _eventDataAccess.DeleteEvent(roomID);
                     Events[i].Remove(roomID);
                     return;
                 }
@@ -131,7 +133,7 @@ namespace Holo.Managers
                 virtualEvent Event = (virtualEvent)Events[categoryID - 1][roomID];
                 Event.Name = Name;
                 Event.Description = Description;
-                DB.runQuery("UPDATE events SET name = '" + Name + "',description = '" + Description + "',category = '" + categoryID + "',date = '" + DateTime.Now.TimeOfDay.ToString() + "' WHERE roomid = '" + roomID + "'");
+                _eventDataAccess.UpdateEvent(roomID, categoryID, Name, Description, DateTime.Now.TimeOfDay.ToString());
                 Events[categoryID - 1].Remove(roomID);
                 Events[categoryID - 1].Add(roomID, Event); // Swap (because the object is a struct)
             }

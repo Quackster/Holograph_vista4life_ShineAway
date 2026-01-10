@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Text;
+using Holo.Data.Repositories;
 
 namespace Holo.Managers
 {
@@ -8,18 +9,20 @@ namespace Holo.Managers
     /// </summary>
     public static class soundMachineManager
     {
+        private static readonly SoundMachineDataAccess _soundMachineDataAccess = new SoundMachineDataAccess();
+        private static readonly UserDataAccess _userDataAccess = new UserDataAccess();
         /// <summary>
         /// Returns the string with all the soundsets in the Hand of a certain user.
         /// </summary>
         /// <param name="userID">The database ID of the user to get the soundsets of.</param>
         public static string getHandSoundsets(int userID)
         {
-            int[] itemIDs = DB.runReadColumn("SELECT id FROM furniture WHERE ownerid = '" + userID + "' AND roomid = '0' AND soundmachine_soundset > 0 ORDER BY id ASC", 0, null);
-            StringBuilder Soundsets = new StringBuilder(Encoding.encodeVL64(itemIDs.Length));
-            if (itemIDs.Length > 0)
+            var itemIDs = _soundMachineDataAccess.GetUserSoundMachineItemIds(userID);
+            StringBuilder Soundsets = new StringBuilder(Encoding.encodeVL64(itemIDs.Count));
+            if (itemIDs.Count > 0)
             {
-                int[] soundSets = DB.runReadColumn("SELECT soundmachine_soundset FROM furniture WHERE ownerid = '" + userID + "' AND roomid = '0' AND soundmachine_soundset > 0 ORDER BY id ASC", 0, null);
-                for (int i = 0; i < itemIDs.Length; i++)
+                var soundSets = _soundMachineDataAccess.GetUserSoundMachineSoundsets(userID);
+                for (int i = 0; i < itemIDs.Count; i++)
                     Soundsets.Append(Encoding.encodeVL64(soundSets[i]));
             }
             return Soundsets.ToString();
@@ -51,15 +54,15 @@ namespace Holo.Managers
 
         public static string getMachineSongList(int machineID)
         {
-            int[] IDs = DB.runReadColumn("SELECT id FROM soundmachine_songs WHERE machineid = '" + machineID + "' ORDER BY id ASC", 0, null);
-            StringBuilder Songs = new StringBuilder(Encoding.encodeVL64(IDs.Length));
-            if (IDs.Length > 0)
+            var IDs = _soundMachineDataAccess.GetMachineSongIds(machineID);
+            StringBuilder Songs = new StringBuilder(Encoding.encodeVL64(IDs.Count));
+            if (IDs.Count > 0)
             {
-                int[] Lengths = DB.runReadColumn("SELECT length FROM soundmachine_songs WHERE machineid = '" + machineID + "' ORDER BY id ASC", 0, null);
-                string[] Titles = DB.runReadColumn("SELECT title FROM soundmachine_songs WHERE machineid = '" + machineID + "' ORDER BY id ASC", 0);
-                string[] burntFlags = DB.runReadColumn("SELECT burnt FROM soundmachine_songs WHERE machineid = '" + machineID + "' ORDER BY id ASC", 0);
+                var Lengths = _soundMachineDataAccess.GetMachineSongLengths(machineID);
+                var Titles = _soundMachineDataAccess.GetMachineSongTitles(machineID);
+                var burntFlags = _soundMachineDataAccess.GetMachineSongBurntFlags(machineID);
 
-                for (int i = 0; i < IDs.Length; i++)
+                for (int i = 0; i < IDs.Count; i++)
                 {
                     Songs.Append(Encoding.encodeVL64(IDs[i]) + Encoding.encodeVL64(Lengths[i]) + Titles[i] + Convert.ToChar(2));
                     if (burntFlags[i] == "1")
@@ -72,14 +75,15 @@ namespace Holo.Managers
         }
         public static string getMachinePlaylist(int machineID)
         {
-            int[] IDs = DB.runReadColumn("SELECT songid FROM soundmachine_playlists WHERE machineid = '" + machineID + "' ORDER BY pos ASC", 0,null);
-            StringBuilder Playlist = new StringBuilder("H" + Encoding.encodeVL64(IDs.Length));
-            if (IDs.Length > 0)
+            var IDs = _soundMachineDataAccess.GetMachinePlaylistSongIds(machineID);
+            StringBuilder Playlist = new StringBuilder("H" + Encoding.encodeVL64(IDs.Count));
+            if (IDs.Count > 0)
             {
-                for (int i = 0; i < IDs.Length; i++)
+                for (int i = 0; i < IDs.Count; i++)
                 {
-                    string Title = DB.runRead("SELECT title FROM soundmachine_songs WHERE id = '" + IDs[i] + "'");
-                    string Creator = DB.runRead("SELECT name FROM users WHERE id = '" + DB.runRead("SELECT userid FROM soundmachine_songs WHERE id = '" + IDs[i] + "'") + "'");
+                    string Title = _soundMachineDataAccess.GetSongTitle(IDs[i]);
+                    int userId = _soundMachineDataAccess.GetSongUserId(IDs[i]);
+                    string Creator = _userDataAccess.GetUsername(userId);
                     Playlist.Append(Encoding.encodeVL64(IDs[i]) + Encoding.encodeVL64(i + 1) + Title + Convert.ToChar(2) + Creator + Convert.ToChar(2));
                 }
             }
@@ -87,9 +91,9 @@ namespace Holo.Managers
         }
         public static string getSong(int songID)
         {
-            string[] songData = DB.runReadRow("SELECT title,data FROM soundmachine_songs WHERE id = '" + songID + "'");
-            if (songData.Length > 0)
-                return Encoding.encodeVL64(songID) + songData[0] + Convert.ToChar(2) + songData[1] + Convert.ToChar(2);
+            var songData = _soundMachineDataAccess.GetSongData(songID);
+            if (songData != null)
+                return Encoding.encodeVL64(songID) + songData.Title + Convert.ToChar(2) + songData.Data + Convert.ToChar(2);
             else
                 return "holo.cast.soundmachine.song.unknown";
         }

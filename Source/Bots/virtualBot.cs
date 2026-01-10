@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Threading;
 using System.Collections;
+using Holo.Data.Repositories;
 
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms.Pathfinding;
@@ -12,6 +13,7 @@ namespace Holo.Virtual.Rooms.Bots
     /// </summary>
     internal class virtualBot
     {
+        private static readonly BotDataAccess _botDataAccess = new BotDataAccess();
         #region Declares
         /// <summary>
         /// The ID of the bot in the virtual room.
@@ -118,40 +120,43 @@ namespace Holo.Virtual.Rooms.Bots
             this.roomUID = roomUID;
             this.Room = Room;
 
-            string[] botDetails = DB.runReadRow("SELECT name,mission,figure,x,y,z,freeroam,message_noshouting FROM roombots WHERE id = '" + botID + "'");
-            this.Name = botDetails[0];
-            this.Mission = botDetails[1];
-            this.Figure = botDetails[2];
-            this.X = int.Parse(botDetails[3]);
-            this.Y = int.Parse(botDetails[4]);
-            this.Z1 = byte.Parse(botDetails[5]);
+            var botDetails = _botDataAccess.GetBotDetails(botID);
+            if (botDetails == null)
+                throw new Exception("Bot not found: " + botID);
+            
+            this.Name = botDetails.Name;
+            this.Mission = botDetails.Mission;
+            this.Figure = botDetails.Figure;
+            this.X = botDetails.X;
+            this.Y = botDetails.Y;
+            this.Z1 = botDetails.Z;
             this.Z2 = Z1;
             this.goalX = -1;
-            this.freeRoam = (botDetails[6] == "1");
-            this.noShoutingMessage = botDetails[7];
-            this.Sayings = DB.runReadColumn("SELECT text FROM roombots_texts WHERE id = '" + botID + "' AND type = 'say'", 0);
-            this.Shouts = DB.runReadColumn("SELECT text FROM roombots_texts WHERE id = '" + botID + "' AND type = 'shout'", 0);
+            this.freeRoam = botDetails.FreeRoam;
+            this.noShoutingMessage = botDetails.NoShoutingMessage;
+            this.Sayings = _botDataAccess.GetBotSayTexts(botID).ToArray();
+            this.Shouts = _botDataAccess.GetBotShoutTexts(botID).ToArray();
             
-            string[] triggerWords = DB.runReadColumn("SELECT words FROM roombots_texts_triggers WHERE id = '" + botID + "' ORDER BY id ASC", 0);
-            if (triggerWords.Length > 0)
+            var triggerWords = _botDataAccess.GetBotTriggerWords(botID);
+            if (triggerWords.Count > 0)
             {   
-                string[] triggerReplies = DB.runReadColumn("SELECT replies FROM roombots_texts_triggers WHERE id = '" + botID + "' ORDER BY id ASC", 0);
-                string[] triggerServeReplies = DB.runReadColumn("SELECT serve_replies FROM roombots_texts_triggers WHERE id = '" + botID + "' ORDER BY id ASC", 0);
-                string[] triggerServeItems = DB.runReadColumn("SELECT serve_item FROM roombots_texts_triggers WHERE id = '" + botID + "' ORDER BY id ASC", 0);
+                var triggerReplies = _botDataAccess.GetBotTriggerReplies(botID);
+                var triggerServeReplies = _botDataAccess.GetBotTriggerServeReplies(botID);
+                var triggerServeItems = _botDataAccess.GetBotTriggerServeItems(botID);
 
-                this.chatTriggers = new chatTrigger[triggerWords.Length];
-                for (int i = 0; i < triggerWords.Length; i++)
+                this.chatTriggers = new chatTrigger[triggerWords.Count];
+                for (int i = 0; i < triggerWords.Count; i++)
                     this.chatTriggers[i] = new chatTrigger(triggerWords[i].Split('}'), triggerReplies[i].Split('}'), triggerServeReplies[i].Split('}'), triggerServeItems[i]);
             }
 
-            int[] Xs = DB.runReadColumn("SELECT x FROM roombots_coords WHERE id = '" + botID + "' ORDER BY id ASC", 0, null);
-            Coords = new Coord[Xs.Length + 1];
-            Coords[Xs.Length] = new Coord(this.X, this.Y);
+            var Xs = _botDataAccess.GetBotXCoordinates(botID);
+            Coords = new Coord[Xs.Count + 1];
+            Coords[Xs.Count] = new Coord(this.X, this.Y);
 
-            if (Xs.Length > 1) // More coords assigned than just the start square
+            if (Xs.Count > 1) // More coords assigned than just the start square
             {
-                int[] Ys = DB.runReadColumn("SELECT y FROM roombots_coords WHERE id = '" + botID + "' ORDER BY id ASC", 0, null);
-                for (int i = 0; i < Xs.Length; i++)
+                var Ys = _botDataAccess.GetBotYCoordinates(botID);
+                for (int i = 0; i < Xs.Count; i++)
                     Coords[i] = new Coord(Xs[i], Ys[i]);
             }
 
