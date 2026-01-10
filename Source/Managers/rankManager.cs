@@ -1,13 +1,13 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Collections;
 
-namespace Holo.Managers
+namespace HolographEmulator.Infrastructure.Managers
 {
     /// <summary>
     /// Provides information about the various user ranks/levels, aswell as ranks for games such as 'BattleBall' and 'SnowStorm'.
     /// </summary>
-    public static class rankManager
+    public static class RankManager
     {
         private static Hashtable userRanks;
         private static gameRank[] gameRanksBB;

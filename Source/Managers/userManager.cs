@@ -1,16 +1,16 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Threading;
 using System.Collections;
 
-using Holo.Virtual.Users;
+using HolographEmulator.Domain.Users;
 
-namespace Holo.Managers
+namespace HolographEmulator.Infrastructure.Managers
 {
     /// <summary>
     /// Provides management for logged in users, aswell for retrieving details such as ID/name and vice versa from the database.
     /// </summary>
-    public static class userManager
+    public static class UserManager
     {
         public static Hashtable _Users = new Hashtable();
         private static Thread pingChecker;
@@ -32,11 +32,11 @@ namespace Holo.Managers
         /// </summary>
         /// <param name="userID">The ID of the user to add.</param>
         /// <param name="User">The virtualUser class of this user.</param>
-        public static void addUser(int userID, virtualUser User)
+        public static void addUser(int userID, User User)
         {
             if (_Users.ContainsKey(userID))
             {
-                virtualUser oldUser = ((virtualUser)_Users[userID]);
+                User oldUser = ((User)_Users[userID]);
                 oldUser.Disconnect();
                 if (_Users.ContainsKey(userID))
                     _Users.Remove(userID);
@@ -161,16 +161,16 @@ namespace Holo.Managers
         /// Returns a virtualUser class for a certain user
         /// </summary>
         /// <param name="userID">The ID of the user.</param>
-        public static virtualUser getUser(int userID)
+        public static User getUser(int userID)
         {
-            try { return (virtualUser)_Users[userID]; }
+            try { return (User)_Users[userID]; }
             catch { return null; }
         }
         /// <summary>
-        /// Returns a virtualUser class for a certain user.
+        /// Returns a User class for a certain user.
         /// </summary>
         /// <param name="userName">The username of the user.</param>
-        public static virtualUser getUser(string userName)
+        public static User getUser(string userName)
         {
             int userID = getUserID(userName);
             return getUser(userID);
@@ -181,7 +181,7 @@ namespace Holo.Managers
         /// <param name="Data">The packet to send.</param>
         public static void sendData(string Data)
         {
-            foreach (virtualUser User in _Users.Values)
+            foreach (User User in _Users.Values)
                 User.sendData(Data);
         }
         /// <summary>
@@ -192,7 +192,7 @@ namespace Holo.Managers
         /// <param name="Data">The packet to send.</param>
         public static void sendToRank(byte Rank, bool includeHigher, string Data)
         {
-            foreach (virtualUser User in _Users.Values)
+            foreach (User User in _Users.Values)
             {
                 if (User._Rank < Rank || (includeHigher == false && User._Rank > Rank))
                     continue;
@@ -236,7 +236,7 @@ namespace Holo.Managers
 
                 if (_Users.ContainsKey(userID)) // User online
                 {
-                    virtualUser User = (virtualUser)_Users[userID];
+                    User User = (User)_Users[userID];
                     string Location = "";
                     if (User._roomID == 0)
                         Location = stringManager.getString("common_hotelview");
@@ -306,7 +306,7 @@ namespace Holo.Managers
             {
                 if (_Users.ContainsKey(userIDs[i]))
                 {
-                    virtualUser User = ((virtualUser)_Users[userIDs[i]]);
+                    User User = ((User)_Users[userIDs[i]]);
                     User.sendData("@c" + Reason);
                     User.Disconnect(1000);
                 }
@@ -418,7 +418,7 @@ namespace Holo.Managers
         {
             while (true)
             {
-                foreach (virtualUser User in ((Hashtable)_Users.Clone()).Values)
+                foreach (User User in ((Hashtable)_Users.Clone()).Values)
                 {
                     if (User.pingOK)
                     {

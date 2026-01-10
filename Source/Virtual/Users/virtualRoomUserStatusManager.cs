@@ -1,17 +1,17 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Collections;
 
-using Holo.Managers;
-using Holo.Virtual.Rooms;
+using HolographEmulator.Infrastructure.Managers;
+using HolographEmulator.Domain.Rooms;
 using Microsoft.VisualBasic;
 
-namespace Holo.Virtual.Users
+namespace HolographEmulator.Domain.Users
 {
     /// <summary>
     /// Provides management for the statuses of a virtual user.
     /// </summary>
-    public class virtualRoomUserStatusManager
+    public class RoomUserStatusManager
     {
         #region Declares
         /// <summary>
@@ -35,7 +35,7 @@ namespace Holo.Virtual.Users
         #endregion
 
         #region Constructors/destructors
-        public virtualRoomUserStatusManager(int userID, int roomID)
+        public RoomUserStatusManager(int userID, int roomID)
         {
             this.userID = userID;
             this.roomID = roomID;
@@ -60,27 +60,27 @@ namespace Holo.Virtual.Users
         /// <summary>
         /// The parent virtualUser object of this status manager.
         /// </summary>
-        private virtualUser User
+        private User User
         {
             get
             {
-                return userManager.getUser(userID);
+                return UserManager.getUser(userID);
             }
         }
         /// <summary>
-        /// The virtualRoom object where the parent virtual user of this status manager is in.
+        /// The Room object where the parent user of this status manager is in.
         /// </summary>
-        private virtualRoom Room
+        private Room Room
         {
             get
             {
-                return roomManager.getRoom(roomID);
+                return RoomManager.getRoom(roomID);
             }
         }
         /// <summary>
-        /// The virtualRoomUser object of the parent virtual user of this status manager.
+        /// The RoomUser object of the parent user of this status manager.
         /// </summary>
-        private virtualRoomUser roomUser
+        private RoomUser roomUser
         {
             get
             {

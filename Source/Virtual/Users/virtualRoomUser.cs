@@ -1,16 +1,16 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Collections;
 
-using Holo.Managers;
-using Holo.Virtual.Rooms;
+using HolographEmulator.Infrastructure.Managers;
+using HolographEmulator.Domain.Rooms;
 
-namespace Holo.Virtual.Users
+namespace HolographEmulator.Domain.Users
 {
     /// <summary>
     /// Represents a virtual user in a virtual room.
     /// </summary>
-    public class virtualRoomUser
+    public class RoomUser
     {
         /// <summary>
         /// The database ID of the user.
@@ -75,11 +75,11 @@ namespace Holo.Virtual.Users
         /// <summary>
         /// The parent virtual user of this room user.
         /// </summary>
-        internal virtualUser User;
+        internal User User;
         /// <summary>
         /// The status manager of this room user.
         /// </summary>
-        internal virtualRoomUserStatusManager statusManager;
+        internal RoomUserStatusManager statusManager;
         /// <summary>
         /// Indicates if the room user is currently typing a chat message.
         /// </summary>
@@ -100,7 +100,7 @@ namespace Holo.Virtual.Users
         /// <param name="roomUID">The ID that identifies the room user in the virtual room.</param>
         /// <param name="User">The parent vittual user of this room user.</param>
         /// <param name="statusManager">The status manager of this room user.</param>
-        internal virtualRoomUser(int userID, int roomID, int roomUID, virtualUser User, virtualRoomUserStatusManager statusManager)
+        internal RoomUser(int userID, int roomID, int roomUID, User User, RoomUserStatusManager statusManager)
         {
             this.userID = userID;
             this.roomID = roomID;
@@ -111,7 +111,7 @@ namespace Holo.Virtual.Users
         /// <summary>
         /// The virtualRoom object that represents the room where this room user is in.
         /// </summary>
-        internal virtualRoom Room
+        internal Room Room
         {
             get
             {

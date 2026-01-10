@@ -1,21 +1,21 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Threading;
 using System.Collections;
 using System.Collections.Generic;
 
-using Holo.Managers;
-using Holo.Virtual.Users;
-using Holo.Virtual.Rooms.Bots;
-using Holo.Virtual.Rooms.Items;
-using Holo.Virtual.Rooms.Games;
+using HolographEmulator.Infrastructure.Managers;
+using HolographEmulator.Domain.Users;
+using HolographEmulator.Domain.Rooms.Bots;
+using HolographEmulator.Domain.Rooms.Items;
+using HolographEmulator.Domain.Games;
 
-namespace Holo.Virtual.Rooms
+namespace HolographEmulator.Domain.Rooms
 {
     /// <summary>
     /// Represents a virtual publicroom or guestroom, with management for users, items and the map. Threaded.
     /// </summary>
-    public class virtualRoom
+    public class Room
     {
         #region Declares
         /// <summary>

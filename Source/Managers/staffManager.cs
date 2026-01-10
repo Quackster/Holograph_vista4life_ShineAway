@@ -2,14 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Holo.Data.Repositories;
+using HolographEmulator.Infrastructure.DataAccess;
 
-namespace Holo.Managers
+namespace HolographEmulator.Infrastructure.Managers
 {
     /// <summary>
     /// Provides management for CFH and moderacy tasks for staff.
     /// </summary>
-    public static class staffManager
+    public static class StaffManager
     {
         private static readonly StaffLogDataAccess _staffLogDataAccess = new StaffLogDataAccess();
 

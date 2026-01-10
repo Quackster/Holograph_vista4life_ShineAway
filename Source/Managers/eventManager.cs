@@ -2,15 +2,15 @@ using System;
 using System.Text;
 using System.Threading;
 using System.Collections;
-using Holo.Data.Repositories;
+using HolographEmulator.Infrastructure.DataAccess;
 
-using Holo.Virtual.Users;
-namespace Holo.Managers
+using HolographEmulator.Domain.Users;
+namespace HolographEmulator.Infrastructure.Managers
 {
     /// <summary>
     /// Provides management for events hosted by virtual users in their virtual rooms.
     /// </summary>
-    public static class eventManager
+    public static class EventManager
     {
         private static readonly EventDataAccess _eventDataAccess = new EventDataAccess();
         #region Declares

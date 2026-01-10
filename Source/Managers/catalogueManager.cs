@@ -1,13 +1,13 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Collections;
 
-namespace Holo.Managers
+namespace HolographEmulator.Infrastructure.Managers
 {
     /// <summary>
     /// Manager for catalogue page caching, catalogue item templates, catalogue purchase handling and few other catalogue related tasks.
     /// </summary>
-    public static class catalogueManager
+    public static class CatalogueManager
     {
         private static Hashtable cataloguePages;
         private static Hashtable itemCache;

@@ -1,17 +1,17 @@
-﻿using System;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Collections.Generic;
 using System.Threading;
 
-using Holo.Virtual.Users;
+using HolographEmulator.Domain.Users;
 
-namespace Holo.Socketservers
+namespace HolographEmulator.Networking.Sockets
 {
     /// <summary>
     /// Asynchronous socket server for the game connections.
     /// </summary>
-    public static class gameSocketServer
+    public static class GameSocketServer
     {
         private static Socket socketHandler;
         private static int _Port;
@@ -72,7 +72,7 @@ namespace Holo.Socketservers
                     _activeConnections.Add(connectionID);
                     _acceptedConnections++;
 
-                    virtualUser newUser = new virtualUser(connectionID, connectionSocket);
+                    User newUser = new User(connectionID, connectionSocket);
                 }
             }
             catch { }

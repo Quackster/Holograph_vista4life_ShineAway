@@ -1,14 +1,14 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Collections;
 using Microsoft.VisualBasic;
 
-namespace Holo.Managers
+namespace HolographEmulator.Infrastructure.Managers
 {
     /// <summary>
     /// Provides functions for management and manipulation of string objects.
     /// </summary>
-    public static class stringManager
+    public static class StringManager
     {
         /// <summary>
         /// Contains the strings loaded from system_strings.

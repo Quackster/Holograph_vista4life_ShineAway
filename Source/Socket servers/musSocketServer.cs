@@ -1,18 +1,18 @@
-﻿using System;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Collections.Generic;
 
-using Holo.Managers;
-using Holo.Virtual.Users;
-using Holo.Virtual.Rooms;
+using HolographEmulator.Infrastructure.Managers;
+using HolographEmulator.Domain.Users;
+using HolographEmulator.Domain.Rooms;
 
-namespace Holo.Socketservers
+namespace HolographEmulator.Networking.Sockets
 {
     /// <summary>
     /// Asynchronous socket server for the MUS connections.
     /// </summary>
-    public static class musSocketServer
+    public static class MusSocketServer
     {
         private static Socket socketHandler;
         private static int _Port;
@@ -115,7 +115,7 @@ namespace Holo.Socketservers
                             {
                                 int userID = int.Parse(musData[0]);
                                 string Message = musData[1];
-                                virtualUser User = userManager.getUser(userID);
+                                User User = UserManager.getUser(userID);
                                 if (User.Room != null)
                                     User.Room.removeUser(User.roomUser.roomUID, true, Message);
                                 break;
@@ -134,7 +134,7 @@ namespace Holo.Socketservers
                             {
                                 int userID = int.Parse(musData[0]);
                                 string Message = musData[1];
-                                virtualUser User = userManager.getUser(userID);
+                                User User = UserManager.getUser(userID);
                                 User.sendData("@c" + Message);
                                 User.Disconnect(1000);
                                 break;
@@ -170,7 +170,7 @@ namespace Holo.Socketservers
                         case "UPRS": // User profile - reload subscription (and badges)
                             {
                                 int userID = int.Parse(musData[0]);
-                                virtualUser User = userManager.getUser(userID);
+                                User User = UserManager.getUser(userID);
                                 User.refreshClub();
                                 User.refreshBadges();
                                 break;

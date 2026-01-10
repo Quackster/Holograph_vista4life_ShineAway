@@ -4,23 +4,23 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
-using Holo.Managers;
-using Holo.Virtual.Rooms;
-using Holo.Virtual.Users.Items;
-using Holo.Virtual.Users.Messenger;
-using Holo.Virtual.Rooms.Games;
-using Holo.Virtual;
+using HolographEmulator.Infrastructure.Managers;
+using HolographEmulator.Domain.Rooms;
+using HolographEmulator.Domain.Users.Items;
+using HolographEmulator.Domain.Users.Messenger;
+using HolographEmulator.Domain.Games;
+using HolographEmulator.Domain;
 using Microsoft.VisualBasic;
 using System.Collections.Generic;
-using Holo.Data.Repositories;
-using Holo.Core;
+using HolographEmulator.Infrastructure.DataAccess;
+using HolographEmulator.Core;
 
-namespace Holo.Virtual.Users
+namespace HolographEmulator.Domain.Users
 {
     /// <summary>
     /// Represents a virtual user, with connection and packet handling, access management etc etc. The details about the user are kept separate in a different class.
     /// </summary>
-    public class virtualUser
+    public class User
     {
         /// <summary>
         /// The ID of the connection for this virtual user. Assigned by the game socket server.
@@ -86,19 +86,19 @@ namespace Holo.Virtual.Users
         /// <summary>
         /// The virtual room the user is in.
         /// </summary>
-        internal virtualRoom Room;
+        internal Room Room;
         /// <summary>
         /// The virtualRoomUser that represents this virtual user in room. Contains in-room only objects such as position, rotation and walk related objects.
         /// </summary>
-        internal virtualRoomUser roomUser;
+        internal RoomUser roomUser;
         /// <summary>
         /// The status manager that keeps status strings for the user in room.
         /// </summary>
-        internal virtualRoomUserStatusManager statusManager;
+        internal RoomUserStatusManager statusManager;
         /// <summary>
         /// The messenger that provides instant messaging, friendlist etc for this virtual user.
         /// </summary>
-        internal Messenger.virtualMessenger Messenger;
+        internal Messenger.Messenger Messenger;
         /// <summary>
         /// Variant of virtualRoomUser object. Represents this virtual user in a game arena, aswell as in a game team in the navigator.
         /// </summary>
@@ -176,7 +176,7 @@ namespace Holo.Virtual.Users
         /// <summary>
         /// Static constructor to initialize packet handlers.
         /// </summary>
-        static virtualUser()
+        static User()
         {
             RegisterPacketHandlers();
         }
@@ -356,14 +356,14 @@ namespace Holo.Virtual.Users
         /// </summary>
         /// <param name="connectionID">The ID of the new connection.</param>
         /// <param name="connectionSocket">The socket of the new connection.</param>
-        public virtualUser(int connectionID, Socket connectionSocket)
+        public User(int connectionID, Socket connectionSocket)
         {
             this.connectionID = connectionID;
             this.connectionSocket = connectionSocket;
 
             try
             {
-                string banReason = userManager.getBanReason(this.connectionRemoteIP);
+                string banReason = UserManager.getBanReason(this.connectionRemoteIP);
                 if (banReason != "")
                 {
                     sendData("@c" + banReason);
@@ -399,8 +399,8 @@ namespace Holo.Virtual.Users
             if (Messenger != null)
                 Messenger.Clear();
 
-            userManager.removeUser(userID);
-            Socketservers.gameSocketServer.freeConnection(connectionID);
+            UserManager.removeUser(userID);
+            HolographEmulator.Networking.Sockets.GameSocketServer.freeConnection(connectionID);
             _isDisconnected = true;
         }
 
@@ -551,7 +551,7 @@ namespace Holo.Virtual.Users
 
         #region Packet Handlers
         // Non-logged in handlers
-        private static void HandlePing(virtualUser user, PacketReader reader)
+        private static void HandlePing(User user, PacketReader reader)
         {
             user.pingOK = true;
         }
@@ -593,7 +593,7 @@ namespace Holo.Virtual.Users
                 return;
             }
 
-            string banReason = userManager.getBanReason(myID);
+            string banReason = UserManager.getBanReason(myID);
             if (banReason != "")
             {
                 user.sendData("@c" + banReason);
@@ -615,10 +615,10 @@ namespace Holo.Virtual.Users
             user._Mission = userData.Mission;
             user._Rank = userData.Rank;
             user._consoleMission = userData.ConsoleMission;
-            userManager.addUser(myID, user);
+            UserManager.addUser(myID, user);
             user._isLoggedIn = true;
 
-            user.sendData("@B" + rankManager.fuseRights(user._Rank));
+            user.sendData("@B" + RankManager.fuseRights(user._Rank));
             user.sendData("DbIH");
             user.sendData("@C");
 
@@ -630,7 +630,7 @@ namespace Holo.Virtual.Users
             user.sendData("FC");
 
             if (Config.enableWelcomeMessage)
-                user.sendData("BK" + stringManager.getString("welcomemessage_text"));
+                user.sendData("BK" + StringManager.getString("welcomemessage_text"));
 
             var ignoredUsers = _ignoreDataAccess.GetIgnoredUserIds(user.userID);
             if (ignoredUsers.Count > 0)
@@ -693,13 +693,13 @@ namespace Holo.Virtual.Users
         private static void HandleRecyclerSetup(virtualUser user, PacketReader reader)
         {
             if (!user._isLoggedIn) return;
-            user.sendData("Do" + recyclerManager.setupString);
+            user.sendData("Do" + RecyclerManager.setupString);
         }
 
         private static void HandleRecyclerSession(virtualUser user, PacketReader reader)
         {
             if (!user._isLoggedIn) return;
-            user.sendData("Dp" + recyclerManager.sessionString(user.userID));
+            user.sendData("Dp" + RecyclerManager.sessionString(user.userID));
         }
 
         private static void HandleSetGuideAvailable(virtualUser user, PacketReader reader)
@@ -755,9 +755,9 @@ namespace Holo.Virtual.Users
             _userDataAccess.UpdateUserCredits(user.userID, user._Credits);
             _userDataAccess.AddUserTickets(receiverID, ticketAmount);
 
-            if (userManager.containsUser(receiverID))
+            if (UserManager.containsUser(receiverID))
             {
-                virtualUser receiverUser = userManager.getUser(receiverID);
+                virtualUser receiverUser = UserManager.getUser(receiverID);
                 receiverUser._Tickets += ticketAmount;
 
                 if (receiverID == user.userID)
@@ -810,7 +810,7 @@ namespace Holo.Virtual.Users
             foreach (var result in searchResults)
             {
                 int thisID = result.UserId;
-                bool online = userManager.containsUser(thisID);
+                bool online = UserManager.containsUser(thisID);
                 string onlineStr = online ? "I" : "H";
 
                 PacketBuilder userBuilder = new PacketBuilder()
@@ -855,7 +855,7 @@ namespace Holo.Virtual.Users
                 int requestID = _messengerDataAccess.GetNextFriendRequestId(toID);
                 _messengerDataAccess.CreateFriendRequest(toID, user.userID, requestID);
                 
-                virtualUser targetUser = userManager.getUser(toID);
+                virtualUser targetUser = UserManager.getUser(toID);
                 if (targetUser != null)
                 {
                     targetUser.sendData(PacketBuilder.Create("BD")
@@ -891,9 +891,9 @@ namespace Holo.Virtual.Users
                 updateAmount++;
 
                 user.Messenger.addBuddy(buddy, true);
-                if (userManager.containsUser(fromUserID))
+                if (UserManager.containsUser(fromUserID))
                 {
-                    virtualUser fromUser = userManager.getUser(fromUserID);
+                    virtualUser fromUser = UserManager.getUser(fromUserID);
                     if (fromUser != null && fromUser.Messenger != null)
                         fromUser.Messenger.addBuddy(me, true);
                 }
@@ -934,9 +934,9 @@ namespace Holo.Virtual.Users
             int buddyID = reader.PopVL64();
             
             user.Messenger.removeBuddy(buddyID);
-            if (userManager.containsUser(buddyID))
+            if (UserManager.containsUser(buddyID))
             {
-                virtualUser buddy = userManager.getUser(buddyID);
+                virtualUser buddy = UserManager.getUser(buddyID);
                 if (buddy != null && buddy.Messenger != null)
                     buddy.Messenger.removeBuddy(user.userID);
             }
@@ -950,11 +950,11 @@ namespace Holo.Virtual.Users
 
             int buddyID = reader.PopVL64();
             string message = reader.PopString();
-            message = stringManager.filterSwearwords(message);
+            message = StringManager.filterSwearwords(message);
 
             if (user.Messenger.containsOnlineBuddy(buddyID))
             {
-                virtualUser buddy = userManager.getUser(buddyID);
+                virtualUser buddy = UserManager.getUser(buddyID);
                 if (buddy != null)
                 {
                     buddy.sendData(PacketBuilder.Create("BF")
@@ -986,9 +986,9 @@ namespace Holo.Virtual.Users
 
             if (user.Messenger.hasFriendship(id))
             {
-                if (userManager.containsUser(id))
+                if (UserManager.containsUser(id))
                 {
-                    virtualUser targetUser = userManager.getUser(id);
+                    virtualUser targetUser = UserManager.getUser(id);
                     if (targetUser._roomID > 0)
                     {
                         user.sendData(PacketBuilder.Create("D^")
@@ -1029,13 +1029,13 @@ namespace Holo.Virtual.Users
             {
                 if (!reader.HasMore) break;
                 int id = reader.PopVL64();
-                if (user.Messenger.hasFriendship(id) && userManager.containsUser(id))
+                if (user.Messenger.hasFriendship(id) && UserManager.containsUser(id))
                     validIDs.Add(id);
             }
 
             foreach (int id in validIDs)
             {
-                virtualUser buddy = userManager.getUser(id);
+                virtualUser buddy = UserManager.getUser(id);
                 if (buddy != null && user.roomUser != null && user.Room != null)
                 {
                     string roomName = _roomDataAccess.GetRoomName(user._roomID);
@@ -1102,7 +1102,7 @@ namespace Holo.Virtual.Users
                 if (type == 0)
                     roomCCTs = _roomDataAccess.GetRoomCCTsByCategory(cataID, sqlOrderHelper);
                 else
-                    canSeeHiddenNames = rankManager.containsRight(user._Rank, "fuse_enter_locked_rooms");
+                    canSeeHiddenNames = RankManager.containsRight(user._Rank, "fuse_enter_locked_rooms");
                 
                 for (int i = 0; i < roomIDs.Count; i++)
                 {
@@ -1127,7 +1127,7 @@ namespace Holo.Virtual.Users
                         navigator.AppendVL64(roomIDs[i])
                             .AppendString(roomNames[i])
                             .AppendString(roomOwners[i])
-                            .AppendString(roomManager.getRoomState(roomStates[i]))
+                            .AppendString(RoomManager.getRoomState(roomStates[i]))
                             .AppendVL64(nowVisitors[i])
                             .AppendVL64(maxVisitors[i])
                             .AppendString(roomDescriptions[i]);
@@ -1189,7 +1189,7 @@ namespace Holo.Virtual.Users
                 rooms.AppendVL64(roomDetails.RoomId)
                     .AppendString(roomDetails.Name)
                     .AppendString(roomDetails.Owner)
-                    .AppendString(roomManager.getRoomState(roomDetails.State))
+                    .AppendString(RoomManager.getRoomState(roomDetails.State))
                     .AppendVL64(roomDetails.VisitorsNow)
                     .AppendVL64(roomDetails.VisitorsMax)
                     .AppendString(roomDetails.Description);
@@ -1214,7 +1214,7 @@ namespace Holo.Virtual.Users
                         rooms.AppendInt(roomIDs[i]).AppendChar((char)9)
                             .Append(roomDetails.Name).AppendChar((char)9)
                             .Append(user._Username).AppendChar((char)9)
-                            .Append(roomManager.getRoomState(roomDetails.State)).AppendChar((char)9)
+                            .Append(RoomManager.getRoomState(roomDetails.State)).AppendChar((char)9)
                             .Append("x").AppendChar((char)9)
                             .AppendInt(roomDetails.VisitorsNow).AppendChar((char)9)
                             .AppendInt(roomDetails.VisitorsMax).AppendChar((char)9)
@@ -1236,7 +1236,7 @@ namespace Holo.Virtual.Users
         {
             if (!user._isLoggedIn) return;
             
-            bool seeAllRoomOwners = rankManager.containsRight(user._Rank, "fuse_see_all_roomowners");
+            bool seeAllRoomOwners = RankManager.containsRight(user._Rank, "fuse_see_all_roomowners");
             string search = DB.Stripslash(reader.PopString());
             List<int> roomIDs = _roomDataAccess.SearchRooms(search, Config.Navigator_roomSearch_maxResults);
             
@@ -1255,7 +1255,7 @@ namespace Holo.Virtual.Users
                         rooms.AppendInt(roomIDs[i]).AppendChar((char)9)
                             .Append(roomDetails.Name).AppendChar((char)9)
                             .Append(ownerName).AppendChar((char)9)
-                            .Append(roomManager.getRoomState(roomDetails.State)).AppendChar((char)9)
+                            .Append(RoomManager.getRoomState(roomDetails.State)).AppendChar((char)9)
                             .Append("x").AppendChar((char)9)
                             .AppendInt(roomDetails.VisitorsNow).AppendChar((char)9)
                             .AppendInt(roomDetails.VisitorsMax).AppendChar((char)9)
@@ -1286,7 +1286,7 @@ namespace Holo.Virtual.Users
                     .AppendVL64(roomDetails.State)
                     .AppendVL64(roomID);
                 
-                if (roomDetails.ShowName == 0 && rankManager.containsRight(user._Rank, "fuse_see_all_roomowners"))
+                if (roomDetails.ShowName == 0 && RankManager.containsRight(user._Rank, "fuse_see_all_roomowners"))
                     details.Append("-");
                 else
                     details.Append(roomDetails.Owner);
@@ -1316,7 +1316,7 @@ namespace Holo.Virtual.Users
             {
                 int deletedAmount = 0;
                 int guestRoomAmount = 0;
-                bool seeHiddenRoomOwners = rankManager.containsRight(user._Rank, "fuse_enter_locked_rooms");
+                bool seeHiddenRoomOwners = RankManager.containsRight(user._Rank, "fuse_enter_locked_rooms");
                 StringBuilder roomsBuilder = new StringBuilder();
                 
                 for (int i = 0; i < roomIDs.Count; i++)
@@ -1357,7 +1357,7 @@ namespace Holo.Virtual.Users
                             roomsBuilder.Append(Encoding.encodeVL64(roomIDs[i]))
                                 .Append(roomData.Name).Append((char)2)
                                 .Append(ownerName).Append((char)2)
-                                .Append(roomManager.getRoomState(roomData.State)).Append((char)2)
+                                .Append(RoomManager.getRoomState(roomData.State)).Append((char)2)
                                 .Append(Encoding.encodeVL64(roomData.VisitorsNow))
                                 .Append(Encoding.encodeVL64(roomData.VisitorsMax))
                                 .Append(roomData.Description).Append((char)2);
@@ -1398,7 +1398,7 @@ namespace Holo.Virtual.Users
         private static void HandleGetEventSetup(virtualUser user, PacketReader reader)
         {
             if (!user._isLoggedIn) return;
-            user.sendData(PacketBuilder.Create("Ep").AppendVL64(eventManager.categoryAmount));
+            user.sendData(PacketBuilder.Create("Ep").AppendVL64(EventManager.categoryAmount));
         }
 
         private static void HandleToggleEventButton(virtualUser user, PacketReader reader)
@@ -1416,7 +1416,7 @@ namespace Holo.Virtual.Users
             if (!user._isLoggedIn) return;
             
             int categoryID = reader.PopVL64();
-            if (eventManager.categoryOK(categoryID))
+            if (EventManager.categoryOK(categoryID))
                 user.sendData(PacketBuilder.Create("Eb").AppendVL64(categoryID));
         }
 
@@ -1426,7 +1426,7 @@ namespace Holo.Virtual.Users
             
             int categoryID = reader.PopVL64();
             if (categoryID >= 1 && categoryID <= 11)
-                user.sendData(PacketBuilder.Create("Eq").AppendVL64(categoryID).Append(eventManager.getEvents(categoryID)));
+                user.sendData(PacketBuilder.Create("Eq").AppendVL64(categoryID).Append(EventManager.getEvents(categoryID)));
         }
         private static void HandleCreateEvent(virtualUser user, PacketReader reader)
         {
@@ -1435,16 +1435,16 @@ namespace Holo.Virtual.Users
                 return;
             
             int categoryID = reader.PopVL64();
-            if (!eventManager.categoryOK(categoryID))
+            if (!EventManager.categoryOK(categoryID))
                 return;
             
             string name = reader.PopB64String();
             string description = reader.PopString();
             
             user._hostsEvent = true;
-            eventManager.createEvent(categoryID, user.userID, user._roomID, name, description);
+            EventManager.createEvent(categoryID, user.userID, user._roomID, name, description);
             if (user.Room != null)
-                user.Room.sendData("Er" + eventManager.getEvent(user._roomID));
+                user.Room.sendData("Er" + EventManager.getEvent(user._roomID));
         }
 
         private static void HandleEndEvent(virtualUser user, PacketReader reader)
@@ -1454,7 +1454,7 @@ namespace Holo.Virtual.Users
                 return;
             
             user._hostsEvent = false;
-            eventManager.removeEvent(user._roomID);
+            EventManager.removeEvent(user._roomID);
             if (user.Room != null)
                 user.Room.sendData("Er" + "-1");
         }
@@ -1467,9 +1467,9 @@ namespace Holo.Virtual.Users
             
             if (_userDataAccess.GetUserRoomCount(user._Username) < Config.Navigator_createRoom_maxRooms)
             {
-                roomSettings[2] = stringManager.filterSwearwords(roomSettings[2]);
+                roomSettings[2] = StringManager.filterSwearwords(roomSettings[2]);
                 roomSettings[3] = roomSettings[3].Substring(6, 1);
-                roomSettings[4] = roomManager.getRoomState(roomSettings[4]).ToString();
+                roomSettings[4] = RoomManager.getRoomState(roomSettings[4]).ToString();
                 if (roomSettings[5] != "0" && roomSettings[5] != "1")
                     return;
                 
@@ -1512,7 +1512,7 @@ namespace Holo.Virtual.Users
                 switch (updHeader)
                 {
                     case "description":
-                        roomDescription = stringManager.filterSwearwords(updValue);
+                        roomDescription = StringManager.filterSwearwords(updValue);
                         roomDescription = DB.Stripslash(roomDescription);
                         break;
                     case "allsuperuser":
@@ -1545,11 +1545,11 @@ namespace Holo.Virtual.Users
             if (packetContent.Length < 3) return;
             
             int roomID = int.Parse(packetContent[0]);
-            string roomName = DB.Stripslash(stringManager.filterSwearwords(packetContent[1]));
+            string roomName = DB.Stripslash(StringManager.filterSwearwords(packetContent[1]));
             string showName = packetContent[2];
             if (showName != "1" && showName != "0")
                 showName = "1";
-            int roomState = roomManager.getRoomState(packetContent[2]);
+            int roomState = RoomManager.getRoomState(packetContent[2]);
             
             _roomDataAccess.UpdateRoomBasicInfo(roomID, roomName, roomState, int.Parse(showName), user._Username);
         }
@@ -1584,9 +1584,9 @@ namespace Holo.Virtual.Users
             {
                 _roomDataAccess.DeleteRoom(roomID, user._Username);
             }
-            if (roomManager.containsRoom(roomID))
+            if (RoomManager.containsRoom(roomID))
             {
-                roomManager.getRoom(roomID).kickUsers(9, "This room has been deleted");
+                RoomManager.getRoom(roomID).kickUsers(9, "This room has been deleted");
             }
         }
 
@@ -1595,8 +1595,8 @@ namespace Holo.Virtual.Users
             if (!user._isLoggedIn) return;
             
             int roomID = reader.PopVL64();
-            if (roomManager.containsRoom(roomID))
-                user.sendData("C_" + roomManager.getRoom(roomID).Userlist);
+            if (RoomManager.containsRoom(roomID))
+                user.sendData("C_" + RoomManager.getRoom(roomID).Userlist);
             else
                 user.sendData("C_");
         }
@@ -1654,7 +1654,7 @@ namespace Holo.Virtual.Users
                 
                 if (user._teleporterID == 0)
                 {
-                    bool allowEnterLockedRooms = rankManager.containsRight(user._Rank, "fuse_enter_locked_rooms");
+                    bool allowEnterLockedRooms = RankManager.containsRight(user._Rank, "fuse_enter_locked_rooms");
                     int accessLevel = _roomDataAccess.GetRoomState(roomID);
                     if (accessLevel == 3 && !user._clubMember && !allowEnterLockedRooms)
                     {
@@ -1663,7 +1663,7 @@ namespace Holo.Virtual.Users
                     }
                     else if (accessLevel == 4 && !allowEnterLockedRooms)
                     {
-                        user.sendData("BK" + stringManager.getString("room_stafflocked"));
+                        user.sendData("BK" + StringManager.getString("room_stafflocked"));
                         return;
                     }
                     
@@ -1671,12 +1671,12 @@ namespace Holo.Virtual.Users
                     if (nowVisitors > 0)
                     {
                         int maxVisitors = _roomDataAccess.GetRoomVisitorsMax(roomID);
-                        if (nowVisitors >= maxVisitors && !rankManager.containsRight(user._Rank, "fuse_enter_full_rooms"))
+                        if (nowVisitors >= maxVisitors && !RankManager.containsRight(user._Rank, "fuse_enter_full_rooms"))
                         {
                             if (!isPublicroom)
                                 user.sendData("C`" + "I");
                             else
-                                user.sendData("BK" + stringManager.getString("room_full"));
+                                user.sendData("BK" + StringManager.getString("room_full"));
                             return;
                         }
                     }
@@ -1715,7 +1715,7 @@ namespace Holo.Virtual.Users
                 user._hasRights = roomDetails != null && roomDetails.SuperUsers == "1";
             }
             
-            if (user._teleporterID == 0 && !user._isOwner && !rankManager.containsRight(user._Rank, "fuse_enter_locked_rooms"))
+            if (user._teleporterID == 0 && !user._isOwner && !RankManager.containsRight(user._Rank, "fuse_enter_locked_rooms"))
             {
                 int accessFlag = _roomDataAccess.GetRoomState(user._roomID);
                 if (!user._ROOMACCESS_PRIMARY_OK && accessFlag != 2)
@@ -1743,14 +1743,14 @@ namespace Holo.Virtual.Users
                 
                 if (accessFlag == 1) // Doorbell
                 {
-                    if (!roomManager.containsRoom(user._roomID))
+                    if (!RoomManager.containsRoom(user._roomID))
                     {
                         user.sendData("BC");
                         return;
                     }
                     else
                     {
-                        roomManager.getRoom(user._roomID).sendDataToRights("A[" + user._Username);
+                        RoomManager.getRoom(user._roomID).sendDataToRights("A[" + user._Username);
                         user.sendData("A[");
                         return;
                     }
@@ -1774,13 +1774,13 @@ namespace Holo.Virtual.Users
         private static void HandleAnswerDoorbell(virtualUser user, PacketReader reader)
         {
             if (!user._isLoggedIn) return;
-            if (!user._hasRights && !rankManager.containsRight(user.roomUser.User._Rank, "fuse_enter_locked_rooms"))
+            if (!user._hasRights && !RankManager.containsRight(user.roomUser.User._Rank, "fuse_enter_locked_rooms"))
                 return;
             
             string ringer = reader.PopB64String();
             bool letIn = reader.PopBool();
             
-            virtualUser ringerData = userManager.getUser(ringer);
+            virtualUser ringerData = UserManager.getUser(ringer);
             if (ringerData == null || ringerData._roomID != user._roomID)
                 return;
             
@@ -1824,7 +1824,7 @@ namespace Holo.Virtual.Users
                 user.sendData("@n" + "floor/" + floor);
             
             if (!user._isOwner)
-                user._isOwner = rankManager.containsRight(user._Rank, "fuse_any_room_controller");
+                user._isOwner = RankManager.containsRight(user._Rank, "fuse_any_room_controller");
             if (user._isOwner)
             {
                 user._hasRights = true;
@@ -1841,7 +1841,7 @@ namespace Holo.Virtual.Users
                     voteAmount = 0;
             }
             user.sendData(PacketBuilder.Create("EY").AppendVL64(voteAmount));
-            user.sendData("Er" + eventManager.getEvent(user._roomID));
+            user.sendData("Er" + EventManager.getEvent(user._roomID));
         }
 
         private static void HandleGetRoomAd(virtualUser user, PacketReader reader)
@@ -1879,12 +1879,12 @@ namespace Holo.Virtual.Users
                 return;
             }
             
-            if (roomManager.containsRoom(user._roomID))
-                user.Room = roomManager.getRoom(user._roomID);
+            if (RoomManager.containsRoom(user._roomID))
+                user.Room = RoomManager.getRoom(user._roomID);
             else
             {
                 user.Room = new virtualRoom(user._roomID, user._inPublicroom);
-                roomManager.addRoom(user._roomID, user.Room);
+                RoomManager.addRoom(user._roomID, user.Room);
             }
             
             user.sendData("@_" + user.Room.Heightmap);
@@ -1970,7 +1970,7 @@ namespace Holo.Virtual.Users
             int cfhID = _helpDataAccess.GetPendingHelpRequestId(user._Username);
             _helpDataAccess.DeletePendingHelpRequest(user._Username);
             user.sendData("D\x7F" + "H");
-            userManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
+            UserManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
                 .AppendVL64(cfhID).AppendDelimiter()
                 .Append("I").AppendString("User Deleted!").AppendString("User Deleted!").AppendString("User Deleted!")
                 .AppendVL64(0).AppendDelimiter()
@@ -1995,7 +1995,7 @@ namespace Holo.Virtual.Users
             string roomName = _roomDataAccess.GetRoomName(user._roomID);
             
             user.sendData("EAH");
-            userManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
+            UserManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
                 .AppendVL64(cfhID).AppendDelimiter()
                 .Append("I").AppendString("Sent: " + DateTime.Now).AppendString(user._Username).AppendString(cfhMessage)
                 .AppendVL64(user._roomID).AppendDelimiter()
@@ -2007,7 +2007,7 @@ namespace Holo.Virtual.Users
         private static void HandleReplyCFH(virtualUser user, PacketReader reader)
         {
             if (!user._isLoggedIn) return;
-            if (!rankManager.containsRight(user._Rank, "fuse_receive_calls_for_help"))
+            if (!RankManager.containsRight(user._Rank, "fuse_receive_calls_for_help"))
                 return;
             
             // Packet format: B64 length of ID, then VL64 ID, then reply message
@@ -2024,12 +2024,12 @@ namespace Holo.Virtual.Users
             string toUserName = _helpDataAccess.GetHelpRequestUsername(cfhID);
             if (string.IsNullOrEmpty(toUserName))
             {
-                user.sendData("BK" + stringManager.getString("cfh_fail"));
+                user.sendData("BK" + StringManager.getString("cfh_fail"));
                 return;
             }
             
-            int toUserID = userManager.getUserID(toUserName);
-            virtualUser toVirtualUser = userManager.getUser(toUserID);
+            int toUserID = UserManager.getUserID(toUserName);
+            virtualUser toVirtualUser = UserManager.getUser(toUserID);
             if (toVirtualUser != null && toVirtualUser._isLoggedIn)
             {
                 toVirtualUser.sendData(PacketBuilder.Create("DR").AppendString(cfhReply));
@@ -2040,7 +2040,7 @@ namespace Holo.Virtual.Users
         private static void HandleDeleteCFH(virtualUser user, PacketReader reader)
         {
             if (!user._isLoggedIn) return;
-            if (!rankManager.containsRight(user._Rank, "fuse_receive_calls_for_help"))
+            if (!RankManager.containsRight(user._Rank, "fuse_receive_calls_for_help"))
                 return;
             
             // Packet format: B64 length of ID, then VL64 ID
@@ -2053,12 +2053,12 @@ namespace Holo.Virtual.Users
             
             if (cfhStats.PickedUp == "1")
             {
-                user.sendData("BK" + stringManager.getString("cfh_picked_up"));
+                user.sendData("BK" + StringManager.getString("cfh_picked_up"));
             }
             else
             {
                 _helpDataAccess.DeleteHelpRequest(cfhID);
-                userManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
+                UserManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
                     .AppendVL64(cfhID).AppendDelimiter()
                     .Append("H").AppendString("Staff Deleted!").AppendString("Staff Deleted!").AppendString("Staff Deleted!")
                     .AppendVL64(0).AppendDelimiter()
@@ -2077,7 +2077,7 @@ namespace Holo.Virtual.Users
             
             if (!_helpDataAccess.HelpRequestExists(cfhID))
             {
-                user.sendData(stringManager.getString("cfh_deleted"));
+                user.sendData(StringManager.getString("cfh_deleted"));
                 return;
             }
             
@@ -2088,11 +2088,11 @@ namespace Holo.Virtual.Users
             string roomName = _roomDataAccess.GetRoomName(cfhData.RoomId);
             if (cfhData.PickedUp == "1")
             {
-                user.sendData("BK" + stringManager.getString("cfh_picked_up"));
+                user.sendData("BK" + StringManager.getString("cfh_picked_up"));
             }
             else
             {
-                userManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
+                UserManager.sendToRank(Config.Minimum_CFH_Rank, true, PacketBuilder.Create("BT")
                     .AppendVL64(cfhID).AppendDelimiter()
                     .Append("I").AppendString("Picked up: " + DateTime.Now).AppendString(cfhData.Username).AppendString(cfhData.Message)
                     .AppendVL64(cfhData.RoomId).AppendDelimiter()
@@ -2106,7 +2106,7 @@ namespace Holo.Virtual.Users
         private static void HandleGoToCFHRoom(virtualUser user, PacketReader reader)
         {
             if (!user._isLoggedIn) return;
-            if (!rankManager.containsRight(user._Rank, "fuse_receive_calls_for_help"))
+            if (!RankManager.containsRight(user._Rank, "fuse_receive_calls_for_help"))
                 return;
             
             // Packet format: B64 length of ID, then VL64 ID
@@ -2116,7 +2116,7 @@ namespace Holo.Virtual.Users
             if (roomID == 0)
                 return;
             
-            virtualRoom room = roomManager.getRoom(roomID);
+            virtualRoom room = RoomManager.getRoom(roomID);
             if (room != null)
             {
                 user.sendData(PacketBuilder.Create("D^")
@@ -2131,7 +2131,7 @@ namespace Holo.Virtual.Users
             {
                 reader.Skip(2); // Skip characters after header
                 string username = DB.Stripslash(reader.PopString());
-                virtualUser target = userManager.getUser(username);
+                virtualUser target = UserManager.getUser(username);
                 if (target != null && target._Rank <= 3)
                 {
                     _ignoreDataAccess.AddIgnoredUser(user.userID, target.userID);
@@ -2148,7 +2148,7 @@ namespace Holo.Virtual.Users
             try
             {
                 string username = DB.Stripslash(reader.PopString());
-                virtualUser target = userManager.getUser(username);
+                virtualUser target = UserManager.getUser(username);
                 if (target != null && target._Rank <= 3)
                 {
                     _ignoreDataAccess.RemoveIgnoredUser(user.userID, target.userID);
@@ -2219,7 +2219,7 @@ namespace Holo.Virtual.Users
                 user.roomUser.goalX = trigger.goalX;
                 user.roomUser.goalY = trigger.goalY;
                 _userDataAccess.UpdateUserSwimOutfit(user.userID, outfit);
-                virtualUser userObj = userManager.getUser(user.userID);
+                virtualUser userObj = UserManager.getUser(user.userID);
                 if (userObj != null)
                     userObj.refreshAppearance(true, true, true);
             }
@@ -2315,7 +2315,7 @@ namespace Holo.Virtual.Users
             try
             {
                 string username = DB.Stripslash(reader.PopString());
-                virtualUser target = userManager.getUser(username);
+                virtualUser target = UserManager.getUser(username);
                 if (target != null && target._Rank <= 3)
                 {
                     _ignoreDataAccess.AddIgnoredUser(user.userID, target.userID);
@@ -2332,7 +2332,7 @@ namespace Holo.Virtual.Users
             try
             {
                 string username = DB.Stripslash(reader.PopString());
-                virtualUser target = userManager.getUser(username);
+                virtualUser target = UserManager.getUser(username);
                 if (target != null && target._Rank <= 3)
                 {
                     _ignoreDataAccess.RemoveIgnoredUser(user.userID, target.userID);
@@ -2384,7 +2384,7 @@ namespace Holo.Virtual.Users
             }
             else
             {
-                if (!rankManager.containsRight(user._Rank, "fuse_use_club_dance"))
+                if (!RankManager.containsRight(user._Rank, "fuse_use_club_dance"))
                     return;
                 int danceID = reader.PopVL64();
                 if (danceID < 0 || danceID > 4)
@@ -2451,8 +2451,8 @@ namespace Holo.Virtual.Users
             if (user._isMuted || (user.Room == null || user.roomUser == null) && (user.Room == null && user.gamePlayer == null))
                 return;
 
-            userManager.addChatMessage(user._Username, user._roomID, message);
-            message = stringManager.filterSwearwords(message);
+            UserManager.addChatMessage(user._Username, user._roomID, message);
+            message = StringManager.filterSwearwords(message);
 
             if (message.Length > 0 && message[0] == ':' && user.isSpeechCommand(message.Substring(1)))
             {
@@ -2484,8 +2484,8 @@ namespace Holo.Virtual.Users
             if (user._isMuted || (user.Room == null || user.roomUser == null) && (user.Room == null && user.gamePlayer == null))
                 return;
 
-            userManager.addChatMessage(user._Username, user._roomID, message);
-            message = stringManager.filterSwearwords(message);
+            UserManager.addChatMessage(user._Username, user._roomID, message);
+            message = StringManager.filterSwearwords(message);
 
             if (message.Length > 0 && message[0] == ':' && user.isSpeechCommand(message.Substring(1)))
             {
@@ -2541,8 +2541,8 @@ namespace Holo.Virtual.Users
             }
             else
             {
-                userManager.addChatMessage(user._Username, user._roomID, message);
-                message = stringManager.filterSwearwords(message);
+                UserManager.addChatMessage(user._Username, user._roomID, message);
+                message = StringManager.filterSwearwords(message);
                 user.Room.sendWhisper(user.roomUser, receiver, message);
             }
         }
@@ -2575,10 +2575,10 @@ namespace Holo.Virtual.Users
                 return;
             
             string target = reader.PopString();
-            if (!userManager.containsUser(target))
+            if (!UserManager.containsUser(target))
                 return;
             
-            virtualUser targetUser = userManager.getUser(target);
+            virtualUser targetUser = UserManager.getUser(target);
             if (targetUser._roomID != user._roomID || targetUser._hasRights || targetUser._isOwner)
                 return;
             
@@ -2596,10 +2596,10 @@ namespace Holo.Virtual.Users
                 return;
             
             string target = reader.PopString();
-            if (!userManager.containsUser(target))
+            if (!UserManager.containsUser(target))
                 return;
             
-            virtualUser targetUser = userManager.getUser(target);
+            virtualUser targetUser = UserManager.getUser(target);
             if (targetUser._roomID != user._roomID || !targetUser._hasRights || targetUser._isOwner)
                 return;
             
@@ -2617,14 +2617,14 @@ namespace Holo.Virtual.Users
                 return;
             
             string target = reader.PopString();
-            if (!userManager.containsUser(target))
+            if (!UserManager.containsUser(target))
                 return;
             
-            virtualUser targetUser = userManager.getUser(target);
+            virtualUser targetUser = UserManager.getUser(target);
             if (targetUser._roomID != user._roomID)
                 return;
             
-            if (targetUser._isOwner && (targetUser._Rank > user._Rank || rankManager.containsRight(targetUser._Rank, "fuse_any_room_controller")))
+            if (targetUser._isOwner && (targetUser._Rank > user._Rank || RankManager.containsRight(targetUser._Rank, "fuse_any_room_controller")))
                 return;
             
             targetUser.roomUser.walkLock = true;
@@ -2640,14 +2640,14 @@ namespace Holo.Virtual.Users
                 return;
             
             string target = reader.PopString();
-            if (!userManager.containsUser(target))
+            if (!UserManager.containsUser(target))
                 return;
             
-            virtualUser targetUser = userManager.getUser(target);
+            virtualUser targetUser = UserManager.getUser(target);
             if (targetUser._roomID != user._roomID)
                 return;
             
-            if (targetUser._isOwner && (targetUser._Rank > user._Rank || rankManager.containsRight(targetUser._Rank, "fuse_any_room_controller")))
+            if (targetUser._isOwner && (targetUser._Rank > user._Rank || RankManager.containsRight(targetUser._Rank, "fuse_any_room_controller")))
                 return;
             
             string banExpireMoment = DateTime.Now.AddMinutes(Config.Rooms_roomBan_banDuration).ToString();
@@ -2676,13 +2676,13 @@ namespace Holo.Virtual.Users
                 if (user._isOwner)
                     user.Room.sendNewVoteAmount(voteAmount);
                 user.sendData(PacketBuilder.Create("EY").AppendVL64(voteAmount));
-                user.sendData("Er" + eventManager.getEvent(user._roomID));
+                user.sendData("Er" + EventManager.getEvent(user._roomID));
             }
         }
         private static void HandleOpenCatalogue(virtualUser user, PacketReader reader)
         {
             if (!user._isLoggedIn) return;
-            user.sendData("A~" + catalogueManager.getPageIndex(user._Rank));
+            user.sendData("A~" + CatalogueManager.getPageIndex(user._Rank));
         }
 
         private static void HandleOpenCataloguePage(virtualUser user, PacketReader reader)
@@ -2691,7 +2691,7 @@ namespace Holo.Virtual.Users
             
             string remaining = reader.GetRemaining();
             string pageIndexName = remaining.Split('/')[0];
-            user.sendData("A\x7F" + catalogueManager.getPage(pageIndexName, user._Rank));
+            user.sendData("A\x7F" + CatalogueManager.getPage(pageIndexName, user._Rank));
         }
         private static void HandlePurchaseItem(virtualUser user, PacketReader reader)
         {
@@ -2734,9 +2734,9 @@ namespace Holo.Virtual.Users
                 
                 string boxSprite = "present_gen" + new Random().Next(1, 7);
                 int boxTemplateID = _catalogueDataAccess.GetTemplateIdByItemName(boxSprite);
-                string boxNote = DB.Stripslash(stringManager.filterSwearwords(packetContent[7]));
+                string boxNote = DB.Stripslash(StringManager.filterSwearwords(packetContent[7]));
                 _furnitureDataAccess.CreateFurnitureItem(boxTemplateID, receiverID, null, "!" + boxNote);
-                presentBoxID = catalogueManager.lastItemID;
+                presentBoxID = CatalogueManager.lastItemID;
                 roomID = -1;
             }
             
@@ -2744,7 +2744,7 @@ namespace Holo.Virtual.Users
             user.sendData(PacketBuilder.Create("@F").AppendInt(user._Credits));
             _userDataAccess.UpdateUserCredits(user.userID, user._Credits);
             
-            if (stringManager.getStringPart(item, 0, 4) == "deal")
+            if (StringManager.getStringPart(item, 0, 4) == "deal")
             {
                 int dealID = int.Parse(item.Substring(4));
                 List<int> itemIDs = _catalogueDataAccess.GetDealTemplateIds(dealID);
@@ -2754,36 +2754,36 @@ namespace Holo.Virtual.Users
                     for (int j = 1; j <= itemAmounts[i]; j++)
                     {
                         _furnitureDataAccess.CreateFurnitureItem(itemIDs[i], receiverID, roomID);
-                        catalogueManager.handlePurchase(itemIDs[i], receiverID, roomID, 0, presentBoxID);
+                        CatalogueManager.handlePurchase(itemIDs[i], receiverID, roomID, 0, presentBoxID);
                     }
             }
             else
             {
                 _furnitureDataAccess.CreateFurnitureItem(templateID, receiverID, roomID);
-                var template = catalogueManager.getTemplate(templateID);
+                var template = CatalogueManager.getTemplate(templateID);
                 if (template.Sprite == "wallpaper" || template.Sprite == "floor" || template.Sprite.Contains("landscape"))
                 {
                     string decorID = packetContent[4];
-                    catalogueManager.handlePurchase(templateID, receiverID, 0, decorID, presentBoxID);
+                    CatalogueManager.handlePurchase(templateID, receiverID, 0, decorID, presentBoxID);
                 }
-                else if (stringManager.getStringPart(item, 0, 11) == "prizetrophy" || stringManager.getStringPart(item, 0, 11) == "greektrophy")
+                else if (StringManager.getStringPart(item, 0, 11) == "prizetrophy" || StringManager.getStringPart(item, 0, 11) == "greektrophy")
                 {
-                    string inscription = DB.Stripslash(stringManager.filterSwearwords(packetContent[4]));
+                    string inscription = DB.Stripslash(StringManager.filterSwearwords(packetContent[4]));
                     string itemVariable = user._Username + "\t" + DateTime.Today.ToShortDateString().Replace('/', '-') + "\t" + packetContent[4];
-                    _furnitureDataAccess.UpdateFurnitureVariable(catalogueManager.lastItemID, itemVariable);
-                    catalogueManager.handlePurchase(templateID, receiverID, 0, "0", presentBoxID);
+                    _furnitureDataAccess.UpdateFurnitureVariable(CatalogueManager.lastItemID, itemVariable);
+                    CatalogueManager.handlePurchase(templateID, receiverID, 0, "0", presentBoxID);
                 }
                 else
                 {
-                    catalogueManager.handlePurchase(templateID, receiverID, roomID, "0", presentBoxID);
+                    CatalogueManager.handlePurchase(templateID, receiverID, roomID, "0", presentBoxID);
                 }
             }
             
             if (receiverID == user.userID)
                 user.refreshHand("last");
-            else if (userManager.containsUser(receiverID))
+            else if (UserManager.containsUser(receiverID))
             {
-                virtualUser receiver = userManager.getUser(receiverID);
+                virtualUser receiver = UserManager.getUser(receiverID);
                 if (receiver != null)
                     receiver.refreshHand("last");
             }
@@ -2791,14 +2791,14 @@ namespace Holo.Virtual.Users
         private static void HandleRecyclerProceed(virtualUser user, PacketReader reader)
         {
             if (!user._isLoggedIn) return;
-            if (!Config.enableRecycler || user.Room == null || recyclerManager.sessionExists(user.userID))
+            if (!Config.enableRecycler || user.Room == null || RecyclerManager.sessionExists(user.userID))
                 return;
             
             int itemCount = reader.PopVL64();
-            if (!recyclerManager.rewardExists(itemCount))
+            if (!RecyclerManager.rewardExists(itemCount))
                 return;
             
-            recyclerManager.createSession(user.userID, itemCount);
+            RecyclerManager.createSession(user.userID, itemCount);
             
             for (int i = 0; i < itemCount; i++)
             {
@@ -2811,28 +2811,28 @@ namespace Holo.Virtual.Users
                 }
                 else
                 {
-                    recyclerManager.dropSession(user.userID, true);
+                    RecyclerManager.dropSession(user.userID, true);
                     user.sendData("DpH");
                     return;
                 }
             }
             
-            user.sendData("Dp" + recyclerManager.sessionString(user.userID));
+            user.sendData("Dp" + RecyclerManager.sessionString(user.userID));
             user.refreshHand("update");
         }
 
         private static void HandleRecyclerRedeem(virtualUser user, PacketReader reader)
         {
             if (!user._isLoggedIn) return;
-            if (!Config.enableRecycler || (user.Room != null && !recyclerManager.sessionExists(user.userID)))
+            if (!Config.enableRecycler || (user.Room != null && !RecyclerManager.sessionExists(user.userID)))
                 return;
             
             bool redeem = reader.PopBool();
-            if (redeem && recyclerManager.sessionReady(user.userID))
-                recyclerManager.rewardSession(user.userID);
+            if (redeem && RecyclerManager.sessionReady(user.userID))
+                RecyclerManager.rewardSession(user.userID);
             
-            recyclerManager.dropSession(user.userID, redeem);
-            user.sendData("Dp" + recyclerManager.sessionString(user.userID));
+            RecyclerManager.dropSession(user.userID, redeem);
+            user.sendData("Dp" + RecyclerManager.sessionString(user.userID));
             
             if (redeem)
                 user.refreshHand("last");
@@ -2875,7 +2875,7 @@ namespace Holo.Virtual.Users
                 return;
             
             int templateID = _furnitureDataAccess.GetInventoryItemTemplateId(itemID, user.userID);
-            if (templateID == 0 || catalogueManager.getTemplate(templateID).Sprite != decorType)
+            if (templateID == 0 || CatalogueManager.getTemplate(templateID).Sprite != decorType)
                 return;
             
             string decorVal = _furnitureDataAccess.GetFurnitureVariable(itemID);
@@ -2905,16 +2905,16 @@ namespace Holo.Virtual.Users
             if (templateID == 0)
                 return;
             
-            var template = catalogueManager.getTemplate(templateID);
+            var template = CatalogueManager.getTemplate(templateID);
             if (template.typeID == 0) // Wall item
             {
                 string inputPos = remaining.Substring(itemID.ToString().Length + 3);
-                string checkedPos = catalogueManager.wallPositionOK(inputPos);
+                string checkedPos = CatalogueManager.wallPositionOK(inputPos);
                 if (checkedPos != inputPos)
                     return;
                 
                 string var = _furnitureDataAccess.GetFurnitureVariable(itemID);
-                if (stringManager.getStringPart(template.Sprite, 0, 7) == "post.it")
+                if (StringManager.getStringPart(template.Sprite, 0, 7) == "post.it")
                 {
                     if (int.Parse(var) > 1)
                         _furnitureDataAccess.DecrementFurnitureVariable(itemID);
@@ -2922,7 +2922,7 @@ namespace Holo.Virtual.Users
                         _furnitureDataAccess.DeleteFurnitureItem(itemID);
                     
                     _furnitureDataAccess.CreateFurnitureItem(templateID, user.userID);
-                    itemID = catalogueManager.lastItemID;
+                    itemID = CatalogueManager.lastItemID;
                     _furnitureDataAccess.CreateStickyNote(itemID);
                     var = "FFFF33";
                     _furnitureDataAccess.UpdateFurnitureVariable(itemID, var);
@@ -3031,7 +3031,7 @@ namespace Holo.Virtual.Users
                 user.Room.floorItemManager.removeItem(itemID, 0);
                 
                 int lastItemTID = _furnitureDataAccess.GetFurnitureTemplateId(itemIDs[itemIDs.Count - 1]);
-                catalogueManager.itemTemplate template = catalogueManager.getTemplate(lastItemTID);
+                CatalogueManager.itemTemplate template = CatalogueManager.getTemplate(lastItemTID);
                 
                 if (template.typeID > 0)
                 {
@@ -3273,7 +3273,7 @@ namespace Holo.Virtual.Users
                 .Append(" ").Append(item.wallPosition).AppendChar((char)9)
                 .Append(colour));
             
-            message = DB.Stripslash(stringManager.filterSwearwords(message)).Replace("/r", ((char)13).ToString());
+            message = DB.Stripslash(StringManager.filterSwearwords(message)).Replace("/r", ((char)13).ToString());
             _furnitureDataAccess.UpdateStickyNoteText(itemID, message);
         }
 
@@ -3287,7 +3287,7 @@ namespace Holo.Virtual.Users
             if (user.Room.wallItemManager.containsItem(itemID))
             {
                 Rooms.Items.wallItem item = user.Room.wallItemManager.getItem(itemID);
-                if (stringManager.getStringPart(item.Sprite, 0, 7) == "post.it")
+                if (StringManager.getStringPart(item.Sprite, 0, 7) == "post.it")
                 {
                     user.Room.wallItemManager.removeItem(itemID, 0);
                     _furnitureDataAccess.DeleteStickyNote(itemID);
@@ -3321,7 +3321,7 @@ namespace Holo.Virtual.Users
             if (!user._isOwner || user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
                 return;
             
-            user.sendData("EB" + soundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
+            user.sendData("EB" + SoundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
         }
 
         private static void HandleEnterRoomPlaylist(virtualUser user, PacketReader reader)
@@ -3330,7 +3330,7 @@ namespace Holo.Virtual.Users
             if (user.Room == null || user.Room.floorItemManager.soundMachineID <= 0)
                 return;
             
-            user.sendData("EC" + soundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
+            user.sendData("EC" + SoundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
         }
 
         private static void HandleGetSongData(virtualUser user, PacketReader reader)
@@ -3340,7 +3340,7 @@ namespace Holo.Virtual.Users
                 return;
             
             int songID = reader.PopVL64();
-            user.sendData("Dl" + soundMachineManager.getSong(songID));
+            user.sendData("Dl" + SoundMachineManager.getSong(songID));
         }
         private static void HandleSavePlaylist(virtualUser user, PacketReader reader)
         {
@@ -3360,7 +3360,7 @@ namespace Holo.Virtual.Users
             }
             
             // Refresh playlist
-            user.Room.sendData("EC" + soundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
+            user.Room.sendData("EC" + SoundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
         }
 
         private static void HandleBurnSong(virtualUser user, PacketReader reader)
@@ -3389,7 +3389,7 @@ namespace Holo.Virtual.Users
                 
                 user._Credits--;
                 user.sendData(PacketBuilder.Create("@F").AppendInt(user._Credits));
-                user.sendData("EB" + soundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
+                user.sendData("EB" + SoundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
                 user.refreshHand("last");
             }
             else
@@ -3410,7 +3410,7 @@ namespace Holo.Virtual.Users
                 _soundMachineDataAccess.RemoveSongFromMachineIfBurnt(songID);
                 _soundMachineDataAccess.DeleteUnburntSong(songID);
                 _soundMachineDataAccess.DeleteSongFromPlaylist(user.Room.floorItemManager.soundMachineID, songID);
-                user.Room.sendData("EC" + soundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
+                user.Room.sendData("EC" + SoundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
             }
         }
 
@@ -3423,7 +3423,7 @@ namespace Holo.Virtual.Users
             user.songEditor = new virtualSongEditor(user.Room.floorItemManager.soundMachineID, user.userID);
             user.songEditor.loadSoundsets();
             user.sendData("Dm" + user.songEditor.getSoundsets());
-            user.sendData("Dn" + soundMachineManager.getHandSoundsets(user.userID));
+            user.sendData("Dn" + SoundMachineManager.getHandSoundsets(user.userID));
         }
 
         private static void HandleAddSoundSet(virtualUser user, PacketReader reader)
@@ -3438,7 +3438,7 @@ namespace Holo.Virtual.Users
             if (slotID > 0 && slotID < 5 && user.songEditor.slotFree(slotID))
             {
                 user.songEditor.addSoundset(soundSetID, slotID);
-                user.sendData("Dn" + soundMachineManager.getHandSoundsets(user.userID));
+                user.sendData("Dn" + SoundMachineManager.getHandSoundsets(user.userID));
                 user.sendData("Dm" + user.songEditor.getSoundsets());
             }
         }
@@ -3450,15 +3450,15 @@ namespace Holo.Virtual.Users
             
             string title = reader.PopB64String();
             string data = reader.PopString();
-            int length = soundMachineManager.calculateSongLength(data);
+            int length = SoundMachineManager.calculateSongLength(data);
             
             if (length != -1)
             {
-                title = DB.Stripslash(stringManager.filterSwearwords(title));
+                title = DB.Stripslash(StringManager.filterSwearwords(title));
                 data = DB.Stripslash(data);
                 _soundMachineDataAccess.CreateSong(user.userID, user.Room.floorItemManager.soundMachineID, title, length, DB.Stripslash(data));
                 
-                user.sendData("EB" + soundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
+                user.sendData("EB" + SoundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
                 user.sendData(PacketBuilder.Create("EK")
                     .AppendVL64(user.Room.floorItemManager.soundMachineID)
                     .AppendString(title));
@@ -3472,12 +3472,12 @@ namespace Holo.Virtual.Users
                 return;
             
             int songID = reader.PopVL64();
-            user.sendData("Dl" + soundMachineManager.getSong(songID));
+            user.sendData("Dl" + SoundMachineManager.getSong(songID));
             
             user.songEditor = new virtualSongEditor(user.Room.floorItemManager.soundMachineID, user.userID);
             user.songEditor.loadSoundsets();
             user.sendData("Dm" + user.songEditor.getSoundsets());
-            user.sendData("Dn" + soundMachineManager.getHandSoundsets(user.userID));
+            user.sendData("Dn" + SoundMachineManager.getHandSoundsets(user.userID));
         }
 
         private static void HandleSaveEditedSong(virtualUser user, PacketReader reader)
@@ -3491,17 +3491,17 @@ namespace Holo.Virtual.Users
             {
                 string title = reader.PopB64String();
                 string data = reader.PopString();
-                int length = soundMachineManager.calculateSongLength(data);
+                int length = SoundMachineManager.calculateSongLength(data);
                 
                 if (length != -1)
                 {
-                    title = DB.Stripslash(stringManager.filterSwearwords(title));
+                    title = DB.Stripslash(StringManager.filterSwearwords(title));
                     data = DB.Stripslash(data);
                     _soundMachineDataAccess.UpdateSong(songID, title, data, length);
                     
                     user.sendData("ES");
-                    user.sendData("EB" + soundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
-                    user.Room.sendData("EC" + soundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
+                    user.sendData("EB" + SoundMachineManager.getMachineSongList(user.Room.floorItemManager.soundMachineID));
+                    user.Room.sendData("EC" + SoundMachineManager.getMachinePlaylist(user.Room.floorItemManager.soundMachineID));
                 }
             }
         }
@@ -3513,7 +3513,7 @@ namespace Holo.Virtual.Users
             
             if (!Config.enableTrading)
             {
-                user.sendData("BK" + stringManager.getString("trading_disabled"));
+                user.sendData("BK" + StringManager.getString("trading_disabled"));
                 return;
             }
             
@@ -3521,7 +3521,7 @@ namespace Holo.Virtual.Users
             if (!user.Room.containsUser(partnerUID))
                 return;
             
-            virtualUser partner = user.Room.getUser(partnerUID);
+            User partner = user.Room.getUser(partnerUID);
             if (partner.statusManager.containsStatus("trd"))
                 return;
             
@@ -3553,7 +3553,7 @@ namespace Holo.Virtual.Users
             
             user._tradeItems[user._tradeItemCount] = itemID;
             user._tradeItemCount++;
-            virtualUser partner = user.Room.getUser(user._tradePartnerRoomUID);
+            User partner = user.Room.getUser(user._tradePartnerRoomUID);
             
             user._tradeAccept = false;
             partner._tradeAccept = false;
@@ -3571,7 +3571,7 @@ namespace Holo.Virtual.Users
             if (!user.Room.containsUser(user._tradePartnerRoomUID))
                 return;
             
-            virtualUser partner = user.Room.getUser(user._tradePartnerRoomUID);
+            User partner = user.Room.getUser(user._tradePartnerRoomUID);
             user._tradeAccept = false;
             partner._tradeAccept = false;
             user.refreshTradeBoxes();
@@ -3587,7 +3587,7 @@ namespace Holo.Virtual.Users
             if (!user.Room.containsUser(user._tradePartnerRoomUID))
                 return;
             
-            virtualUser partner = user.Room.getUser(user._tradePartnerRoomUID);
+            User partner = user.Room.getUser(user._tradePartnerRoomUID);
             user._tradeAccept = true;
             user.refreshTradeBoxes();
             partner.refreshTradeBoxes();
@@ -3747,7 +3747,7 @@ namespace Holo.Virtual.Users
                                 }
                                 break;
                             case "name":
-                                name = stringManager.filterSwearwords(value);
+                                name = StringManager.filterSwearwords(value);
                                 break;
                         }
                     }
@@ -3861,7 +3861,7 @@ namespace Holo.Virtual.Users
             if (!user._isLoggedIn) return;
             if (!user._isOwner)
                 return;
-            roomManager.moodlight.setSettings(user._roomID, false, 0, 0, null, 0);
+            RoomManager.moodlight.setSettings(user._roomID, false, 0, 0, null, 0);
         }
 
         private static void HandleLoadMoodlight(virtualUser user, PacketReader reader)
@@ -3869,7 +3869,7 @@ namespace Holo.Virtual.Users
             if (!user._isLoggedIn) return;
             if (!user._isOwner)
                 return;
-            string settingData = roomManager.moodlight.getSettings(user._roomID);
+            string settingData = RoomManager.moodlight.getSettings(user._roomID);
             if (settingData != null)
                 user.sendData("Em" + settingData);
         }
@@ -3890,10 +3890,10 @@ namespace Holo.Virtual.Users
             string colorCode = settings[3];
             int intensity = int.Parse(settings[4]);
             
-            roomManager.moodlight.setSettings(user._roomID, enabled, presetID, backgroundID, colorCode, intensity);
+            RoomManager.moodlight.setSettings(user._roomID, enabled, presetID, backgroundID, colorCode, intensity);
             
             if (user.Room != null)
-                user.Room.sendData("Em" + roomManager.moodlight.getSettings(user._roomID));
+                user.Room.sendData("Em" + RoomManager.moodlight.getSettings(user._roomID));
         }
         #endregion
 
@@ -4057,7 +4057,7 @@ namespace Holo.Virtual.Users
                     for (int i = startID; i < stopID; i++)
                     {
                         int templateID = _furnitureDataAccess.GetFurnitureTemplateId(itemIDs[i]);
-                        catalogueManager.itemTemplate Template = catalogueManager.getTemplate(templateID);
+                        CatalogueManager.itemTemplate Template = CatalogueManager.getTemplate(templateID);
                         char Recycleable = '1';
                         if (Template.isRecycleable == false)
                             Recycleable = '0';
@@ -4088,15 +4088,15 @@ namespace Holo.Virtual.Users
         {
             if (Room != null && Room.containsUser(_tradePartnerRoomUID) && roomUser != null)
             {
-                virtualUser Partner = Room.getUser(_tradePartnerRoomUID);
+                User Partner = Room.getUser(_tradePartnerRoomUID);
                 StringBuilder tradeBoxes = new StringBuilder("Al" + _Username + Convert.ToChar(9) + _tradeAccept.ToString().ToLower() + Convert.ToChar(9));
                 if (_tradeItemCount > 0)
-                    tradeBoxes.Append(catalogueManager.tradeItemList(_tradeItems));
+                    tradeBoxes.Append(CatalogueManager.tradeItemList(_tradeItems));
 
                 tradeBoxes.Append(Convert.ToChar(13) + Partner._Username + Convert.ToChar(9) + Partner._tradeAccept.ToString().ToLower() + Convert.ToChar(9));
 
                 if (Partner._tradeItemCount > 0)
-                    tradeBoxes.Append(catalogueManager.tradeItemList(Partner._tradeItems));
+                    tradeBoxes.Append(CatalogueManager.tradeItemList(Partner._tradeItems));
 
                 sendData(tradeBoxes.ToString());
             }
@@ -4108,7 +4108,7 @@ namespace Holo.Virtual.Users
         {
             if (Room != null && Room.containsUser(_tradePartnerRoomUID) && roomUser != null)
             {
-                virtualUser Partner = Room.getUser(_tradePartnerRoomUID);
+                User Partner = Room.getUser(_tradePartnerRoomUID);
                 this.sendData("An");
                 this.refreshHand("update");
                 Partner.sendData("An");
@@ -4159,160 +4159,160 @@ namespace Holo.Virtual.Users
                     #region Moderacy commands
                     case "alert": // Alert a virtual user
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_alert") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_alert") == false)
                                 return false;
                             else
                             {
-                                virtualUser Target = userManager.getUser(DB.Stripslash(args[1]));
-                                string Message = stringManager.wrapParameters(args, 2);
+                                User Target = UserManager.getUser(DB.Stripslash(args[1]));
+                                string Message = StringManager.wrapParameters(args, 2);
 
                                 Target.sendData("B!" + Message + Convert.ToChar(2));
-                                sendData("BK" + stringManager.getString("scommand_success"));
-                                staffManager.addStaffMessage("alert", userID, Target.userID, args[2], "");
+                                sendData("BK" + StringManager.getString("scommand_success"));
+                                StaffManager.addStaffMessage("alert", userID, Target.userID, args[2], "");
                             }
                             break;
                         }
 
                     case "roomalert": // Alert all virtual users in current virtual room
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_room_alert") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_room_alert") == false)
                                 return false;
                             else
                             {
                                 string Message = Text.Substring(10);
                                 Room.sendData("B!" + Message + Convert.ToChar(2));
-                                staffManager.addStaffMessage("ralert", userID, Room.roomID, Message, "");
+                                StaffManager.addStaffMessage("ralert", userID, Room.roomID, Message, "");
                             }
                             break;
                         }
 
                     case "kick": // Kicks a virtual user from room
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_kick") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_kick") == false)
                                 return false;
                             else
                             {
-                                virtualUser Target = userManager.getUser(DB.Stripslash(args[1]));
+                                User Target = UserManager.getUser(DB.Stripslash(args[1]));
                                 if (Target._Rank < this._Rank)
                                 {
                                     string Message = "";
                                     if (args.Length > 2) // Reason supplied
-                                        Message = stringManager.wrapParameters(args, 2);
+                                        Message = StringManager.wrapParameters(args, 2);
 
                                     Target.Room.removeUser(Target.roomUser.roomUID, true, Message);
-                                    sendData("BK" + stringManager.getString("scommand_success"));
-                                    staffManager.addStaffMessage("kick", userID, Target.userID, Message, "");
+                                    sendData("BK" + StringManager.getString("scommand_success"));
+                                    StaffManager.addStaffMessage("kick", userID, Target.userID, Message, "");
                                 }
                                 else
-                                    sendData("BK" + stringManager.getString("scommand_failed"));
+                                    sendData("BK" + StringManager.getString("scommand_failed"));
                             }
                             break;
                         }
 
                     case "roomkick": // Kicks all virtual users below rank from virtual room
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_room_kick") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_room_kick") == false)
                                 return false;
                             else
                             {
-                                string Message = stringManager.wrapParameters(args, 1);
+                                string Message = StringManager.wrapParameters(args, 1);
                                 Room.kickUsers(_Rank, Message);
-                                sendData("BK" + stringManager.getString("scommand_success"));
-                                staffManager.addStaffMessage("rkick", userID, Room.roomID, Message, "");
+                                sendData("BK" + StringManager.getString("scommand_success"));
+                                StaffManager.addStaffMessage("rkick", userID, Room.roomID, Message, "");
                             }
                             break;
                         }
 
                     case "shutup": // Mutes a virtual user (disabling it from chat)
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_mute") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_mute") == false)
                                 return false;
                             else
                             {
-                                virtualUser Target = userManager.getUser(DB.Stripslash(args[1]));
+                                User Target = UserManager.getUser(DB.Stripslash(args[1]));
                                 if (Target._Rank < _Rank && Target._isMuted == false)
                                 {
-                                    string Message = stringManager.wrapParameters(args, 2);
+                                    string Message = StringManager.wrapParameters(args, 2);
                                     Target._isMuted = true;
-                                    Target.sendData("BK" + stringManager.getString("scommand_muted") + "\r" + Message);
-                                    sendData("BK" + stringManager.getString("scommand_success"));
-                                    staffManager.addStaffMessage("mute", userID, Target.userID, Message, "");
+                                    Target.sendData("BK" + StringManager.getString("scommand_muted") + "\r" + Message);
+                                    sendData("BK" + StringManager.getString("scommand_success"));
+                                    StaffManager.addStaffMessage("mute", userID, Target.userID, Message, "");
                                 }
                                 else
-                                    sendData("BK" + stringManager.getString("scommand_failed"));
+                                    sendData("BK" + StringManager.getString("scommand_failed"));
                             }
                             break;
                         }
 
                     case "unmute": // Unmutes a virtual user (enabling it to chat again)
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_mute") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_mute") == false)
                                 return false;
                             else
                             {
-                                virtualUser Target = userManager.getUser(DB.Stripslash(args[1]));
+                                User Target = UserManager.getUser(DB.Stripslash(args[1]));
                                 if (Target._Rank < _Rank && Target._isMuted)
                                 {
                                     Target._isMuted = false;
-                                    Target.sendData("BK" + stringManager.getString("scommand_unmuted"));
-                                    sendData("BK" + stringManager.getString("scommand_success"));
-                                    staffManager.addStaffMessage("unmute", userID, Target.userID, "", "");
+                                    Target.sendData("BK" + StringManager.getString("scommand_unmuted"));
+                                    sendData("BK" + StringManager.getString("scommand_success"));
+                                    StaffManager.addStaffMessage("unmute", userID, Target.userID, "", "");
                                 }
                                 else
-                                    sendData("BK" + stringManager.getString("scommand_failed"));
+                                    sendData("BK" + StringManager.getString("scommand_failed"));
                             }
                             break;
                         }
 
                     case "roomshutup": // Mutes all virtual users in the current room from chat. Only user's that have a lower rank than this user are affected.
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_room_mute") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_room_mute") == false)
                                 return false;
                             else
                             {
-                                string Message = stringManager.wrapParameters(args, 1);
+                                string Message = StringManager.wrapParameters(args, 1);
                                 Room.muteUsers(_Rank, Message);
-                                sendData("BK" + stringManager.getString("scommand_success"));
-                                staffManager.addStaffMessage("rmute", userID, Room.roomID, Message, "");
+                                sendData("BK" + StringManager.getString("scommand_success"));
+                                StaffManager.addStaffMessage("rmute", userID, Room.roomID, Message, "");
                             }
                             break;
                         }
 
                     case "roomunmute": // Unmutes all the muted virtual users in this room (who's rank is lower than this user's rank), making them able to chat again
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_room_mute") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_room_mute") == false)
                                 return false;
                             else
                             {
                                 Room.unmuteUsers(_Rank);
-                                sendData("BK" + stringManager.getString("scommand_success"));
-                                staffManager.addStaffMessage("runmute", userID, Room.roomID, "", "");
+                                sendData("BK" + StringManager.getString("scommand_success"));
+                                StaffManager.addStaffMessage("runmute", userID, Room.roomID, "", "");
                             }
                             break;
                         }
 
                     case "ban": // Bans a virtual user from server (no IP ban)
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_ban") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_ban") == false)
                                 return false;
                             else
                             {
                                 UserModerationDetails userDetails = _userDataAccess.GetUserModerationDetails(DB.Stripslash(args[1]));
                                 if (userDetails == null)
-                                    sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_usernotfound"));
+                                    sendData("BK" + StringManager.getString("modtool_actionfailed") + "\r" + StringManager.getString("modtool_usernotfound"));
                                 else if (userDetails.Rank > _Rank)
-                                    sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_rankerror"));
+                                    sendData("BK" + StringManager.getString("modtool_actionfailed") + "\r" + StringManager.getString("modtool_rankerror"));
                                 else
                                 {
                                     int banHours = int.Parse(args[2]);
-                                    string Reason = stringManager.wrapParameters(args, 3);
+                                    string Reason = StringManager.wrapParameters(args, 3);
                                     if (banHours == 0 || Reason == "")
-                                        sendData("BK" + stringManager.getString("scommand_failed"));
+                                        sendData("BK" + StringManager.getString("scommand_failed"));
                                     else
                                     {
-                                        staffManager.addStaffMessage("ban", userID, userDetails.UserId, Reason, "");
-                                        userManager.setBan(userDetails.UserId, banHours, Reason);
-                                        sendData("BK" + userManager.generateBanReport(userDetails.UserId));
+                                        StaffManager.addStaffMessage("ban", userID, userDetails.UserId, Reason, "");
+                                        UserManager.setBan(userDetails.UserId, banHours, Reason);
+                                        sendData("BK" + UserManager.generateBanReport(userDetails.UserId));
                                     }
                                 }
                             }
@@ -4321,27 +4321,27 @@ namespace Holo.Virtual.Users
 
                     case "superban": // Bans an IP address and all virtual user's that used this IP address for their last access from the system
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_superban") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_superban") == false)
                                 return false;
                             else
                             {
                                 UserModerationDetails userDetails = _userDataAccess.GetUserModerationDetails(DB.Stripslash(args[1]));
                                 if (userDetails == null)
-                                    sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_usernotfound"));
+                                    sendData("BK" + StringManager.getString("modtool_actionfailed") + "\r" + StringManager.getString("modtool_usernotfound"));
                                 else if (userDetails.Rank > _Rank)
-                                    sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_rankerror"));
+                                    sendData("BK" + StringManager.getString("modtool_actionfailed") + "\r" + StringManager.getString("modtool_rankerror"));
                                 else
                                 {
                                     int banHours = int.Parse(args[2]);
-                                    string Reason = stringManager.wrapParameters(args, 3);
+                                    string Reason = StringManager.wrapParameters(args, 3);
                                     if (banHours == 0 || Reason == "")
-                                        sendData("BK" + stringManager.getString("scommand_failed"));
+                                        sendData("BK" + StringManager.getString("scommand_failed"));
                                     else
                                     {
                                         string IP = userDetails.LastIpAddress;
-                                        staffManager.addStaffMessage("ban", userID, userDetails.UserId, Reason, "");
-                                        userManager.setBan(IP, banHours, Reason);
-                                        sendData("BK" + userManager.generateBanReport(IP));
+                                        StaffManager.addStaffMessage("ban", userID, userDetails.UserId, Reason, "");
+                                        UserManager.setBan(IP, banHours, Reason);
+                                        sendData("BK" + UserManager.generateBanReport(IP));
                                     }
                                 }
                             }
@@ -4350,23 +4350,23 @@ namespace Holo.Virtual.Users
 
                     case "info": // Generates a list of information about a certain virtual user
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_moderator_access") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_moderator_access") == false)
                                 return false;
                             else
-                                sendData("BK" + userManager.generateUserInfo(userManager.getUserID(DB.Stripslash(args[1])), _Rank));
+                                sendData("BK" + UserManager.generateUserInfo(UserManager.getUserID(DB.Stripslash(args[1])), _Rank));
                             break;
                         }
 
                     case "find": // Teleports user to the room the receiver is in
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_moderator_access") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_moderator_access") == false)
                             {
                                 return false;
                             }
                             else
                             {
 
-                                virtualUser Target = userManager.getUser(DB.Stripslash(args[1]));
+                                User Target = UserManager.getUser(DB.Stripslash(args[1]));
 
                                 if (Target.Room != null && Target._inPublicroom)
                                 {
@@ -4387,14 +4387,14 @@ namespace Holo.Virtual.Users
 
                     case "teletome": // Teleports user to the room the sender is in
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_moderator_access") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_moderator_access") == false)
                             {
                                 return false;
                             }
                             else
                             {
 
-                                virtualUser Target = userManager.getUser(DB.Stripslash(args[1]));
+                                User Target = UserManager.getUser(DB.Stripslash(args[1]));
                                 Target.sendData("BK" + "You are being teleported to where " + _Username + " is.");
                                 if (_inPublicroom)
                                 {
@@ -4411,20 +4411,20 @@ namespace Holo.Virtual.Users
 
                     case "offline": // Broadcoasts a message that the server will shutdown in xx minutes
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_administrator_access") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_administrator_access") == false)
                                 return false;
                             else
                             {
                                 int Minutes = int.Parse(args[1]);
-                                userManager.sendData("Dc" + Encoding.encodeVL64(Minutes));
-                                staffManager.addStaffMessage("offline", userID, 0, "mm=" + Minutes, "");
+                                UserManager.sendData("Dc" + Encoding.encodeVL64(Minutes));
+                                StaffManager.addStaffMessage("offline", userID, 0, "mm=" + Minutes, "");
                             }
                             break;
                         }
 
                     case "position": // Sends an alert with the virtual room user's current coordinates
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_administrator_access") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_administrator_access") == false)
                                 return false;
                             else
                                 sendData("BK" + "X: " + roomUser.X + "\r" + "Y: " + roomUser.Y + "\r" + "Z: " + roomUser.Z1 + "\r" + "Height: " + roomUser.H);
@@ -4437,26 +4437,26 @@ namespace Holo.Virtual.Users
                     #region Message broadcoasting
                     case "ha": // Broadcoasts a message to all virtual users (hotel alert)
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_administrator_access") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_administrator_access") == false)
                                 return false;
                             else
                             {
                                 string Message = Text.Substring(3);
-                                userManager.sendData("BK" + stringManager.getString("scommand_hotelalert") + "\r" + Message);
-                                staffManager.addStaffMessage("halert", userID, 0, Message, "");
+                                UserManager.sendData("BK" + StringManager.getString("scommand_hotelalert") + "\r" + Message);
+                                StaffManager.addStaffMessage("halert", userID, 0, Message, "");
                             }
                         }
                         break;
 
                     case "ra": // Broadcoasts a message to all users with the same rank (rank alert)
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_alert") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_alert") == false)
                                 return false;
                             else
                             {
                                 string Message = Text.Substring(3);
-                                userManager.sendToRank(_Rank, false, "BK" + stringManager.getString("scommand_rankalert") + "\r" + Message);
-                                staffManager.addStaffMessage("rankalert", userID, _Rank, Message, "");
+                                UserManager.sendToRank(_Rank, false, "BK" + StringManager.getString("scommand_rankalert") + "\r" + Message);
+                                StaffManager.addStaffMessage("rankalert", userID, _Rank, Message, "");
                             }
                             break;
                         }
@@ -4465,24 +4465,24 @@ namespace Holo.Virtual.Users
                     #region Special staff commands
                     case "refreshrooms": // Refreshes the Hotel Public and Private Rooms
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_administrator_access") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_administrator_access") == false)
                                 return false;
                             else
                             {
                                 string Message = Text.Substring(3);
-                                userManager.sendData("DBO" + "\r");
+                                UserManager.sendData("DBO" + "\r");
                             }
                             break;
                         }
 
                     case "refreshhotel": // Refreshes the Hotel Public and Private Rooms
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_administrator_access") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_administrator_access") == false)
                                 return false;
                             else
                             {
                                 string Message = Text.Substring(3);
-                                userManager.sendData("DBO" + "\r");
+                                UserManager.sendData("DBO" + "\r");
                             }
                             break;
                         }
@@ -4490,15 +4490,15 @@ namespace Holo.Virtual.Users
                     case "refreshcatalogue": // refresh cata
                         {
                             sendData("HKRC");
-                            catalogueManager.Init();
+                            CatalogueManager.Init();
                             break;
                         }
 
                     case "coins": // Credits command
                         {
-                            virtualUser Target = userManager.getUser(DB.Stripslash(args[1]));
+                            User Target = UserManager.getUser(DB.Stripslash(args[1]));
                             int Credits = int.Parse(args[2]);
-                            if (rankManager.containsRight(_Rank, "fuse_administrator_access") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_administrator_access") == false)
                                 sendData("BK" + "You don't have the rights to give coins to someone!");
                             else
                             {
@@ -4514,7 +4514,7 @@ namespace Holo.Virtual.Users
 
                     case "commands": // commands list
                         {
-                            if (rankManager.containsRight(_Rank, "fuse_moderator_access") == false)
+                            if (RankManager.containsRight(_Rank, "fuse_moderator_access") == false)
                             {
                                 return false;
                             }
@@ -4564,7 +4564,7 @@ namespace Holo.Virtual.Users
                         return false;
                 }
             }
-            catch { sendData("BK" + stringManager.getString("scommand_failed")); }
+            catch { sendData("BK" + StringManager.getString("scommand_failed")); }
             return true;
         }
         

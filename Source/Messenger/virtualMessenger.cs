@@ -2,19 +2,19 @@ using System;
 using System.Text;
 using System.Collections;
 using System.Collections.Generic;
-using Holo.Data.Repositories;
+using HolographEmulator.Infrastructure.DataAccess;
 
-using Holo.Managers;
-using Holo.Virtual;
-using Holo.Virtual.Users;
-using Holo.Virtual.Rooms;
+using HolographEmulator.Infrastructure.Managers;
+using HolographEmulator.Domain;
+using HolographEmulator.Domain.Users;
+using HolographEmulator.Domain.Rooms;
 
-namespace Holo.Virtual.Users.Messenger
+namespace HolographEmulator.Domain.Users.Messenger
 {
     /// <summary>
-    /// Represents the messenger for a virtual user, which provides keeping buddy lists, instant messaging, inviting friends to a user's virtual room and various other features. The virtual messenger object provides voids for updating status of friends, instant messaging and more.
+    /// Represents the messenger for a virtual user, which provides keeping buddy lists, instant messaging, inviting friends to a user's virtual room and various other features. The messenger object provides voids for updating status of friends, instant messaging and more.
     /// </summary>
-    class virtualMessenger
+    class Messenger
     {
         private static readonly MessengerDataAccess _messengerDataAccess = new MessengerDataAccess();
         private static readonly UserDataAccess _userDataAccess = new UserDataAccess();
@@ -31,7 +31,7 @@ namespace Holo.Virtual.Users.Messenger
         /// Initializes the virtual messenger for the parent virtual user, generating friendlist, friendrequests etc.
         /// </summary>
         /// <param name="userID">The database ID of the parent virtual user.</param>
-        internal virtualMessenger(int userID)
+        internal Messenger(int userID)
         {
             this.userID = userID;
             this.Buddies = new Hashtable();
@@ -40,10 +40,10 @@ namespace Holo.Virtual.Users.Messenger
         {
             int[] userIDs = userManager.getUserFriendIDs(userID);
             StringBuilder Buddylist = new StringBuilder(Encoding.encodeVL64(200) + Encoding.encodeVL64(200) + Encoding.encodeVL64(600) + "H" + Encoding.encodeVL64(userIDs.Length));
-            virtualBuddy Me = new virtualBuddy(userID);
+                Buddy Me = new Buddy(userID);
             for (int i = 0; i < userIDs.Length; i++)
             {
-                virtualBuddy Buddy = new virtualBuddy(userIDs[i]);
+                Buddy Buddy = new Buddy(userIDs[i]);
                 try
                 {
                     if (Buddy.Online)

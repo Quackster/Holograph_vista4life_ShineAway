@@ -1,10 +1,10 @@
 using System;
 using System.Threading;
 
-using Holo.Managers;
-using Holo.Socketservers;
+using HolographEmulator.Infrastructure.Managers;
+using HolographEmulator.Networking.Sockets;
 
-namespace Holo
+namespace HolographEmulator
 {
     /// <summary>
     /// The core of Holograph Emulator codename "Eucalypt", contains Main() void for booting server, plus monitoring thread and shutdown void.
@@ -102,36 +102,36 @@ namespace Holo
                 return;
             }
 
-            stringManager.Init(langExt);
+            StringManager.Init(langExt);
             Out.WriteBlank();
 
-            stringManager.initFilter();
+            StringManager.initFilter();
             Out.WriteBlank();
 
-            catalogueManager.Init();
+            CatalogueManager.Init();
             Out.WriteBlank();
 
-            recyclerManager.Init();
+            RecyclerManager.Init();
             Out.WriteBlank();
 
-            rankManager.Init();
+            RankManager.Init();
             Out.WriteBlank();
 
             Config.Init();
             Out.WriteBlank();
 
-            userManager.Init();
-            //userManager.Init1();
-            eventManager.Init();
+            UserManager.Init();
+            //UserManager.Init1();
+            EventManager.Init();
 
-            if (gameSocketServer.Init(gamePort, gameMaxConnections) == false)
+            if (GameSocketServer.Init(gamePort, gameMaxConnections) == false)
             {
                 Shutdown();
                 return;
             }
             Out.WriteBlank();
 
-            if (musSocketServer.Init(musPort, musHost) == false)
+            if (MusSocketServer.Init(musPort, musHost) == false)
             {
                 Shutdown();
                 return;
@@ -204,7 +204,7 @@ namespace Holo
                 int peakOnlineCount = userManager.peakUserCount;
                 int roomCount = roomManager.roomCount;
                 int peakRoomCount = roomManager.peakRoomCount;
-                int acceptedConnections = gameSocketServer.acceptedConnections;
+                int acceptedConnections = GameSocketServer.acceptedConnections;
                 long memUsage = GC.GetTotalMemory(false) / 1024;
 
                 Console.Title = "Holograph Emulator 26 | online users: " + onlineCount + " | loaded rooms " + roomCount + " | RAM usage: " + memUsage + "KB";

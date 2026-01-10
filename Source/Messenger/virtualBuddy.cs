@@ -1,14 +1,14 @@
 using System;
-using Holo.Data.Repositories;
-using Holo.Managers;
-using Holo.Virtual.Users;
+using HolographEmulator.Infrastructure.DataAccess;
+using HolographEmulator.Infrastructure.Managers;
+using HolographEmulator.Domain.Users;
 
-namespace Holo.Virtual.Users.Messenger
+namespace HolographEmulator.Domain.Users.Messenger
 {
     /// <summary>
-    /// Represents a virtual buddy used in the virtualMessenger object.
+    /// Represents a buddy used in the Messenger object.
     /// </summary>
-    class virtualBuddy
+    class Buddy
     {
         private static readonly UserDataAccess _userDataAccess = new UserDataAccess();
         /// <summary>
@@ -28,7 +28,7 @@ namespace Holo.Virtual.Users.Messenger
         /// Intializes a virtual buddy.
         /// </summary>
         /// <param name="userID">The database ID of this buddy.</param>
-        internal virtualBuddy(int userID)
+        internal Buddy(int userID)
         {
             this.userID = userID;
             bool b = Updated; // Update

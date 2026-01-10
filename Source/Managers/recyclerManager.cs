@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using System.Collections;
 
-namespace Holo.Managers
+namespace HolographEmulator.Infrastructure.Managers
 {
     /// <summary>
     /// Provides functions and tasks for the item Recycler, which allows users to trade in their items for special items.
     /// </summary>
-    public static class recyclerManager
+    public static class RecyclerManager
     {
         private static int sessionLength;
         private static int sessionExpireLength;

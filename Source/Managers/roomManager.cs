@@ -1,16 +1,16 @@
 using System;
 using System.Text;
 using System.Collections;
-using Holo.Data.Repositories;
+using HolographEmulator.Infrastructure.DataAccess;
 
-using Holo.Virtual.Rooms;
+using HolographEmulator.Domain.Rooms;
 
-namespace Holo.Managers
+namespace HolographEmulator.Infrastructure.Managers
 {
     /// <summary>
     /// Provides management for virtual rooms, aswell as some misc tasks for rooms.
     /// </summary>
-    public static class roomManager
+    public static class RoomManager
     {
         private static readonly MoodlightDataAccess _moodlightDataAccess = new MoodlightDataAccess();
         private static readonly FurnitureDataAccess _furnitureDataAccess = new FurnitureDataAccess();
@@ -31,7 +31,7 @@ namespace Holo.Managers
         /// </summary>
         /// <param name="roomID">The ID of the room to add..</param>
         /// <param name="Room">The virtualRoom class of this room.</param>
-        public static void addRoom(int roomID, virtualRoom Room)
+        public static void addRoom(int roomID, Room Room)
         {
             if (_Rooms.ContainsKey(roomID) == false)
             {
@@ -91,7 +91,7 @@ namespace Holo.Managers
         /// Returns a virtualRoom class for a certain room.
         /// </summary>
         /// <param name="roomID">The ID of the room.</param>
-        public static virtualRoom getRoom(int roomID)
+        public static Room getRoom(int roomID)
         {
             return (virtualRoom)_Rooms[roomID];
         }

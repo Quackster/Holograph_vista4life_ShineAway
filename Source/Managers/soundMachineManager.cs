@@ -1,13 +1,13 @@
 using System;
 using System.Text;
-using Holo.Data.Repositories;
+using HolographEmulator.Infrastructure.DataAccess;
 
-namespace Holo.Managers
+namespace HolographEmulator.Infrastructure.Managers
 {
     /// <summary>
     /// Provides management for virtual sound machines and virtual songs.
     /// </summary>
-    public static class soundMachineManager
+    public static class SoundMachineManager
     {
         private static readonly SoundMachineDataAccess _soundMachineDataAccess = new SoundMachineDataAccess();
         private static readonly UserDataAccess _userDataAccess = new UserDataAccess();
