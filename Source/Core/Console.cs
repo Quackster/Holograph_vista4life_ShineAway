@@ -1,4 +1,4 @@
-ï»¿using System;
+using System;
 using System.Diagnostics;
 
 namespace Holo
@@ -28,7 +28,7 @@ namespace Holo
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write(_SF.GetMethod().ReflectedType.Name + "." + _SF.GetMethod().Name);
             Console.ForegroundColor = ConsoleColor.Gray;
-            Console.Write("] Â» ");
+            Console.Write("] » ");
             Console.ForegroundColor = ConsoleColor.DarkGreen;
             Console.WriteLine(logText);
             Console.ForegroundColor = ConsoleColor.Gray;
@@ -49,7 +49,7 @@ namespace Holo
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write(_SF.GetMethod().ReflectedType.Name + "." + _SF.GetMethod().Name);
             Console.ForegroundColor = ConsoleColor.Gray;
-            Console.Write("] Â» ");
+            Console.Write("] » ");
             Console.ForegroundColor = ConsoleColor.DarkBlue;
             Console.WriteLine(logText);
             Console.ForegroundColor = ConsoleColor.Gray;
@@ -72,7 +72,7 @@ namespace Holo
             Console.ForegroundColor = colorOne;
             Console.Write(_SF.GetMethod().ReflectedType.Name + "." + _SF.GetMethod().Name);
             Console.ForegroundColor = ConsoleColor.Gray;
-            Console.Write("] Â» ");
+            Console.Write("] » ");
             Console.ForegroundColor = colorTwo;
             Console.WriteLine(logText);
             Console.ForegroundColor = ConsoleColor.Gray;
@@ -94,7 +94,7 @@ namespace Holo
             Console.ForegroundColor = ConsoleColor.Red;
             Console.Write(_SF.GetMethod().ReflectedType.Name + "." + _SF.GetMethod().Name);
             Console.ForegroundColor = ConsoleColor.Gray;
-            Console.Write("] Â» ");
+            Console.Write("] » ");
             Console.ForegroundColor = ConsoleColor.DarkRed;
             Console.WriteLine(logText);
             Console.ForegroundColor = ConsoleColor.Gray;
@@ -116,7 +116,7 @@ namespace Holo
             Console.ForegroundColor = ConsoleColor.Red;
             Console.Write(_SF.GetMethod().ReflectedType.Name + "." + _SF.GetMethod().Name);
             Console.ForegroundColor = ConsoleColor.Gray;
-            Console.Write("] Â» ");
+            Console.Write("] » ");
             Console.ForegroundColor = ConsoleColor.DarkRed;
             Console.WriteLine(logText);
             Console.ForegroundColor = ConsoleColor.Gray;

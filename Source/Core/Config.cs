@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-using Holo.Managers;
+using Holo.Infrastructure.Managers;
 
 namespace Holo
 {

@@ -1,10 +1,10 @@
 using System;
 using System.Threading;
 
-using HolographEmulator.Infrastructure.Managers;
-using HolographEmulator.Networking.Sockets;
+using Holo.Infrastructure.Managers;
+using Holo.Networking;
 
-namespace HolographEmulator
+namespace Holo
 {
     /// <summary>
     /// The core of Holograph Emulator codename "Eucalypt", contains Main() void for booting server, plus monitoring thread and shutdown void.
