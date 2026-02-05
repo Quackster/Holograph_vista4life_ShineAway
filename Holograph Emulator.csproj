@@ -83,6 +83,8 @@
     <Compile Include="Source\Managers\userManager.cs" />
     <Compile Include="Source\Bots\virtualBot.cs" />
     <Compile Include="Source\Games\Game.cs" />
+    <Compile Include="Source\Games\Game.PlayerManagement.cs" />
+    <Compile Include="Source\Games\Game.Arena.cs" />
     <Compile Include="Source\Games\gameLobby.cs" />
     <Compile Include="Source\Games\gamePlayer.cs" />
     <Compile Include="Source\Virtual\Rooms\Items\floorItem.cs" />
@@ -94,6 +96,16 @@
     <Compile Include="Source\Virtual\Rooms\Pathfinder\PinocchioPathfinder.cs" />
     <Compile Include="Source\Virtual\Rooms\Pathfinder\Rotation.cs" />
     <Compile Include="Source\Virtual\Rooms\virtualRoom.cs" />
+    <Compile Include="Source\Virtual\Rooms\virtualRoom.UserManagement.cs" />
+    <Compile Include="Source\Virtual\Rooms\virtualRoom.DataDistribution.cs" />
+    <Compile Include="Source\Virtual\Rooms\virtualRoom.StatusHandler.cs" />
+    <Compile Include="Source\Virtual\Rooms\virtualRoom.Chat.cs" />
+    <Compile Include="Source\Virtual\Rooms\virtualRoom.Moderation.cs" />
+    <Compile Include="Source\Virtual\Rooms\virtualRoom.MapManagement.cs" />
+    <Compile Include="Source\Virtual\Rooms\virtualRoom.FloorItemManager.cs" />
+    <Compile Include="Source\Virtual\Rooms\virtualRoom.WallItemManager.cs" />
+    <Compile Include="Source\Virtual\Rooms\virtualRoom.SpecialCast.cs" />
+    <Compile Include="Source\Virtual\Rooms\virtualRoom.FurnitureStack.cs" />
     <Compile Include="Source\Socket servers\gameSocketServer.cs" />
     <Compile Include="Source\Socket servers\musSocketServer.cs" />
     <Compile Include="Source\Core\Core.cs" />
@@ -107,6 +119,19 @@
     <Compile Include="Source\Messenger\virtualMessenger.cs" />
     <Compile Include="Source\Virtual\Users\virtualSongEditor.cs" />
     <Compile Include="Source\Virtual\Users\virtualUser.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.PacketProcessing.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.Login.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.Messenger.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.Navigator.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.Room.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.InRoom.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.Items.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.Trading.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.Games.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.Soundmachine.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.Moderation.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.Commands.cs" />
+    <Compile Include="Source\Virtual\Users\virtualUser.Helpers.cs" />
     <Compile Include="Source\Virtual\Users\virtualRoomUser.cs" />
     <Compile Include="Source\Virtual\Users\virtualRoomUserStatusManager.cs" />
   </ItemGroup>
