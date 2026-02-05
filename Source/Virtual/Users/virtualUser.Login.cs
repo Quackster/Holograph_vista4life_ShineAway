@@ -2,6 +2,7 @@ using System;
 using System.Text;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Users.Messenger;
 
 namespace Holo.Virtual.Users
@@ -25,8 +26,8 @@ namespace Holo.Virtual.Users
                 #region Login
                 case "@L": // Login - initialize messenger
                     Messenger = new Messenger.virtualMessenger(userID);
-                    sendData("@L" + Messenger.friendList());
-                    sendData("Dz" + Messenger.friendRequests());
+                    sendData(HabboPackets.FRIEND_LIST + Messenger.friendList());
+                    sendData(HabboPackets.FRIEND_REQUESTS + Messenger.friendRequests());
                     break;
 
                 case "@Z": // Login - initialize Club subscription status
@@ -50,11 +51,11 @@ namespace Holo.Virtual.Users
                     break;
 
                 case "C^": // Recycler - receive recycler setup
-                    sendData("Do" + recyclerManager.setupString);
+                    sendData(HabboPackets.RECYCLER_SETUP + recyclerManager.setupString);
                     break;
 
                 case "C_": // Recycler - receive recycler session status
-                    sendData("Dp" + recyclerManager.sessionString(userID));
+                    sendData(HabboPackets.RECYCLER_SESSION + recyclerManager.sessionString(userID));
                     break;
                 #endregion
 
@@ -99,19 +100,19 @@ namespace Holo.Virtual.Users
 
                         if (Price > _Credits) // Enough credits?
                         {
-                            sendData("AD");
+                            sendData(HabboPackets.TRANSACTION_FAILED);
                             return true;
                         }
 
                         int ReceiverID = DB.runRead("SELECT id FROM users WHERE name = '" + DB.Stripslash(Receiver) + "'", null);
                         if (!(ReceiverID > 0)) // Does the user exist?
                         {
-                            sendData("AL" + Receiver);
+                            sendData(HabboPackets.USER_NOT_FOUND + Receiver);
                             return true;
                         }
 
                         _Credits -= Price; // New credit amount
-                        sendData("@F" + _Credits); // Send the new credits
+                        sendData(HabboPacketBuilder.CreditsUpdate(_Credits));
                         DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
                         DB.runQuery("UPDATE users SET tickets = tickets+" + Ticketamount + " WHERE id = '" + ReceiverID + "' LIMIT 1");
 
@@ -139,12 +140,12 @@ namespace Holo.Virtual.Users
                             DB.runQuery("DELETE FROM vouchers WHERE voucher = '" + Code + "' LIMIT 1");
 
                             _Credits += voucherAmount;
-                            sendData("@F" + _Credits);
-                            sendData("CT");
+                            sendData(HabboPacketBuilder.CreditsUpdate(_Credits));
+                            sendData(HabboPackets.VOUCHER_REDEEMED);
                             DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
                         }
                         else
-                            sendData("CU1");
+                            sendData(HabboPackets.VOUCHER_INVALID);
                         break;
                     }
 

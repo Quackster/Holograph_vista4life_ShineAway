@@ -3,6 +3,7 @@ using System.Text;
 using System.Threading;
 
 using Holo.Managers;
+using Holo.Protocol;
 
 namespace Holo.Virtual.Users
 {
@@ -19,7 +20,7 @@ namespace Holo.Virtual.Users
         /// <param name="currentPacket">The packet to process.</param>
         private void processPacket(string currentPacket)
         {
-            Out.WriteSpecialLine(currentPacket.Replace(Convert.ToChar(13).ToString(), "{13}"), Out.logFlags.MehAction, ConsoleColor.DarkGray, ConsoleColor.DarkYellow, "< [" + Thread.GetDomainID() + "]", 2, ConsoleColor.Blue);
+            Out.WriteSpecialLine(currentPacket.Replace(HabboProtocol.RECORD_SEPARATOR.ToString(), "{13}"), Out.logFlags.MehAction, ConsoleColor.DarkGray, ConsoleColor.DarkYellow, "< [" + Thread.GetDomainID() + "]", 2, ConsoleColor.Blue);
             {
                 if (_isLoggedIn == false)
 
@@ -32,16 +33,35 @@ namespace Holo.Virtual.Users
                             break;
 
                         case "CN":
-                            sendData("DUIH");
+                            sendData(HabboPackets.SESSION_PARAMS_EXT);
                             break;
 
                         case "CJ":
-                            sendData("DAQBHHIIKHJIPAHQAdd-MM-yyyy" + Convert.ToChar(2) + "SAHPBhotel-co.uk" + Convert.ToChar(2) + "QBH");
-                            break;
+                            {
+                                var packet = new HabboPacketBuilder(HabboPackets.SESSION_PARAMS)
+                                    .Append("QBHHIIKHJIPAHQAdd-MM-yyyy")
+                                    .Separator()
+                                    .Append("SAHPBhotel-co.uk")
+                                    .Separator()
+                                    .Append("QBH");
+                                sendData(packet.Build());
+                                break;
+                            }
 
                         case "_R":
-                           sendData("DA" + "QBHIIIKHJIPAIQAdd-MM-yyyy" + Convert.ToChar(2) + "SAHPB/client" + Convert.ToChar(2) + "QBH" + "IJWVVVSNKQCFUBJASMSLKUUOJCOLJQPNSBIRSVQBRXZQOTGPMNJIHLVJCRRULBLUO" + Convert.ToChar(1)); // V25+ SSO LOGIN BY vista4life
-                           break;
+                            {
+                                // V25+ SSO LOGIN BY vista4life
+                                var packet = new HabboPacketBuilder(HabboPackets.SESSION_PARAMS)
+                                    .Append("QBHIIIKHJIPAIQAdd-MM-yyyy")
+                                    .Separator()
+                                    .Append("SAHPB/client")
+                                    .Separator()
+                                    .Append("QBH")
+                                    .Append("IJWVVVSNKQCFUBJASMSLKUUOJCOLJQPNSBIRSVQBRXZQOTGPMNJIHLVJCRRULBLUO")
+                                    .Append(HabboProtocol.PACKET_TERMINATOR);
+                                sendData(packet.Build());
+                                break;
+                            }
 
                         case "CL":
                             {
@@ -56,8 +76,8 @@ namespace Holo.Virtual.Users
                                 string banReason = userManager.getBanReason(myID);
                                 if (banReason != "")
                                 {
-                                    sendData("@c" + banReason);
-                                    Disconnect(1000);
+                                    sendData(HabboPackets.BAN_REASON + banReason);
+                                    Disconnect(HabboProtocol.DISCONNECT_DELAY_MS);
                                     return;
                                 }
                                 this.userID = myID;
@@ -71,31 +91,32 @@ namespace Holo.Virtual.Users
                                 userManager.addUser(myID, this);
                                 _isLoggedIn = true;
 
-                                sendData("@B" + rankManager.fuseRights(_Rank));
-                                sendData("DbIH");
-                                sendData("@C");
+                                sendData(HabboPackets.USER_RIGHTS + rankManager.fuseRights(_Rank));
+                                sendData(HabboPackets.SECOND_CONNECTION);
+                                sendData(HabboPackets.INIT_COMPLETE);
 
                                 int isguide = DB.runRead("SELECT guide FROM users WHERE id = '" + userID + "'", null);
 
                                 if (isguide == 1)
-                                    sendData("BKguide");
-                                sendData("Fi" + "I");
-                                sendData("FC");
+                                    sendData(HabboPackets.GUIDE_STATUS);
+                                sendData(HabboPackets.FILTER_STATUS + HabboProtocol.BOOL_TRUE);
+                                sendData(HabboPackets.FRIEND_CHECK);
 
                                 if (Config.enableWelcomeMessage)
-                                    sendData("BK" + stringManager.getString("welcomemessage_text"));
+                                    sendData(HabboPacketBuilder.SystemMessage(stringManager.getString("welcomemessage_text")));
 
                                 //Send list of ignored users
                                 int[] ignoredUsers = DB.runReadColumn("SELECT targetid FROM user_ignores WHERE userid = '" + userID + "'", 0, null);
                                 if (ignoredUsers.Length > 0)
                                 {
-                                    StringBuilder sb = new StringBuilder("Fd" + Encoding.encodeVL64(ignoredUsers.Length));
+                                    var ignoredPacket = new HabboPacketBuilder(HabboPackets.IGNORED_USERS)
+                                        .AppendVL64(ignoredUsers.Length);
                                     for (int x = 0; x < ignoredUsers.Length; x++)
                                     {
                                         ignoreList.Add(ignoredUsers[x]);
-                                        sb.Append(ignoredUsers[x] + Convert.ToChar(2));
+                                        ignoredPacket.Append(ignoredUsers[x]).Separator();
                                     }
-                                    sendData(sb.ToString());
+                                    sendData(ignoredPacket.Build());
                                 }
                                 break;
                             }
@@ -117,7 +138,7 @@ namespace Holo.Virtual.Users
                             return;
 
                         case "@q": // Client - request current date
-                            sendData("Bc" + DateTime.Today.ToShortDateString());
+                            sendData(HabboPackets.CURRENT_DATE + DateTime.Today.ToShortDateString());
                             return;
                     }
 

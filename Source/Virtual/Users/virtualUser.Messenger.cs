@@ -2,6 +2,7 @@ using System;
 using System.Text;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Users.Messenger;
 
 namespace Holo.Virtual.Users
@@ -20,64 +21,60 @@ namespace Holo.Virtual.Users
             switch (currentPacket.Substring(0, 2))
             {
                 case "Fs": //search console
-                    sendData("HR" + "L");
+                    sendData(HabboPackets.CONSOLE_SEARCH + "L");
                     break;
 
                 case "@i": // Search in console
                     {
-
                         // Variables
                         string Search = DB.Stripslash(currentPacket.Substring(4));
-                        string Packet = "Fs";
-                        string PacketFriends = "";
-                        string PacketOthers = "";
-                        string PacketAdd = "";
-                        int CountFriends = 0;
-                        int CountOthers = 0;
+                        var packetBuilder = new HabboPacketBuilder(HabboPackets.MESSENGER_SEARCH);
+                        var packetFriends = new HabboPacketBuilder();
+                        var packetOthers = new HabboPacketBuilder();
+                        int countFriends = 0;
+                        int countOthers = 0;
 
                         // Database
-                        string[] IDs = DB.runReadColumn("SELECT id FROM users WHERE name LIKE '%" + Search + "%'", 50);
+                        string[] IDs = DB.runReadColumn("SELECT id FROM users WHERE name LIKE '%" + Search + "%'", HabboProtocol.MESSENGER_SEARCH_LIMIT);
 
                         // Loop through results
                         for (int i = 0; i < IDs.Length; i++)
                         {
-
                             int thisID = Convert.ToInt16(IDs[i]);
                             bool online = userManager.containsUser(thisID);
-                            string onlineStr = online ? "I" : "H";
+                            string onlineStr = online ? HabboProtocol.BOOL_TRUE : HabboProtocol.BOOL_FALSE;
 
                             string[] row = DB.runReadRow("SELECT name, mission, lastvisit, figure FROM users WHERE id = " + thisID.ToString());
-                            PacketAdd = Encoding.encodeVL64(thisID)
-                                         + row[0] + ""
-                                         + row[1] + ""
-                                         + onlineStr + onlineStr + ""
-                                         + onlineStr + (online ? row[3] : "") + ""
-                                         + (online ? "" : row[2]) + "";
+                            var userEntry = new HabboPacketBuilder()
+                                .AppendVL64(thisID)
+                                .Append(row[0]).Separator()
+                                .Append(row[1]).Separator()
+                                .Append(onlineStr).Append(onlineStr).Separator()
+                                .Append(onlineStr).Append(online ? row[3] : "").Separator()
+                                .Append(online ? "" : row[2]).Separator();
 
                             // Friend or not?
                             if (Messenger.hasFriendship(thisID))
                             {
-                                CountFriends += 1;
-                                PacketFriends += PacketAdd;
+                                countFriends++;
+                                packetFriends.Append(userEntry.Build());
                             }
                             else
                             {
-                                CountOthers += 1;
-                                PacketOthers += PacketAdd;
+                                countOthers++;
+                                packetOthers.Append(userEntry.Build());
                             }
-
                         }
 
-                        // Add count headers
-                        PacketFriends = Encoding.encodeVL64(CountFriends) + PacketFriends;
-                        PacketOthers = Encoding.encodeVL64(CountOthers) + PacketOthers;
+                        // Build final packet: header + friend count + friends + other count + others
+                        packetBuilder.AppendVL64(countFriends)
+                            .Append(packetFriends.Build())
+                            .AppendVL64(countOthers)
+                            .Append(packetOthers.Build());
 
-                        // Merge packets
-                        Packet += PacketFriends + PacketOthers;
-
-                        Out.WriteLine(Packet);
-                        // Send packets
-                        sendData(Packet);
+                        string finalPacket = packetBuilder.Build();
+                        Out.WriteLine(finalPacket);
+                        sendData(finalPacket);
 
                         break;
                     }
@@ -93,7 +90,11 @@ namespace Holo.Virtual.Users
                             {
                                 int requestID = DB.runReadUnsafe("SELECT MAX(requestid) FROM messenger_friendrequests WHERE userid_to = '" + toID + "'", null) + 1;
                                 DB.runQuery("INSERT INTO messenger_friendrequests(userid_to,userid_from,requestid) VALUES ('" + toID + "','" + userID + "','" + requestID + "')");
-                                userManager.getUser(toID).sendData("BD" + "I" + _Username + Convert.ToChar(2) + userID + Convert.ToChar(2));
+                                var requestPacket = new HabboPacketBuilder(HabboPackets.BUDDY_REQUEST_SENT)
+                                    .Append(HabboProtocol.BOOL_TRUE)
+                                    .Append(_Username).Separator()
+                                    .Append(userID).Separator();
+                                userManager.getUser(toID).sendData(requestPacket.Build());
                             }
                         }
                         break;
@@ -113,7 +114,7 @@ namespace Holo.Virtual.Users
                             for (int i = 0; i < Amount; i++)
                             {
                                 if (currentPacket == "")
-                                    return;
+                                    return true;
                                 int requestID = Encoding.decodeVL64(currentPacket);
                                 int fromUserID = DB.runRead("SELECT userid_from FROM messenger_friendrequests WHERE userid_to = '" + this.userID + "' AND requestid = '" + requestID + "'", null);
                                 if (fromUserID == 0) // Corrupt data
@@ -133,7 +134,14 @@ namespace Holo.Virtual.Users
                             }
 
                             if (updateAmount > 0)
-                                sendData("@M" + "HH" + Encoding.encodeVL64(updateAmount) + Updates.ToString());
+                        {
+                            var updatePacket = new HabboPacketBuilder(HabboPackets.BUDDY_UPDATE)
+                                .Append(HabboProtocol.BOOL_FALSE)
+                                .Append(HabboProtocol.BOOL_FALSE)
+                                .AppendVL64(updateAmount)
+                                .Append(Updates.ToString());
+                            sendData(updatePacket.Build());
+                        }
                         }
                         break;
                     }
@@ -148,7 +156,7 @@ namespace Holo.Virtual.Users
                             for (int i = 0; i < Amount; i++)
                             {
                                 if (currentPacket == "")
-                                    return;
+                                    return true;
 
                                 int requestID = Encoding.decodeVL64(currentPacket);
                                 DB.runQuery("DELETE FROM messenger_friendrequests WHERE userid_to = '" + this.userID + "' AND requestid = '" + requestID + "' LIMIT 1");
@@ -181,9 +189,19 @@ namespace Holo.Virtual.Users
                             Message = stringManager.filterSwearwords(Message); // Filter swearwords
 
                             if (Messenger.containsOnlineBuddy(buddyID)) // Buddy online
-                                userManager.getUser(buddyID).sendData("BF" + Encoding.encodeVL64(userID) + Message + Convert.ToChar(2));
+                            {
+                                var msgPacket = new HabboPacketBuilder(HabboPackets.INSTANT_MESSAGE)
+                                    .AppendVL64(userID)
+                                    .Append(Message).Separator();
+                                userManager.getUser(buddyID).sendData(msgPacket.Build());
+                            }
                             else // Buddy offline (or user doesn't has user in buddylist)
-                                sendData("DE" + Encoding.encodeVL64(5) + Encoding.encodeVL64(userID));
+                            {
+                                var errorPacket = new HabboPacketBuilder(HabboPackets.MESSAGE_DELIVERY_ERROR)
+                                    .AppendVL64(5)
+                                    .AppendVL64(userID);
+                                sendData(errorPacket.Build());
+                            }
                         }
                         break;
                     }
@@ -191,7 +209,7 @@ namespace Holo.Virtual.Users
                 case "@O": // Messenger - refresh friendlist
                     {
                         if (Messenger != null)
-                            sendData("@M" + Messenger.getUpdates());
+                            sendData(HabboPackets.BUDDY_UPDATE + Messenger.getUpdates());
                         break;
                     }
 
@@ -208,10 +226,10 @@ namespace Holo.Virtual.Users
                                     virtualUser _User = userManager.getUser(ID);
                                     if (_User._roomID > 0) // User is in room
                                     {
-                                        if (_User._inPublicroom)
-                                            sendData("D^" + "I" + Encoding.encodeVL64(_User._roomID));
-                                        else
-                                            sendData("D^" + "H" + Encoding.encodeVL64(_User._roomID));
+                                        var followPacket = new HabboPacketBuilder(HabboPackets.FOLLOW_FRIEND)
+                                            .Append(_User._inPublicroom ? HabboProtocol.BOOL_TRUE : HabboProtocol.BOOL_FALSE)
+                                            .AppendVL64(_User._roomID);
+                                        sendData(followPacket.Build());
                                     }
                                     else // User is not in a room
                                         errorID = 2;
@@ -223,7 +241,7 @@ namespace Holo.Virtual.Users
                                 errorID = 0;
 
                             if (errorID != -1) // Error occured
-                                sendData("E]" + Encoding.encodeVL64(errorID));
+                                sendData(HabboPackets.FOLLOW_ERROR + Encoding.encodeVL64(errorID));
                         }
                         break;
                     }
@@ -239,7 +257,7 @@ namespace Holo.Virtual.Users
                             for (int i = 0; i < Amount; i++)
                             {
                                 if (currentPacket == "")
-                                    return;
+                                    return true;
 
                                 int ID = Encoding.decodeVL64(currentPacket);
                                 if (Messenger.hasFriendship(ID) && userManager.containsUser(ID))
@@ -249,9 +267,12 @@ namespace Holo.Virtual.Users
                             }
 
                             string Message = currentPacket.Substring(2);
-                            string Data = "BG" + Encoding.encodeVL64(userID) + Message + Convert.ToChar(2);
+                            var invitePacket = new HabboPacketBuilder(HabboPackets.INSTANT_MESSAGE_SENT)
+                                .AppendVL64(userID)
+                                .Append(Message).Separator();
+                            string inviteData = invitePacket.Build();
                             for (int i = 0; i < Amount; i++)
-                                userManager.getUser(IDs[i]).sendData(Data);
+                                userManager.getUser(IDs[i]).sendData(inviteData);
                         }
                         break;
                     }

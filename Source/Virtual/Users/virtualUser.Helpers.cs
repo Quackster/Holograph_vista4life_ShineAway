@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Threading;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Rooms;
 using Holo.Virtual.Users.Items;
 using Holo.Virtual.Users.Messenger;
@@ -22,11 +23,11 @@ namespace Holo.Virtual.Users
     {
         #region Update voids
         /// <summary>
-        /// Refreshes
+        /// Refreshes the user's appearance.
         /// </summary>
-        /// <param name="Reload">Specifies if the details have to be reloaded from database, or to use current _</param>
+        /// <param name="Reload">Specifies if the details have to be reloaded from database.</param>
         /// <param name="refreshSettings">Specifies if the @E packet (which contains username etc) has to be resent.</param>
-        ///<param name="refreshRoom">Specifies if the user has to be refreshed in room by using the 'poof' animation.</param>
+        /// <param name="refreshRoom">Specifies if the user has to be refreshed in room by using the 'poof' animation.</param>
         internal void refreshAppearance(bool Reload, bool refreshSettings, bool refreshRoom)
         {
             if (Reload)
@@ -38,12 +39,38 @@ namespace Holo.Virtual.Users
             }
 
             if (refreshSettings)
-                //sendData("@E" + connectionID + Convert.ToChar(2) + _Username + Convert.ToChar(2) + _Figure + Convert.ToChar(2) + _Sex + Convert.ToChar(2) + _Mission + Convert.ToChar(2) + Convert.ToChar(2) + "PCch=s02/53,51,44" + Convert.ToChar(2) + "HI");
-                sendData("@E" + userID + Convert.ToChar(2) + _Username + Convert.ToChar(2) + _Figure + Convert.ToChar(2) + _Sex + Convert.ToChar(2) + _Mission + Convert.ToChar(2) + "H" + Convert.ToChar(2) + "HH");
+            {
+                var packet = new HabboPacketBuilder(HabboPackets.USER_APPEARANCE)
+                    .Append(userID)
+                    .Separator()
+                    .Append(_Username)
+                    .Separator()
+                    .Append(_Figure)
+                    .Separator()
+                    .Append(_Sex)
+                    .Separator()
+                    .Append(_Mission)
+                    .Separator()
+                    .Append("H")
+                    .Separator()
+                    .Append("HH");
+                sendData(packet.Build());
+            }
 
             if (refreshRoom && Room != null && roomUser != null)
-                Room.sendData("DJ" + Encoding.encodeVL64(roomUser.roomUID) + _Figure + Convert.ToChar(2) + _Sex + Convert.ToChar(2) + _Mission + Convert.ToChar(2));
-                }
+            {
+                var roomPacket = new HabboPacketBuilder(HabboPackets.USER_APPEARANCE_ROOM)
+                    .AppendVL64(roomUser.roomUID)
+                    .Append(_Figure)
+                    .Separator()
+                    .Append(_Sex)
+                    .Separator()
+                    .Append(_Mission)
+                    .Separator();
+                Room.sendData(roomPacket.Build());
+            }
+        }
+
         /// <summary>
         /// Reloads the valueables (tickets and credits) from database and updates them for client.
         /// </summary>
@@ -54,15 +81,16 @@ namespace Holo.Virtual.Users
             if (Credits)
             {
                 _Credits = DB.runRead("SELECT credits FROM users WHERE id = '" + userID + "'", null);
-                sendData("@F" + _Credits);
+                sendData(HabboPacketBuilder.CreditsUpdate(_Credits));
             }
 
             if (Tickets)
             {
                 _Tickets = DB.runRead("SELECT tickets FROM users WHERE id = '" + userID + "'", null);
-                sendData("A|" + _Tickets);
+                sendData(HabboPacketBuilder.TicketsUpdate(_Tickets));
             }
         }
+
         /// <summary>
         /// Refreshes the users Club subscription status.
         /// </summary>
@@ -81,56 +109,103 @@ namespace Holo.Virtual.Users
             }
             else
                 _clubMember = false;
-            sendData("@Gclub_habbo" + Convert.ToChar(2) + Encoding.encodeVL64(restingDays) + Encoding.encodeVL64(passedMonths) + Encoding.encodeVL64(restingMonths) + Encoding.encodeVL64(1));
+
+            var packet = new HabboPacketBuilder(HabboPackets.CLUB_STATUS)
+                .Append("club_habbo")
+                .Separator()
+                .AppendVL64(restingDays)
+                .AppendVL64(passedMonths)
+                .AppendVL64(restingMonths)
+                .AppendVL64(1);
+            sendData(packet.Build());
         }
+
         /// <summary>
         /// Refreshes the user's badges.
         /// </summary>
         internal void refreshBadges()
         {
-            _Badges.Clear(); // Clear old badges
-            _badgeSlotIDs.Clear(); // Clear old badge IDs
+            _Badges.Clear();
+            _badgeSlotIDs.Clear();
 
             string[] myBadges = DB.runReadColumn("SELECT badge FROM users_badges WHERE userid = '" + userID + "' ORDER BY slotid ASC", 0);
             int[] myBadgeSlotIDs = DB.runReadColumn("SELECT slotid FROM users_badges WHERE userid = '" + userID + "' ORDER BY slotid ASC", 0, null);
 
-            StringBuilder sbMessage = new StringBuilder();
-            sbMessage.Append(Encoding.encodeVL64(myBadges.Length)); // Total amount of badges
+            var sbMessage = new HabboPacketBuilder()
+                .AppendVL64(myBadges.Length);
+
             for (int i = 0; i < myBadges.Length; i++)
             {
-                sbMessage.Append(myBadges[i]);
-                sbMessage.Append(Convert.ToChar(2));
-
+                sbMessage.AppendField(myBadges[i]);
                 _Badges.Add(myBadges[i]);
             }
 
             for (int i = 0; i < myBadges.Length; i++)
             {
-                if (myBadgeSlotIDs[i] > 0) // Badge enabled!
+                if (myBadgeSlotIDs[i] > 0)
                 {
-                    sbMessage.Append(Encoding.encodeVL64(myBadgeSlotIDs[i]));
-                    sbMessage.Append(myBadges[i]);
-                    sbMessage.Append(Convert.ToChar(2));
-
+                    sbMessage.AppendVL64(myBadgeSlotIDs[i])
+                        .AppendField(myBadges[i]);
                     _badgeSlotIDs.Add(myBadgeSlotIDs[i]);
                 }
                 else
-                    _badgeSlotIDs.Add(0); // :(
+                    _badgeSlotIDs.Add(0);
             }
 
-            sendData("Ce" + sbMessage.ToString());
-            sendData("Ft" + "SHJIACH_Graduate1" + Convert.ToChar(2) + "PAIACH_Login1" + Convert.ToChar(2) + "PAJACH_Login2" + Convert.ToChar(2) + "PAKACH_Login3" + Convert.ToChar(2) + "PAPAACH_Login4" + Convert.ToChar(2) + "PAQAACH_Login5" + Convert.ToChar(2) + "PBIACH_RoomEntry1" + Convert.ToChar(2) + "PBJACH_RoomEntry2" + Convert.ToChar(2) + "PBKACH_RoomEntry3" + Convert.ToChar(2) + "SBRAACH_RegistrationDuration6" + Convert.ToChar(2) + "SBSAACH_RegistrationDuration7" + Convert.ToChar(2) + "SBPBACH_RegistrationDuration8" + Convert.ToChar(2) + "SBQBACH_RegistrationDuration9" + Convert.ToChar(2) + "SBRBACH_RegistrationDuration10" + Convert.ToChar(2) + "RAIACH_AvatarLooks1" + Convert.ToChar(2) + "IJGLB" + Convert.ToChar(2) + "IKGLC" + Convert.ToChar(2) + "IPAGLD" + Convert.ToChar(2) + "IQAGLE" + Convert.ToChar(2) + "IRAGLF" + Convert.ToChar(2) + "ISAGLG" + Convert.ToChar(2) + "IPBGLH" + Convert.ToChar(2) + "IQBGLI" + Convert.ToChar(2) + "IRBGLJ" + Convert.ToChar(2) + "SAIACH_Student1" + Convert.ToChar(2) + "PCIHC1" + Convert.ToChar(2) + "PCJHC2" + Convert.ToChar(2) + "PCKHC3" + Convert.ToChar(2) + "PCPAHC4" + Convert.ToChar(2) + "PCQAHC5" + Convert.ToChar(2) + "QAIACH_GamePlayed1" + Convert.ToChar(2) + "QAJACH_GamePlayed2" + Convert.ToChar(2) + "QAKACH_GamePlayed3" + Convert.ToChar(2) + "QAPAACH_GamePlayed4" + Convert.ToChar(2) + "QAQAACH_GamePlayed5" + Convert.ToChar(2));
-            sendData("Dt" + "IH" + Convert.ToChar(1) + "FCH");
+            sendData(HabboPackets.BADGE_LIST + sbMessage.Build());
+
+            // Achievement tokens packet - static data
+            var achievementPacket = new HabboPacketBuilder(HabboPackets.ACHIEVEMENT_TOKENS)
+                .AppendField("SHJIACH_Graduate1")
+                .AppendField("PAIACH_Login1")
+                .AppendField("PAJACH_Login2")
+                .AppendField("PAKACH_Login3")
+                .AppendField("PAPAACH_Login4")
+                .AppendField("PAQAACH_Login5")
+                .AppendField("PBIACH_RoomEntry1")
+                .AppendField("PBJACH_RoomEntry2")
+                .AppendField("PBKACH_RoomEntry3")
+                .AppendField("SBRAACH_RegistrationDuration6")
+                .AppendField("SBSAACH_RegistrationDuration7")
+                .AppendField("SBPBACH_RegistrationDuration8")
+                .AppendField("SBQBACH_RegistrationDuration9")
+                .AppendField("SBRBACH_RegistrationDuration10")
+                .AppendField("RAIACH_AvatarLooks1")
+                .AppendField("IJGLB")
+                .AppendField("IKGLC")
+                .AppendField("IPAGLD")
+                .AppendField("IQAGLE")
+                .AppendField("IRAGLF")
+                .AppendField("ISAGLG")
+                .AppendField("IPBGLH")
+                .AppendField("IQBGLI")
+                .AppendField("IRBGLJ")
+                .AppendField("SAIACH_Student1")
+                .AppendField("PCIHC1")
+                .AppendField("PCJHC2")
+                .AppendField("PCKHC3")
+                .AppendField("PCPAHC4")
+                .AppendField("PCQAHC5")
+                .AppendField("QAIACH_GamePlayed1")
+                .AppendField("QAJACH_GamePlayed2")
+                .AppendField("QAKACH_GamePlayed3")
+                .AppendField("QAPAACH_GamePlayed4")
+                .AppendField("QAQAACH_GamePlayed5");
+            sendData(achievementPacket.Build());
+
+            sendData(HabboPackets.ACHIEVEMENT_DISPLAY + "IH" + HabboProtocol.PACKET_TERMINATOR + "FCH");
         }
+
         /// <summary>
         /// Refreshes the user's group status.
         /// </summary>
         internal void refreshGroupStatus()
         {
             _groupID = DB.runReadUnsafe("SELECT groupid FROM groups_memberships WHERE userid = '" + userID + "' AND is_current = '1'", null);
-            if (_groupID > 0) // User is member of a group
+            if (_groupID > 0)
                 _groupMemberRank = Holo.DB.runRead("SELECT member_rank FROM groups_memberships WHERE userid = '" + userID + "' AND groupID = '" + _groupID + "'", null);
         }
+
         /// <summary>
         /// Refreshes the Hand, which contains virtual items, with a specified mode.
         /// </summary>
@@ -138,7 +213,7 @@ namespace Holo.Virtual.Users
         internal void refreshHand(string Mode)
         {
             int[] itemIDs = DB.runReadColumn("SELECT id FROM furniture WHERE ownerid = '" + userID + "' AND roomid = '0' ORDER BY id ASC", 0, null);
-            StringBuilder Hand = new StringBuilder("BL");
+            var Hand = new HabboPacketBuilder(HabboPackets.INVENTORY_HAND);
             int startID = 0;
             int stopID = itemIDs.Length;
 
@@ -151,11 +226,11 @@ namespace Holo.Virtual.Users
                     _handPage--;
                     break;
                 case "last":
-                    _handPage = (stopID - 1) / 9;
+                    _handPage = (stopID - 1) / HabboProtocol.HAND_PAGE_SIZE;
                     break;
-                case "update": // Nothing, keep handpage the same
+                case "update":
                     break;
-                default: // Probably, "new"
+                default:
                     _handPage = 0;
                     break;
             }
@@ -165,37 +240,61 @@ namespace Holo.Virtual.Users
                 if (itemIDs.Length > 0)
                 {
                 reCount:
-                    startID = _handPage * 9;
-                    if (stopID > (startID + 9)) { stopID = startID + 9; }
+                    startID = _handPage * HabboProtocol.HAND_PAGE_SIZE;
+                    if (stopID > (startID + HabboProtocol.HAND_PAGE_SIZE)) { stopID = startID + HabboProtocol.HAND_PAGE_SIZE; }
                     if (startID > stopID || startID == stopID) { _handPage--; goto reCount; }
 
                     for (int i = startID; i < stopID; i++)
                     {
                         int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemIDs[i] + "'", null);
                         catalogueManager.itemTemplate Template = catalogueManager.getTemplate(templateID);
-                        char Recycleable = '1';
-                        if (Template.isRecycleable == false)
-                            Recycleable = '0';
+                        char Recycleable = Template.isRecycleable ? '1' : '0';
 
                         if (Template.typeID == 0) // Wallitem
                         {
                             string Colour = Template.Colour;
-                            if (Template.Sprite == "post.it" || Template.Sprite == "post.it.vd") // Stickies - pad size
+                            if (Template.Sprite == "post.it" || Template.Sprite == "post.it.vd")
                                 Colour = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemIDs[i] + "'");
-                            Hand.Append("SI" + Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + i + Convert.ToChar(30).ToString() + "I" + Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + Template.Sprite + Convert.ToChar(30).ToString() + Colour + Convert.ToChar(30).ToString() + Recycleable + "/");
+
+                            Hand.StartInventoryItem()
+                                .AppendItemField(itemIDs[i])
+                                .AppendItemField(i)
+                                .AppendItemField("I")
+                                .AppendItemField(itemIDs[i])
+                                .AppendItemField(Template.Sprite)
+                                .AppendItemField(Colour)
+                                .Append(Recycleable)
+                                .AppendSlashTerminated("");
                         }
                         else // Flooritem
-                            Hand.Append("SI" + Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + i + Convert.ToChar(30).ToString() + "S" + Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + Template.Sprite + Convert.ToChar(30).ToString() + Template.Length + Convert.ToChar(30).ToString() + Template.Width + Convert.ToChar(30).ToString() + DB.runRead("SELECT var FROM furniture WHERE id = '" + itemIDs[i] + "'") + Convert.ToChar(30).ToString() + Template.Colour + Convert.ToChar(30).ToString() + Recycleable + Convert.ToChar(30).ToString() + Template.Sprite + Convert.ToChar(30).ToString() + "/");
+                        {
+                            string itemVar = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemIDs[i] + "'");
+                            Hand.StartInventoryItem()
+                                .AppendItemField(itemIDs[i])
+                                .AppendItemField(i)
+                                .AppendItemField("S")
+                                .AppendItemField(itemIDs[i])
+                                .AppendItemField(Template.Sprite)
+                                .AppendItemField(Template.Length)
+                                .AppendItemField(Template.Width)
+                                .AppendItemField(itemVar)
+                                .AppendItemField(Template.Colour)
+                                .AppendItemField(Recycleable.ToString())
+                                .Append(Template.Sprite)
+                                .ItemSeparator()
+                                .AppendSlashTerminated("");
+                        }
                     }
                 }
-                Hand.Append(Convert.ToChar(13).ToString() + itemIDs.Length);
-                sendData(Hand.ToString());
+                Hand.RecordSeparator().Append(itemIDs.Length);
+                sendData(Hand.Build());
             }
             catch
             {
-                sendData("BL" + Convert.ToChar(13) + "0");
+                sendData(HabboPackets.INVENTORY_HAND + HabboProtocol.RECORD_SEPARATOR + "0");
             }
         }
+
         /// <summary>
         /// Refreshes the trade window for the user.
         /// </summary>
@@ -204,18 +303,29 @@ namespace Holo.Virtual.Users
             if (Room != null && Room.containsUser(_tradePartnerRoomUID) && roomUser != null)
             {
                 virtualUser Partner = Room.getUser(_tradePartnerRoomUID);
-                StringBuilder tradeBoxes = new StringBuilder("Al" + _Username + Convert.ToChar(9) + _tradeAccept.ToString().ToLower() + Convert.ToChar(9));
-                if (_tradeItemCount > 0)
-                    tradeBoxes.Append(catalogueManager.tradeItemList(_tradeItems));
 
-                tradeBoxes.Append(Convert.ToChar(13) + Partner._Username + Convert.ToChar(9) + Partner._tradeAccept.ToString().ToLower() + Convert.ToChar(9));
+                var tradePacket = new HabboPacketBuilder(HabboPackets.TRADE_COMPLETE)
+                    .Append(_Username)
+                    .TabSeparator()
+                    .Append(_tradeAccept.ToString().ToLower())
+                    .TabSeparator();
+
+                if (_tradeItemCount > 0)
+                    tradePacket.Append(catalogueManager.tradeItemList(_tradeItems));
+
+                tradePacket.RecordSeparator()
+                    .Append(Partner._Username)
+                    .TabSeparator()
+                    .Append(Partner._tradeAccept.ToString().ToLower())
+                    .TabSeparator();
 
                 if (Partner._tradeItemCount > 0)
-                    tradeBoxes.Append(catalogueManager.tradeItemList(Partner._tradeItems));
+                    tradePacket.Append(catalogueManager.tradeItemList(Partner._tradeItems));
 
-                sendData(tradeBoxes.ToString());
+                sendData(tradePacket.Build());
             }
         }
+
         /// <summary>
         /// Aborts the trade between this user and his/her partner.
         /// </summary>
@@ -224,21 +334,21 @@ namespace Holo.Virtual.Users
             if (Room != null && Room.containsUser(_tradePartnerRoomUID) && roomUser != null)
             {
                 virtualUser Partner = Room.getUser(_tradePartnerRoomUID);
-                this.sendData("An");
+                this.sendData(HabboPackets.TRADE_ABORT);
                 this.refreshHand("update");
-                Partner.sendData("An");
+                Partner.sendData(HabboPackets.TRADE_ABORT);
                 Partner.refreshHand("update");
 
                 this._tradePartnerRoomUID = -1;
                 this._tradeAccept = false;
-                this._tradeItems = new int[65];
+                this._tradeItems = new int[HabboProtocol.TRADE_ITEMS_MAX];
                 this._tradeItemCount = 0;
                 this.statusManager.removeStatus("trd");
                 this.roomUser.Refresh();
 
                 Partner._tradePartnerRoomUID = -1;
                 Partner._tradeAccept = false;
-                Partner._tradeItems = new int[65];
+                Partner._tradeItems = new int[HabboProtocol.TRADE_ITEMS_MAX];
                 Partner._tradeItemCount = 0;
                 Partner.statusManager.removeStatus("trd");
                 Partner.roomUser.Refresh();
@@ -248,26 +358,26 @@ namespace Holo.Virtual.Users
 
         #region Misc voids - Game and Teleporter
         /// <summary>
-        /// Checks if the user is involved with a 'BattleBall' or 'SnowStorm' game. If so, then the removal procedure is invoked. If the user is the owner of the game, then the game will be aborted.
+        /// Checks if the user is involved with a 'BattleBall' or 'SnowStorm' game. If so, then the removal procedure is invoked.
         /// </summary>
         internal void leaveGame()
         {
             if (gamePlayer != null && gamePlayer.Game != null)
             {
-                if (gamePlayer.Game.Owner == gamePlayer) // Owner leaves game
+                if (gamePlayer.Game.Owner == gamePlayer)
                 {
                     try { gamePlayer.Game.Lobby.Games.Remove(gamePlayer.Game.ID); }
-                    catch {}
+                    catch { }
                     gamePlayer.Game.Abort();
-                    sendData("FS");
+                    sendData(HabboPackets.GAME_PLAYER_EXIT);
                 }
-                else if (gamePlayer.teamID != -1) // Team member leaves game
+                else if (gamePlayer.teamID != -1)
                     gamePlayer.Game.movePlayer(gamePlayer, gamePlayer.teamID, -1);
                 else
                 {
                     gamePlayer.Game.Subviewers.Remove(gamePlayer);
-                    sendData("Cm" + "H");
-                    sendData("FS");
+                    sendData(HabboPackets.GAME_ENDED + HabboProtocol.BOOL_FALSE);
+                    sendData(HabboPackets.GAME_PLAYER_EXIT);
                 }
             }
             this.gamePlayer = null;
@@ -278,12 +388,12 @@ namespace Holo.Virtual.Users
         {
             roomUser.walkLock = true;
             string Sprite = Teleporter1.Sprite;
-            if (roomIDTeleporter2 == _roomID) // Partner teleporter is in same room, don't leave room
+            if (roomIDTeleporter2 == _roomID)
             {
                 Rooms.Items.floorItem Teleporter2 = Room.floorItemManager.getItem(idTeleporter2);
                 Thread.Sleep(500);
-                Room.sendData("AY" + Teleporter1.ID + "/" + _Username + "/" + Sprite);
-                Room.sendData(@"A\" + Teleporter2.ID + "/" + _Username + "/" + Sprite);
+                Room.sendData(HabboPackets.TELEPORTER_ENTER + Teleporter1.ID + "/" + _Username + "/" + Sprite);
+                Room.sendData(HabboPackets.TELEPORTER_EXIT + Teleporter2.ID + "/" + _Username + "/" + Sprite);
                 roomUser.X = Teleporter2.X;
                 roomUser.Y = Teleporter2.Y;
                 roomUser.H = Teleporter2.H;
@@ -292,11 +402,14 @@ namespace Holo.Virtual.Users
                 roomUser.Refresh();
                 roomUser.walkLock = false;
             }
-            else // Partner teleporter is in different room
+            else
             {
                 _teleporterID = idTeleporter2;
-                sendData("@~" + Encoding.encodeVL64(idTeleporter2) + Encoding.encodeVL64(roomIDTeleporter2));
-                Room.sendData("AY" + Teleporter1.ID + "/" + _Username + "/" + Sprite);
+                var packet = new HabboPacketBuilder(HabboPackets.TELEPORTER_DEST)
+                    .AppendVL64(idTeleporter2)
+                    .AppendVL64(roomIDTeleporter2);
+                sendData(packet.Build());
+                Room.sendData(HabboPackets.TELEPORTER_ENTER + Teleporter1.ID + "/" + _Username + "/" + Sprite);
             }
         }
         #endregion
