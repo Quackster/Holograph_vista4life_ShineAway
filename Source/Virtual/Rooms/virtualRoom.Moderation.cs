@@ -5,6 +5,7 @@ using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms.Bots;
+using Holo.Data.Repositories.Bots;
 
 namespace Holo.Virtual.Rooms;
 
@@ -65,7 +66,7 @@ public partial class virtualRoom
     #region Bot loading and deloading
     internal void loadBots()
     {
-        int[] IDs = DB.runReadColumn("SELECT id FROM roombots WHERE roomid = '" + this.roomID + "'", 0, null);
+        int[] IDs = BotRepository.Instance.GetRoomBotIds(this.roomID);
         for (int i = 0; i < IDs.Length; i++)
         {
             var roomBot = new virtualBot(IDs[i], getFreeRoomIdentifier(), this);

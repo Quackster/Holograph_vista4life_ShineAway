@@ -1,6 +1,10 @@
 using System;
 using System.Text;
 
+using Holo.Data.Repositories.Catalogue;
+using Holo.Data.Repositories.Furniture;
+using Holo.Data.Repositories.Rooms;
+using Holo.Data.Repositories.Users;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Rooms;
@@ -43,9 +47,9 @@ namespace Holo.Virtual.Users
                         string[] packetContent = currentPacket.Split(Convert.ToChar(13));
                         string Page = packetContent[1];
                         string Item = packetContent[3];
-                        int pageID = DB.runRead("SELECT indexid FROM catalogue_pages WHERE indexname = '" + DB.Stripslash(Page) + "' AND minrank <= " + _Rank, null);
-                        int templateID = DB.runRead("SELECT tid FROM catalogue_items WHERE name_cct = '" + DB.Stripslash(Item) + "'", null);
-                        int Cost = DB.runRead("SELECT catalogue_cost FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' AND tid = '" + templateID + "'", null);
+                        int pageID = CatalogueRepository.Instance.GetPageIdByIndexName(Page, _Rank);
+                        int templateID = CatalogueRepository.Instance.GetTemplateIdByCct(Item);
+                        int Cost = CatalogueRepository.Instance.GetItemCostByPageAndTemplate(pageID, templateID);
                         if (Cost == 0 || Cost > _Credits) { sendData("AD"); return true; }
 
                         int receiverID = userID;
@@ -57,7 +61,7 @@ namespace Holo.Virtual.Users
                             string receiverName = packetContent[6];
                             if (receiverName != _Username)
                             {
-                                int i = DB.runRead("SELECT id FROM users WHERE name = '" + DB.Stripslash(receiverName) + "'", null);
+                                int i = UserRepository.Instance.GetUserId(receiverName);
                                 if (i > 0)
                                     receiverID = i;
                                 else
@@ -68,33 +72,32 @@ namespace Holo.Virtual.Users
                             }
 
                             string boxSprite = "present_gen" + new Random().Next(1, 7);
-                            string boxTemplateID = DB.runRead("SELECT tid FROM catalogue_items WHERE name_cct = '" + boxSprite + "'");
-                            string boxNote = DB.Stripslash(stringManager.filterSwearwords(packetContent[7]));
-                            DB.runQuery("INSERT INTO furniture(tid,ownerid,var) VALUES ('" + boxTemplateID + "','" + receiverID + "','!" + boxNote + "')");
-                            presentBoxID = catalogueManager.lastItemID;
+                            int boxTemplateID = CatalogueRepository.Instance.GetTemplateIdByCct(boxSprite);
+                            string boxNote = stringManager.filterSwearwords(packetContent[7]);
+                            presentBoxID = (int)FurnitureRepository.Instance.CreateItemWithVar(boxTemplateID, receiverID, "!" + boxNote);
                             roomID = -1;
                         }
 
                         _Credits -= Cost;
                         sendData(new HabboPacketBuilder("@F").Append(_Credits).Build());
-                        DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
+                        UserRepository.Instance.UpdateCredits(userID, _Credits);
 
                         if (stringManager.getStringPart(Item, 0, 4) == "deal")
                         {
                             int dealID = int.Parse(Item.Substring(4));
-                            int[] itemIDs = DB.runReadColumn("SELECT tid FROM catalogue_deals WHERE id = '" + dealID + "'", 0, null);
-                            int[] itemAmounts = DB.runReadColumn("SELECT amount FROM catalogue_deals WHERE id = '" + dealID + "'", 0, null);
+                            int[] itemIDs = CatalogueRepository.Instance.GetDealItemIds(dealID);
+                            int[] itemAmounts = CatalogueRepository.Instance.GetDealItemAmounts(dealID);
 
                             for (int i = 0; i < itemIDs.Length; i++)
                                 for (int j = 1; j <= itemAmounts[i]; j++)
                                 {
-                                    DB.runQuery("INSERT INTO furniture(tid,ownerid,roomid) VALUES ('" + itemIDs[i] + "','" + receiverID + "','" + roomID + "')");
+                                    FurnitureRepository.Instance.CreateItem(itemIDs[i], receiverID, roomID);
                                     catalogueManager.handlePurchase(itemIDs[i], receiverID, roomID, 0, presentBoxID);
                                 }
                         }
                         else
                         {
-                            DB.runQuery("INSERT INTO furniture(tid,ownerid,roomid) VALUES ('" + templateID + "','" + receiverID + "','" + roomID + "')");
+                            FurnitureRepository.Instance.CreateItem(templateID, receiverID, roomID);
                             if (catalogueManager.getTemplate(templateID).Sprite == "wallpaper" || catalogueManager.getTemplate(templateID).Sprite == "floor" || catalogueManager.getTemplate(templateID).Sprite.Contains("landscape"))
                             {
                                 string decorID = packetContent[4];
@@ -102,19 +105,19 @@ namespace Holo.Virtual.Users
                             }
                             else if (stringManager.getStringPart(Item, 0, 11) == "prizetrophy")
                             {
-                                string Inscription = DB.Stripslash(stringManager.filterSwearwords(packetContent[4]));
+                                string Inscription = stringManager.filterSwearwords(packetContent[4]);
                                 //string itemVariable = _Username + Convert.ToChar(9) + DateTime.Today.ToShortDateString() + Convert.ToChar(9) + Inscription;
                                 string itemVariable = _Username + "\t" + DateTime.Today.ToShortDateString().Replace('/', '-') + "\t" + packetContent[4];
-                                DB.runQuery("UPDATE furniture SET var = '" + itemVariable + "' WHERE id = '" + catalogueManager.lastItemID + "' LIMIT 1");
+                                FurnitureRepository.Instance.UpdateVar(catalogueManager.lastItemID, itemVariable);
                                 //"H" + GIVERNAME + [09] + GIVEDATE + [09] + MSG
                                 catalogueManager.handlePurchase(templateID, receiverID, 0, "0", presentBoxID);
                             }
                             else if (stringManager.getStringPart(Item, 0, 11) == "greektrophy")
                             {
-                                string Inscription = DB.Stripslash(stringManager.filterSwearwords(packetContent[4]));
+                                string Inscription = stringManager.filterSwearwords(packetContent[4]);
                                 //string itemVariable = _Username + Convert.ToChar(9) + DateTime.Today.ToShortDateString() + Convert.ToChar(9) + Inscription;
                                 string itemVariable = _Username + "\t" + DateTime.Today.ToShortDateString().Replace('/', '-') + "\t" + packetContent[4];
-                                DB.runQuery("UPDATE furniture SET var = '" + itemVariable + "' WHERE id = '" + catalogueManager.lastItemID + "' LIMIT 1");
+                                FurnitureRepository.Instance.UpdateVar(catalogueManager.lastItemID, itemVariable);
                                 //"H" + GIVERNAME + [09] + GIVEDATE + [09] + MSG
                                 catalogueManager.handlePurchase(templateID, receiverID, 0, "0", presentBoxID);
                             }
@@ -144,9 +147,9 @@ namespace Holo.Virtual.Users
                             for (int i = 0; i < itemCount; i++)
                             {
                                 int itemID = Encoding.decodeVL64(currentPacket);
-                                if (DB.checkExists("SELECT id FROM furniture WHERE ownerid = '" + userID + "' AND roomid = '0'"))
+                                if (FurnitureRepository.Instance.HasItemInHand(userID))
                                 {
-                                    DB.runQuery("UPDATE furniture SET roomid = '-2' WHERE id = '" + itemID + "' LIMIT 1");
+                                    FurnitureRepository.Instance.MoveItemToRecycler(itemID);
                                     currentPacket = currentPacket.Substring(Encoding.encodeVL64(itemID).Length);
                                 }
                                 else
@@ -215,15 +218,20 @@ namespace Holo.Virtual.Users
                         if (decorType != "wallpaper" && decorType != "floor" && decorType != "landscape")
                             return true;
 
-                        int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemID + "' AND ownerid = '" + userID + "' AND roomid = '0'", null);
+                        int templateID = FurnitureRepository.Instance.GetHandItemTemplateId(itemID, userID);
                         if (catalogueManager.getTemplate(templateID).Sprite != decorType)
                             return true;
 
-                        string decorVal = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
-                        DB.runQuery("UPDATE rooms SET " + decorType + " = '" + decorVal + "' WHERE id = '" + _roomID + "' LIMIT 1");
-                        Room.sendData(new HabboPacketBuilder("@n").Append(decorType).Append("/").Append(decorVal).Build());
+                        string? decorVal = FurnitureRepository.Instance.GetVar(itemID);
+                        if (decorType == "wallpaper")
+                            RoomRepository.Instance.UpdateWallpaper(_roomID, decorVal ?? "");
+                        else if (decorType == "floor")
+                            RoomRepository.Instance.UpdateFloor(_roomID, decorVal ?? "");
+                        else if (decorType == "landscape")
+                            RoomRepository.Instance.UpdateLandscape(_roomID, decorVal ?? "");
+                        Room.sendData(new HabboPacketBuilder("@n").Append(decorType).Append("/").Append(decorVal ?? "").Build());
 
-                        DB.runQuery("DELETE FROM furniture WHERE id = '" + itemID + "' LIMIT 1");
+                        FurnitureRepository.Instance.DeleteItem(itemID);
                     }
                     break;
 
@@ -233,7 +241,7 @@ namespace Holo.Virtual.Users
                             return true;
 
                         int itemID = int.Parse(currentPacket.Split(' ')[0].Substring(2));
-                        int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemID + "' AND ownerid = '" + userID + "' AND roomid = '0'", null);
+                        int templateID = FurnitureRepository.Instance.GetHandItemTemplateId(itemID, userID);
                         if (templateID == 0)
                             return true;
 
@@ -244,20 +252,19 @@ namespace Holo.Virtual.Users
                             if (_CHECKEDPOS != _INPUTPOS)
                                 return true;
 
-                            string Var = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
+                            string? Var = FurnitureRepository.Instance.GetVar(itemID);
                             if (stringManager.getStringPart(catalogueManager.getTemplate(templateID).Sprite, 0, 7) == "post.it")
                             {
-                                if (int.Parse(Var) > 1)
-                                    DB.runQuery("UPDATE furniture SET var = var - 1 WHERE id = '" + itemID + "' LIMIT 1");
+                                if (int.Parse(Var ?? "0") > 1)
+                                    FurnitureRepository.Instance.DecrementPostItStack(itemID);
                                 else
-                                    DB.runQuery("DELETE FROM furniture WHERE id = '" + itemID + "' LIMIT 1");
-                                DB.runQuery("INSERT INTO furniture(tid,ownerid) VALUES ('" + templateID + "','" + userID + "')");
-                                itemID = catalogueManager.lastItemID;
-                                DB.runQuery("INSERT INTO furniture_stickies(id) VALUES ('" + itemID + "')");
+                                    FurnitureRepository.Instance.DeleteItem(itemID);
+                                itemID = (int)FurnitureRepository.Instance.CreateItem(templateID, userID);
+                                FurnitureExtrasRepository.Instance.CreateSticky(itemID);
                                 Var = "FFFF33";
-                                DB.runQuery("UPDATE furniture SET var = '" + Var + "' WHERE id = '" + itemID + "' LIMIT 1");
+                                FurnitureRepository.Instance.UpdateVar(itemID, Var);
                             }
-                            Room.wallItemManager.addItem(itemID, templateID, _CHECKEDPOS, Var, true);
+                            Room.wallItemManager.addItem(itemID, templateID, _CHECKEDPOS, Var ?? "", true);
                         }
                         else
                         {
@@ -338,14 +345,14 @@ namespace Holo.Virtual.Users
                         if (Room.floorItemManager.containsItem(itemID) == false)
                             return true;
 
-                        int[] itemIDs = DB.runReadColumn("SELECT itemid FROM furniture_presents WHERE id = '" + itemID + "'", 0, null);
+                        int[] itemIDs = FurnitureExtrasRepository.Instance.GetPresentItems(itemID);
                         if (itemIDs.Length > 0)
                         {
                             for (int i = 0; i < itemIDs.Length; i++)
-                                DB.runQuery("UPDATE furniture SET roomid = '0' WHERE id = '" + itemIDs[i] + "' LIMIT 1");
+                                FurnitureRepository.Instance.MoveItemToHand(itemIDs[i]);
                             Room.floorItemManager.removeItem(itemID, 0);
 
-                            int lastItemTID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemIDs[itemIDs.Length - 1] + "'", null);
+                            int lastItemTID = FurnitureRepository.Instance.GetTemplateId(itemIDs[itemIDs.Length - 1]);
                             catalogueManager.itemTemplate Template = catalogueManager.getTemplate(lastItemTID);
 
                             if (Template.typeID > 0)
@@ -362,8 +369,8 @@ namespace Holo.Virtual.Users
                                     .Append(Template.Sprite).Append(" ").Append(Template.Colour).RecordSeparator()
                                     .Build());
                         }
-                        DB.runQuery("DELETE FROM furniture_presents WHERE id = '" + itemID + "' LIMIT " + itemIDs.Length);
-                        DB.runQuery("DELETE FROM furniture WHERE id = '" + itemID + "' LIMIT 1");
+                        FurnitureExtrasRepository.Instance.DeletePresent(itemID);
+                        FurnitureRepository.Instance.DeleteItem(itemID);
                         refreshHand("last");
                         break;
                     }
@@ -387,7 +394,7 @@ namespace Holo.Virtual.Users
 
                             _Credits += redeemValue;
                             sendData(new HabboPacketBuilder("@F").Append(_Credits).Build());
-                            DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
+                            UserRepository.Instance.UpdateCredits(userID, _Credits);
                         }
                         break;
                     }
@@ -424,10 +431,10 @@ namespace Holo.Virtual.Users
                             if (roomUser.X != Teleporter1.X && roomUser.Y != Teleporter1.Y)
                                 return true;
 
-                            int idTeleporter2 = DB.runRead("SELECT teleportid FROM furniture WHERE id = '" + itemID + "'", null);
-                            int roomIDTeleporter2 = DB.runRead("SELECT roomid FROM furniture WHERE id = '" + idTeleporter2 + "'", null);
+                            int idTeleporter2 = FurnitureRepository.Instance.GetTeleporterId(itemID);
+                            int roomIDTeleporter2 = FurnitureRepository.Instance.GetItemRoomId(idTeleporter2);
                             if (roomIDTeleporter2 > 0)
-                                new TeleporterUsageSleep(useTeleporter).BeginInvoke(Teleporter1, idTeleporter2, roomIDTeleporter2, null, null);
+                                _ = UseTeleporterAsync(Teleporter1, idTeleporter2, roomIDTeleporter2);
                         }
                         break;
                     }
@@ -449,7 +456,7 @@ namespace Holo.Virtual.Users
                             {
                                 Item.Var = "0";
                                 Room.sendData(new HabboPacketBuilder("AZ").Append(itemID).Append(" ").Append(itemID * 38).Build());
-                                DB.runQuery("UPDATE furniture SET var = '0' WHERE id = '" + itemID + "' LIMIT 1");
+                                FurnitureRepository.Instance.UpdateVar(itemID, "0");
                             }
                         }
                         break;
@@ -475,7 +482,7 @@ namespace Holo.Virtual.Users
                                 int rndNum = new Random(DateTime.Now.Millisecond).Next(1, 7);
                                 Room.sendData(new HabboPacketBuilder("AZ").Append(itemID).Append(" ").Append((itemID * 38) + rndNum).Build(), 2000);
                                 Item.Var = rndNum.ToString();
-                                DB.runQuery("UPDATE furniture SET var = '" + rndNum + "' WHERE id = '" + itemID + "' LIMIT 1");
+                                FurnitureRepository.Instance.UpdateVar(itemID, rndNum.ToString());
                             }
                         }
                         break;
@@ -503,7 +510,7 @@ namespace Holo.Virtual.Users
                                     .Append("habbowheel").TabSeparator()
                                     .Append(" ").Append(Item.wallPosition).TabSeparator()
                                     .Append(rndNum).Build(), 4250);
-                                DB.runQuery("UPDATE furniture SET var = '" + rndNum + "' WHERE id = '" + itemID + "' LIMIT 1");
+                                FurnitureRepository.Instance.UpdateVar(itemID, rndNum.ToString());
                             }
                         }
                         break;
@@ -527,7 +534,7 @@ namespace Holo.Virtual.Users
                                 .Append(itemID).Separator()
                                 .Append(rndNum).Separator()
                                 .Build(), 5000);
-                            DB.runQuery("UPDATE furniture SET var = '" + rndNum + "' WHERE id = '" + itemID + "' LIMIT 1");
+                            FurnitureRepository.Instance.UpdateVar(itemID, rndNum.ToString());
                         }
                         break;
                     }
@@ -541,11 +548,11 @@ namespace Holo.Virtual.Users
                         int itemID = int.Parse(currentPacket.Substring(2));
                         if (Room.wallItemManager.containsItem(itemID))
                         {
-                            Message = DB.runRead("SELECT text FROM furniture_stickies WHERE id = '" + itemID + "'");
-                            string Colour = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
+                            Message = FurnitureExtrasRepository.Instance.GetStickyText(itemID) ?? "";
+                            string? Colour = FurnitureRepository.Instance.GetVar(itemID);
                             sendData(new HabboPacketBuilder("@p")
                                 .Append(itemID).TabSeparator()
-                                .Append(Colour).Append(" ").Append(Message)
+                                .Append(Colour ?? "").Append(" ").Append(Message)
                                 .Build());
                         }
                         break;
@@ -575,7 +582,7 @@ namespace Holo.Virtual.Users
                             if (Message.Length > 684)
                                 return true;
                             if (Colour != Item.Var)
-                                DB.runQuery("UPDATE furniture SET var = '" + Colour + "' WHERE id = '" + itemID + "' LIMIT 1");
+                                FurnitureRepository.Instance.UpdateVar(itemID, Colour);
                             Item.Var = Colour;
                             Room.sendData(new HabboPacketBuilder("AU")
                                 .Append(itemID).TabSeparator()
@@ -584,8 +591,8 @@ namespace Holo.Virtual.Users
                                 .Append(Colour)
                                 .Build());
 
-                            Message = DB.Stripslash(stringManager.filterSwearwords(Message)).Replace("/r", Convert.ToChar(13).ToString());
-                            DB.runQuery("UPDATE furniture_stickies SET text = '" + Message + "' WHERE id = '" + itemID + "' LIMIT 1");
+                            Message = stringManager.filterSwearwords(Message).Replace("/r", Convert.ToChar(13).ToString());
+                            FurnitureExtrasRepository.Instance.UpdateStickyText(itemID, Message);
                         }
                         break;
                     }
@@ -599,7 +606,7 @@ namespace Holo.Virtual.Users
                         if (Room.wallItemManager.containsItem(itemID) && stringManager.getStringPart(Room.wallItemManager.getItem(itemID).Sprite, 0, 7) == "post.it")
                         {
                             Room.wallItemManager.removeItem(itemID, 0);
-                            DB.runQuery("DELETE FROM furniture_stickies WHERE id = '" + itemID + "' LIMIT 1");
+                            FurnitureExtrasRepository.Instance.DeleteSticky(itemID);
                         }
                         break;
                     }

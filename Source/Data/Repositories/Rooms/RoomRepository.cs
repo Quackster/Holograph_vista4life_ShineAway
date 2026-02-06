@@ -175,6 +175,67 @@ public class RoomRepository : BaseRepository
     {
         Execute("UPDATE rooms SET visitors_now = 0");
     }
+
+    public int GetRoomVisitorsNow(int roomId)
+    {
+        return ReadScalarIntUnsafe(
+            "SELECT SUM(visitors_now) FROM rooms WHERE id = @id",
+            Param("@id", roomId));
+    }
+
+    public int GetRoomVisitorsMax(int roomId)
+    {
+        return ReadScalarIntUnsafe(
+            "SELECT SUM(visitors_max) FROM rooms WHERE id = @id",
+            Param("@id", roomId));
+    }
+    #endregion
+
+    #region Room - Decorations
+    public void UpdateWallpaper(int roomId, string wallpaper)
+    {
+        Execute(
+            "UPDATE rooms SET wallpaper = @value WHERE id = @id LIMIT 1",
+            Param("@id", roomId),
+            Param("@value", wallpaper));
+    }
+
+    public void UpdateFloor(int roomId, string floor)
+    {
+        Execute(
+            "UPDATE rooms SET floor = @value WHERE id = @id LIMIT 1",
+            Param("@id", roomId),
+            Param("@value", floor));
+    }
+
+    public void UpdateLandscape(int roomId, string landscape)
+    {
+        Execute(
+            "UPDATE rooms SET landscape = @value WHERE id = @id LIMIT 1",
+            Param("@id", roomId),
+            Param("@value", landscape));
+    }
+
+    public int GetRoomWallpaper(int roomId)
+    {
+        return ReadScalarInt(
+            "SELECT wallpaper FROM rooms WHERE id = @id",
+            Param("@id", roomId));
+    }
+
+    public int GetRoomFloor(int roomId)
+    {
+        return ReadScalarInt(
+            "SELECT floor FROM rooms WHERE id = @id",
+            Param("@id", roomId));
+    }
+
+    public string? GetRoomLandscape(int roomId)
+    {
+        return ReadScalar(
+            "SELECT landscape FROM rooms WHERE id = @id",
+            Param("@id", roomId));
+    }
     #endregion
 
     #region Room - Password/State
@@ -196,6 +257,29 @@ public class RoomRepository : BaseRepository
     {
         return ReadScalarInt(
             "SELECT superusers FROM rooms WHERE id = @id",
+            Param("@id", roomId));
+    }
+
+    public bool HasSuperUsers(int roomId)
+    {
+        return Exists(
+            "SELECT id FROM rooms WHERE id = @id AND superusers = 1",
+            Param("@id", roomId));
+    }
+    #endregion
+
+    #region Room - Advertisements
+    public bool RoomHasAd(int roomId)
+    {
+        return Exists(
+            "SELECT roomid FROM room_ads WHERE roomid = @id",
+            Param("@id", roomId));
+    }
+
+    public string[] GetRoomAd(int roomId)
+    {
+        return ReadRow(
+            "SELECT img, uri FROM room_ads WHERE roomid = @id",
             Param("@id", roomId));
     }
     #endregion

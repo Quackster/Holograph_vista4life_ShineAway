@@ -29,11 +29,73 @@ public class SoundMachineRepository : BaseRepository
             Param("@id", songId));
     }
 
+    public string[] GetSongTitleAndLength(int songId)
+    {
+        return ReadRow(
+            "SELECT title, length FROM soundmachine_songs WHERE id = @id",
+            Param("@id", songId));
+    }
+
+    public int GetSongLength(int songId)
+    {
+        return ReadScalarInt(
+            "SELECT length FROM soundmachine_songs WHERE id = @id",
+            Param("@id", songId));
+    }
+
     public int GetSongOwner(int songId)
     {
         return ReadScalarInt(
             "SELECT userid FROM soundmachine_songs WHERE id = @id",
             Param("@id", songId));
+    }
+
+    public bool SongExistsForUserAndMachine(int songId, int userId, int machineId)
+    {
+        return Exists(
+            "SELECT id FROM soundmachine_songs WHERE id = @id AND userid = @userid AND machineid = @machineid",
+            Param("@id", songId),
+            Param("@userid", userId),
+            Param("@machineid", machineId));
+    }
+
+    public bool SongExistsInMachine(int songId, int machineId)
+    {
+        return Exists(
+            "SELECT id FROM soundmachine_songs WHERE id = @id AND machineid = @machineid",
+            Param("@id", songId),
+            Param("@machineid", machineId));
+    }
+
+    public void SetSongBurnt(int songId)
+    {
+        Execute(
+            "UPDATE soundmachine_songs SET burnt = '1' WHERE id = @id LIMIT 1",
+            Param("@id", songId));
+    }
+
+    public void RemoveSongFromMachineIfBurnt(int songId)
+    {
+        Execute(
+            "UPDATE soundmachine_songs SET machineid = '0' WHERE id = @id AND burnt = '1'",
+            Param("@id", songId));
+    }
+
+    public void DeleteUnburntSong(int songId)
+    {
+        Execute(
+            "DELETE FROM soundmachine_songs WHERE id = @id AND burnt = '0' LIMIT 1",
+            Param("@id", songId));
+    }
+
+    public void UpdateSong(int songId, string title, string data, int length)
+    {
+        Execute(
+            "UPDATE soundmachine_songs SET title = @title, data = @data, length = @length WHERE id = @id LIMIT 1",
+            Param("@id", songId),
+            Param("@title", title),
+            Param("@data", data),
+            Param("@length", length));
     }
 
     public void CreateSong(int userId, int machineId, string title, int length, string data)

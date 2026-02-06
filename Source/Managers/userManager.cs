@@ -1,5 +1,11 @@
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
+using Holo.Data.Repositories.Messenger;
+using Holo.Data.Repositories.Rooms;
+using Holo.Data.Repositories.System;
+using Holo.Data.Repositories.Users;
 using Holo.Protocol;
 using Holo.Virtual.Users;
 
@@ -11,18 +17,25 @@ namespace Holo.Managers;
 public static class userManager
 {
     private static Dictionary<int, virtualUser> _Users = new();
-        private static Thread pingChecker;
+        private static CancellationTokenSource? _pingCheckerCts;
         private static int _peakUserCount;
+
         /// <summary>
-        /// Starts the pingchecker thread.
+        /// Starts the ping checker async task.
         /// </summary>
         public static void Init()
         {
-            try { pingChecker.Abort(); }
-            catch { }
-            pingChecker = new Thread(new ThreadStart(checkPings));
-            pingChecker.Priority = ThreadPriority.BelowNormal;
-            pingChecker.Start();
+            _pingCheckerCts?.Cancel();
+            _pingCheckerCts = new CancellationTokenSource();
+            _ = CheckPingsAsync(_pingCheckerCts.Token);
+        }
+
+        /// <summary>
+        /// Stops the ping checker.
+        /// </summary>
+        public static void Shutdown()
+        {
+            _pingCheckerCts?.Cancel();
         }
 
         /// <summary>
@@ -38,10 +51,10 @@ public static class userManager
                 _Users.Remove(userID);
             }
 
-            if (User.connectionRemoteIP == DB.runRead("SELECT ipaddress_last FROM users WHERE name = '" + User._Username + "'"))
+            if (User.connectionRemoteIP == UserRepository.Instance.GetLastIpAddress(User._Username))
             {
                 _Users.Add(userID, User);
-                DB.runQuery("UPDATE users SET ticket_sso = NULL WHERE id = '" + userID + "' LIMIT 1");
+                UserRepository.Instance.ClearTicketSso(userID);
                 Out.WriteLine("User " + userID + " logged in. [" + User._Username + "]", Out.logFlags.BelowStandardAction);
             }
             else
@@ -111,7 +124,7 @@ public static class userManager
         /// <param name="userName">The username of the user.</param>
         public static int getUserID(string userName)
         {
-            return DB.runRead("SELECT id FROM users WHERE name = '" + userName + "'", null);
+            return UserRepository.Instance.GetUserId(userName);
         }
         /// <summary>
         /// Retrieves the username of a user from the database.
@@ -119,7 +132,7 @@ public static class userManager
         /// <param name="userID">The ID of the user.</param>
         public static string getUserName(int userID)
         {
-            return DB.runRead("SELECT name FROM users WHERE id = '" + userID + "'");
+            return UserRepository.Instance.GetUsername(userID) ?? "";
         }
         /// <summary>
         /// Returns a bool that indicates if a user with a certain user ID exists in the database.
@@ -127,7 +140,7 @@ public static class userManager
         /// <param name="userID">The ID of the user to check.</param>
         public static bool userExists(int userID)
         {
-            return DB.checkExists("SELECT id FROM users WHERE id = '" + userID + "'");
+            return UserRepository.Instance.UserExists(userID);
         }
 
         /// <summary>
@@ -139,9 +152,9 @@ public static class userManager
             try
             {
                 var idBuilder = new List<int>();
-                int[] friendIDs = DB.runReadColumn("SELECT friendid FROM messenger_friendships WHERE userid = '" + userID + "'", 0, null);
+                int[] friendIDs = MessengerRepository.Instance.GetFriendIds(userID);
                 idBuilder.AddRange(friendIDs);
-                friendIDs = DB.runReadColumn("SELECT userid FROM messenger_friendships WHERE friendid = '" + userID + "'", 0, null);
+                friendIDs = MessengerRepository.Instance.GetReverseFriendIds(userID);
                 idBuilder.AddRange(friendIDs);
 
                 return idBuilder.ToArray();
@@ -201,7 +214,7 @@ public static class userManager
         /// <param name="Message">The message the sayer said.</param>
         public static void addChatMessage(string userName, int roomID, string Message)
         {
-            DB.runQuery("INSERT INTO system_chatlog (username,roomid,mtime,message) VALUES ('" + userName + "','" + roomID + "',CURRENT_TIMESTAMP,'" + DB.Stripslash(Message) + "')");
+            LogRepository.Instance.AddChatMessage(userName, roomID, Message);
         }
         /// <summary>
         /// Generates an info list about a certain user. If the user isn't found or has a higher rank than the info requesting user, then an access error message is returned. Otherwise, a report with user ID, username, rank, mission, credits amount, tickets amount, virtual birthday (signup date), real birthday, email address and last IP address. If the user is online, then information about the room the user currently is in (including ID and owner name) is supplied, otherwise, the last server access date is supplied.
@@ -210,7 +223,7 @@ public static class userManager
         /// <param name="Rank">The rank of the user that requests this info. If this rank is lower than the rank of the target user, then there is no info returned.</param>
         public static string generateUserInfo(int userID, byte Rank)
         {
-            string[] userDetails = DB.runReadRow("SELECT name,rank,mission,credits,tickets,email,birth,hbirth,ipaddress_last,lastvisit FROM users WHERE id = '" + userID + "' AND rank <= " + Rank);
+            string[] userDetails = UserRepository.Instance.GetUserDetailsForRank(userID, Rank);
             if (userDetails.Length == 0)
                 return stringManager.getString("userinfo_accesserror");
             else
@@ -233,7 +246,7 @@ public static class userManager
                     if (User._roomID == 0)
                         Location = stringManager.getString("common_hotelview");
                     else
-                        Location = stringManager.getString("common_room") + " '" + DB.runReadUnsafe("SELECT name FROM rooms WHERE id = '" + User._roomID + "'") + "' [id: " + User._roomID + ", " + stringManager.getString("common_owner") + ": " + DB.runReadUnsafe("SELECT owner FROM rooms WHERE id = '" + User._roomID + "'") + "]"; // Roomname, room ID and name of the user that owns the room
+                        Location = stringManager.getString("common_room") + " '" + (RoomRepository.Instance.GetRoomName(User._roomID) ?? "") + "' [id: " + User._roomID + ", " + stringManager.getString("common_owner") + ": " + (RoomRepository.Instance.GetRoomOwner(User._roomID) ?? "") + "]"; // Roomname, room ID and name of the user that owns the room
                     Info.Append(stringManager.getString("common_location") + ": " + Location);
                 }
                 else // User is offline
@@ -250,9 +263,8 @@ public static class userManager
         /// <param name="Reason">The reason for the ban, that describes the user why it's account is blocked from the system.</param>
         public static void setBan(int userID, int Hours, string Reason)
         {
-            string Expires = DateTime.Now.AddHours(Hours).ToString();
-            DB.runQuery("DELETE FROM users_bans WHERE userid = '" + userID + "' LIMIT 1"); // Delete previous bans
-            DB.runQuery("INSERT INTO users_bans (userid,date_expire,descr) VALUES ('" + userID + "','" + Expires + "','" + DB.Stripslash(Reason) + "')");
+            DateTime expires = DateTime.Now.AddHours(Hours);
+            UserBanRepository.Instance.CreateBan(userID, expires, Reason);
 
             if (_Users.TryGetValue(userID, out var User))
             {
@@ -269,13 +281,13 @@ public static class userManager
         /// <param name="IP">The IP address to check bans for.</param>
         public static string getBanReason(string IP)
         {
-            if (DB.checkExists("SELECT ipaddress FROM users_bans WHERE ipaddress = '" + IP + "'"))
+            if (UserBanRepository.Instance.IsIpBanned(IP))
             {
-                string banExpires = DB.runRead("SELECT date_expire FROM users_bans WHERE ipaddress = '" + IP + "'");
-                if (DateTime.Compare(DateTime.Parse(banExpires), DateTime.Now) > 0)
-                    return DB.runRead("SELECT descr FROM users_bans WHERE ipaddress = '" + IP + "'"); // Still banned, return reason
+                string? banExpires = UserBanRepository.Instance.GetIpBanExpiry(IP);
+                if (banExpires != null && DateTime.Compare(DateTime.Parse(banExpires), DateTime.Now) > 0)
+                    return UserBanRepository.Instance.GetIpBanReason(IP) ?? ""; // Still banned, return reason
                 else
-                    DB.runQuery("DELETE FROM user_bans WHERE ipaddress = '" + IP + "' LIMIT 1");
+                    UserBanRepository.Instance.DeleteBanByIp(IP);
             }
 
             return ""; // No pending ban/ban expired
@@ -288,11 +300,10 @@ public static class userManager
         /// <param name="Reason">The reason for the ban, that describes thes user why their IP address/accounts are blocked from the system.</param>
         public static void setBan(string IP, int Hours, string Reason)
         {
-            string Expires = DateTime.Now.AddHours(Hours).ToString();
-            DB.runQuery("DELETE FROM users_bans WHERE ipaddress = '" + IP + "'"); // Delete previous bans
-            DB.runQuery("INSERT INTO users_bans (ipaddress,date_expire,descr) VALUES ('" + IP + "','" + Expires + "','" + DB.Stripslash(Reason) + "')");
+            DateTime expires = DateTime.Now.AddHours(Hours);
+            UserBanRepository.Instance.CreateIpBan(IP, expires, Reason);
 
-            int[] userIDs = DB.runReadColumn("SELECT id FROM users WHERE ipaddress_last = '" + IP + "'", 0, null);
+            int[] userIDs = UserBanRepository.Instance.GetUserIdsByIp(IP);
             for (int i = 0; i < userIDs.Length; i++)
             {
                 if (_Users.TryGetValue(userIDs[i], out var User))
@@ -311,13 +322,13 @@ public static class userManager
         /// <param name="userID">The database ID of the user to check for bans.</param>
         public static string getBanReason(int userID)
         {
-            if (DB.checkExists("SELECT userid FROM users_bans WHERE userid = '" + userID + "'"))
+            if (UserBanRepository.Instance.IsBanned(userID))
             {
-                string banExpires = DB.runRead("SELECT date_expire FROM users_bans WHERE userid = '" + userID + "'");
-                if (DateTime.Compare(DateTime.Parse(banExpires), DateTime.Now) > 0) // Still banned, return reason
-                    return DB.runRead("SELECT descr FROM users_bans WHERE userid = '" + userID + "'");
+                string? banExpires = UserBanRepository.Instance.GetBanExpiry(userID);
+                if (banExpires != null && DateTime.Compare(DateTime.Parse(banExpires), DateTime.Now) > 0) // Still banned, return reason
+                    return UserBanRepository.Instance.GetBanReason(userID) ?? "";
                 else
-                    DB.runQuery("DELETE FROM users_bans WHERE userid = '" + userID + "' LIMIT 1");
+                    UserBanRepository.Instance.DeleteBanByUserId(userID);
             }
             return ""; // No pending ban/ban expired
         }
@@ -327,8 +338,8 @@ public static class userManager
         /// <param name="userID">The database ID of the user to generate the ban report for.</param>
         public static string generateBanReport(int userID)
         {
-            string[] banDetails = DB.runReadRow("SELECT date_expire,descr,ipaddress FROM users_bans WHERE userid = '" + userID + "'");
-            string[] userDetails = DB.runReadRow("SELECT name,rank,ipaddress_last FROM users WHERE id = '" + userID + "'");
+            string[] banDetails = UserBanRepository.Instance.GetBanDetails(userID);
+            string[] userDetails = UserRepository.Instance.GetUserDetailsForBanReport(userID);
 
             if (banDetails.Length == 0 || userDetails.Length == 0)
                 return "holo.cast.banreport.null";
@@ -337,12 +348,12 @@ public static class userManager
                 string Note = "-";
                 string banPoster = "not available";
                 string banPosted = "not available";
-                string[] logEntries = DB.runReadRow("SELECT userid,note,timestamp FROM system_stafflog WHERE action = 'ban' AND targetid = '" + userID + "' ORDER BY id ASC"); // Get latest stafflog entry for this action (if exists)
+                string[] logEntries = UserBanRepository.Instance.GetBanLogEntry(userID); // Get latest stafflog entry for this action (if exists)
                 if (logEntries.Length > 0) // system_stafflog table could be cleaned up
                 {
                     if (logEntries[1] != "")
                         Note = logEntries[1];
-                    banPoster = DB.runRead("SELECT name FROM users WHERE id = '" + logEntries[0] + "'");
+                    banPoster = UserRepository.Instance.GetUsername(int.Parse(logEntries[0])) ?? "not available";
                     banPosted = logEntries[2];
                 }
 
@@ -366,7 +377,7 @@ public static class userManager
         /// <param name="IP">The IP address to generate the ban report for.</param>
         public static string generateBanReport(string IP)
         {
-            string[] banDetails = DB.runReadRow("SELECT userid,date_expire,descr FROM users_bans WHERE ipaddress = '" + IP + "'");
+            string[] banDetails = UserBanRepository.Instance.GetIpBanDetails(IP);
 
             if (banDetails.Length == 0)
                 return "holo.cast.banreport.null";
@@ -375,12 +386,14 @@ public static class userManager
                 string Note = "-";
                 string banPoster = "not available";
                 string banPosted = "not available";
-                string[] logEntries = DB.runReadRow("SELECT userid,note,timestamp FROM system_stafflog WHERE action = 'ban' AND targetid = '" + banDetails[0] + "' ORDER BY id DESC"); // Get latest stafflog entry for this action (if exists)
+                int targetUserId = 0;
+                int.TryParse(banDetails[0], out targetUserId);
+                string[] logEntries = UserBanRepository.Instance.GetBanLogEntry(targetUserId); // Get latest stafflog entry for this action (if exists)
                 if (logEntries.Length > 0) // system_stafflog table could be cleaned up
                 {
                     if (logEntries[1] != "")
                         Note = logEntries[1];
-                    banPoster = DB.runRead("SELECT name FROM users WHERE id = '" + logEntries[0] + "'");
+                    banPoster = UserRepository.Instance.GetUsername(int.Parse(logEntries[0])) ?? "not available";
                     banPosted = logEntries[2];
                 }
 
@@ -388,12 +401,12 @@ public static class userManager
                 Report.Append(IP + "\r"); // Append IP address
                 Report.Append(stringManager.getString("banreport_banner") + ": " + banPoster + "\r"); // Append username of banner
                 Report.Append(stringManager.getString("banreport_posted") + ": " + banPosted + "\r"); // Append datetime when ban was posted
-                Report.Append(stringManager.getString("banreport_expires") + ": " + banDetails[0] + "\r"); // Append datetime when ban expires
-                Report.Append(stringManager.getString("banreport_reason") + ": " + banDetails[1] + "\r"); // Append the reason that went with the ban
-                Report.Append(stringManager.getString("banreport_ipbanflag") + ": " + (banDetails[2] != "").ToString().ToLower() + "\r"); // Append true/false for the IP ban status
+                Report.Append(stringManager.getString("banreport_expires") + ": " + banDetails[1] + "\r"); // Append datetime when ban expires
+                Report.Append(stringManager.getString("banreport_reason") + ": " + banDetails[2] + "\r"); // Append the reason that went with the ban
+                Report.Append(stringManager.getString("banreport_ipbanflag") + ": true\r"); // IP ban is always true for IP-based report
                 Report.Append(stringManager.getString("banreport_staffnote") + ": " + Note + "\r\r"); // Append the staffnote that went with the ban
 
-                string[] affectedUsernames = DB.runReadColumn("SELECT name FROM users WHERE ipaddress_last = '" + IP + "'", 0);
+                string[] affectedUsernames = UserBanRepository.Instance.GetUsernamesByIp(IP);
                 Report.Append(stringManager.getString("banreport_affectedusernames") + ":");
                 for (int i = 0; i < affectedUsernames.Length; i++) // Add usernames of user's that were affected by IP ban
                     Report.Append("\r - " + affectedUsernames[i]);
@@ -402,26 +415,37 @@ public static class userManager
             }
         }
         /// <summary>
-        /// Ran on a thread at interval 60000ms, checks ping status of users and disconnects timed out users.
+        /// Async task that checks ping status of users at interval 60000ms and disconnects timed out users.
         /// </summary>
-        private static void checkPings()
+        private static async Task CheckPingsAsync(CancellationToken cancellationToken)
         {
-            while (true)
+            try
             {
-                foreach (var User in _Users.Values.ToArray())
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    if (User.pingOK)
+                    foreach (var User in _Users.Values.ToArray())
                     {
-                        User.pingOK = false;
-                        User.sendData("@r");
+                        if (User.pingOK)
+                        {
+                            User.pingOK = false;
+                            User.sendData("@r");
+                        }
+                        else
+                        {
+                            Holo.Out.WriteLine(User._Username + " timed out.");
+                            User.Disconnect();
+                        }
                     }
-                    else
-                    {
-                        Holo.Out.WriteLine(User._Username + " timed out.");
-                        User.Disconnect();
-                    }
+                    await Task.Delay(60000, cancellationToken);
                 }
-                Thread.Sleep(60000);
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal shutdown
+            }
+            catch (Exception e)
+            {
+                Out.WriteError($"Ping checker error: {e.Message}");
             }
         }
     }

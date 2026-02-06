@@ -1,5 +1,6 @@
 using System;
 
+using Holo.Data.Repositories.Furniture;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Rooms;
@@ -54,7 +55,7 @@ namespace Holo.Virtual.Users
                         if (Room != null && roomUser != null && _tradePartnerRoomUID != -1 && Room.containsUser(_tradePartnerRoomUID))
                         {
                             int itemID = int.Parse(currentPacket.Substring(2));
-                            int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemID + "' AND ownerid = '" + userID + "' AND roomid = '0'", null);
+                            int templateID = FurnitureRepository.Instance.GetHandItemTemplateId(itemID, userID);
                             if (templateID == 0)
                                 return true;
 
@@ -99,11 +100,11 @@ namespace Holo.Virtual.Users
                             {
                                 for (int i = 0; i < _tradeItemCount; i++)
                                     if (_tradeItems[i] > 0)
-                                        DB.runQuery("UPDATE furniture SET ownerid = '" + Partner.userID + "',roomid = '0' WHERE id = '" + this._tradeItems[i] + "' LIMIT 1");
+                                        FurnitureRepository.Instance.TransferItem(this._tradeItems[i], Partner.userID);
 
                                 for (int i = 0; i < Partner._tradeItemCount; i++)
                                     if (Partner._tradeItems[i] > 0)
-                                        DB.runQuery("UPDATE furniture SET ownerid = '" + this.userID + "',roomid = '0' WHERE id = '" + Partner._tradeItems[i] + "' LIMIT 1");
+                                        FurnitureRepository.Instance.TransferItem(Partner._tradeItems[i], this.userID);
 
                                 abortTrade();
                             }

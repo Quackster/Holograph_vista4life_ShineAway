@@ -1,10 +1,12 @@
 using System;
 using System.Text;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Users;
+using Holo.Data.Repositories.Users;
 
 namespace Holo.Virtual.Rooms;
 
@@ -120,7 +122,7 @@ public partial class virtualRoom
         {
             var listBuilder = new StringBuilder(Encoding.encodeVL64(_activeGroups.Count));
             foreach (int groupID in _activeGroups)
-                listBuilder.Append(Encoding.encodeVL64(groupID) + DB.runRead("SELECT badge FROM groups_details WHERE id = '" + groupID + "'") + Convert.ToChar(2));
+                listBuilder.Append(Encoding.encodeVL64(groupID) + (UserRepository.Instance.GetGroupBadge(groupID) ?? "") + Convert.ToChar(2));
 
             return listBuilder.ToString();
         }
@@ -157,18 +159,18 @@ public partial class virtualRoom
         catch { }
     }
     /// <summary>
-    /// Sends a single packet to all users inside the user manager, after sleeping (on different thread) for a specified amount of milliseconds.
+    /// Sends a single packet to all users inside the user manager, after sleeping for a specified amount of milliseconds.
     /// </summary>
     /// <param name="Data">The packet to send.</param>
     /// <param name="msSleep">The amount of milliseconds to sleep before sending.</param>
     internal void sendData(string Data, int msSleep)
     {
-        new sendDataSleep(SENDDATASLEEP).BeginInvoke(Data, msSleep, null, null);
+        _ = SendDataDelayedAsync(Data, msSleep);
     }
-    private delegate void sendDataSleep(string Data, int msSleep);
-    private void SENDDATASLEEP(string Data, int msSleep)
+
+    private async Task SendDataDelayedAsync(string Data, int msSleep)
     {
-        Thread.Sleep(msSleep);
+        await Task.Delay(msSleep);
         foreach (var roomUser in _Users.Values)
             roomUser.User.sendData(Data);
     }

@@ -139,4 +139,20 @@ public class UserBanRepository : BaseRepository
             Param("@target", targetUserId));
     }
     #endregion
+
+    #region Ban Management (check and lift expired bans)
+    public void DeleteBanByUserId(int userId)
+    {
+        Execute(
+            "DELETE FROM users_bans WHERE userid = @id LIMIT 1",
+            Param("@id", userId));
+    }
+
+    public void DeleteBanByIp(string ipAddress)
+    {
+        Execute(
+            "DELETE FROM users_bans WHERE ipaddress = @ip LIMIT 1",
+            Param("@ip", ipAddress));
+    }
+    #endregion
 }

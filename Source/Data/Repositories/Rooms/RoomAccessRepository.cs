@@ -85,6 +85,23 @@ public class RoomAccessRepository : BaseRepository
             "DELETE FROM room_bans WHERE roomid = @roomid",
             Param("@roomid", roomId));
     }
+
+    public void AddBanWithExpiry(int roomId, int userId, string banExpireMoment)
+    {
+        Execute(
+            "INSERT INTO room_bans (roomid, userid, ban_expire) VALUES (@roomid, @userid, @expire)",
+            Param("@roomid", roomId),
+            Param("@userid", userId),
+            Param("@expire", banExpireMoment));
+    }
+
+    public string? GetBanExpiry(int roomId, int userId)
+    {
+        return ReadScalar(
+            "SELECT ban_expire FROM room_bans WHERE roomid = @roomid AND userid = @userid",
+            Param("@roomid", roomId),
+            Param("@userid", userId));
+    }
     #endregion
 
     #region Room Votes

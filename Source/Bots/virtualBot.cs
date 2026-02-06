@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 
 using Holo.Virtual.Users;
@@ -72,11 +73,10 @@ internal class virtualBot
     /// </summary>
     internal string noShoutingMessage;
 
-    private delegate void statusVoid(string Key, string Value, int Length);
     /// <summary>
-    /// Handles the random determining of actions.
+    /// Cancellation token source for the AI task.
     /// </summary>
-    private Thread aiHandler;
+    private CancellationTokenSource? _aiCts;
     /// <summary>
     /// Contains the texts that the bot can 'say' on random.
     /// </summary>
@@ -157,19 +157,18 @@ internal class virtualBot
         }
 
         Statuses = new Dictionary<string, string>();
-        aiHandler = new Thread(new ThreadStart(AI));
-        aiHandler.Priority = ThreadPriority.BelowNormal;
-        aiHandler.Start();
+        _aiCts = new CancellationTokenSource();
+        _ = AIAsync(_aiCts.Token);
     }
     /// <summary>
     /// Safely shuts this virtualBot down and tidies up all resources.
     /// </summary>
     internal void Kill()
     {
-        try { aiHandler.Abort(); }
+        try { _aiCts?.Cancel(); }
         catch { }
 
-        aiHandler = null;
+        _aiCts = null;
         Room = null;
         Statuses = null;
         Coords = null;
@@ -385,15 +384,16 @@ internal class virtualBot
     {
         if (Statuses.ContainsKey(Key))
             Statuses.Remove(Key);
-        new statusVoid(HANDLESTATUS).BeginInvoke(Key, Value, Length, null, null);
+        _ = HandleStatusAsync(Key, Value, Length);
     }
-    private void HANDLESTATUS(string Key, string Value, int Length)
+
+    private async Task HandleStatusAsync(string Key, string Value, int Length)
     {
         try
         {
             Statuses.Add(Key, Value);
             Refresh();
-            Thread.Sleep(Length);
+            await Task.Delay(Length);
             Statuses.Remove(Key);
             Refresh();
         }
@@ -403,18 +403,21 @@ internal class virtualBot
 
     #region Misc
     /// <summary>
-    /// Ran on a thread. Handles the bot's artifical intelligence, by interacting with users and using random values etc.
+    /// Async task that handles the bot's artifical intelligence, by interacting with users and using random values etc.
     /// </summary>
-    private void AI()
+    private async Task AIAsync(CancellationToken cancellationToken)
     {
         int lastMessageID = -1;
         Random RND = new Random(roomUID * DateTime.Now.Millisecond);
-        //try
+        try
         {
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 if (Customer != null) // Currently serving a different user
+                {
+                    await Task.Delay(100, cancellationToken);
                     continue;
+                }
 
                 int ACTION = RND.Next(0, 15);
                 switch (ACTION)
@@ -508,11 +511,18 @@ internal class virtualBot
                             break;
                         }
                 }
-                Thread.Sleep(3000);
+                await Task.Delay(3000, cancellationToken);
                 Out.WriteTrace("Bot AI loop");
             }
         }
-        //catch { aiHandler.Abort(); }
+        catch (OperationCanceledException)
+        {
+            // Normal shutdown
+        }
+        catch (Exception e)
+        {
+            Out.WriteError($"Bot AI error: {e.Message}");
+        }
     }
     #endregion
 

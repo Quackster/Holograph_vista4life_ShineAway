@@ -239,6 +239,25 @@ public class FurnitureRepository : BaseRepository
             Param("@room", roomId));
     }
 
+    public long CreateItemWithTeleport(int templateId, int ownerId, int roomId, int teleportId)
+    {
+        return ExecuteAndGetLastInsertId(
+            "INSERT INTO furniture (tid, ownerid, roomid, teleportid) VALUES (@tid, @owner, @room, @teleportid)",
+            Param("@tid", templateId),
+            Param("@owner", ownerId),
+            Param("@room", roomId),
+            Param("@teleportid", teleportId));
+    }
+
+    public long CreateItemWithVar(int templateId, int ownerId, string var)
+    {
+        return ExecuteAndGetLastInsertId(
+            "INSERT INTO furniture (tid, ownerid, var) VALUES (@tid, @owner, @var)",
+            Param("@tid", templateId),
+            Param("@owner", ownerId),
+            Param("@var", var));
+    }
+
     public void DeleteItem(int itemId)
     {
         Execute(
@@ -316,6 +335,73 @@ public class FurnitureRepository : BaseRepository
     {
         Execute(
             "UPDATE furniture SET roomid = 0 WHERE ownerid = @owner AND roomid = -2",
+            Param("@owner", userId));
+    }
+
+    public void MoveItemToRecycler(int itemId)
+    {
+        Execute(
+            "UPDATE furniture SET roomid = -2 WHERE id = @id LIMIT 1",
+            Param("@id", itemId));
+    }
+
+    public bool HasItemInHand(int userId)
+    {
+        return Exists(
+            "SELECT id FROM furniture WHERE ownerid = @owner AND roomid = 0",
+            Param("@owner", userId));
+    }
+    #endregion
+
+    #region Furniture - Hand Item Queries
+    public int GetHandItemTemplateId(int itemId, int ownerId)
+    {
+        return ReadScalarInt(
+            "SELECT tid FROM furniture WHERE id = @id AND ownerid = @owner AND roomid = 0",
+            Param("@id", itemId),
+            Param("@owner", ownerId));
+    }
+
+    public void MoveItemToHand(int itemId)
+    {
+        Execute(
+            "UPDATE furniture SET roomid = 0 WHERE id = @id LIMIT 1",
+            Param("@id", itemId));
+    }
+
+    public void DecrementPostItStack(int itemId)
+    {
+        Execute(
+            "UPDATE furniture SET var = var - 1 WHERE id = @id LIMIT 1",
+            Param("@id", itemId));
+    }
+    #endregion
+
+    #region Furniture - Return Item
+    public void ReturnItemToOwner(int itemId, int ownerId)
+    {
+        Execute(
+            "UPDATE furniture SET x = 0, y = 0, z = 0, h = 0, ownerid = @owner, roomid = 0 WHERE id = @id LIMIT 1",
+            Param("@id", itemId),
+            Param("@owner", ownerId));
+    }
+    #endregion
+
+    #region Furniture - Hand Items Sorted
+    public int[] GetHandItemIdsSorted(int userId)
+    {
+        return ReadColumnInt(
+            "SELECT id FROM furniture WHERE ownerid = @owner AND roomid = '0' ORDER BY id ASC",
+            0,
+            Param("@owner", userId));
+    }
+    #endregion
+
+    #region Furniture - Delete All Hand Items
+    public void DeleteAllHandItems(int userId)
+    {
+        Execute(
+            "DELETE FROM furniture WHERE ownerid = @owner AND roomid = '0'",
             Param("@owner", userId));
     }
     #endregion

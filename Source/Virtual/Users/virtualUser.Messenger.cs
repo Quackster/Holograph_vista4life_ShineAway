@@ -1,6 +1,8 @@
 using System;
 using System.Text;
 
+using Holo.Data.Repositories.Messenger;
+using Holo.Data.Repositories.Users;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Users.Messenger;
@@ -27,7 +29,7 @@ namespace Holo.Virtual.Users
                 case "@i": // Search in console
                     {
                         // Variables
-                        string Search = DB.Stripslash(currentPacket.Substring(4));
+                        string Search = currentPacket.Substring(4);
                         var packetBuilder = new HabboPacketBuilder(HabboPackets.MESSENGER_SEARCH);
                         var packetFriends = new HabboPacketBuilder();
                         var packetOthers = new HabboPacketBuilder();
@@ -35,7 +37,7 @@ namespace Holo.Virtual.Users
                         int countOthers = 0;
 
                         // Database
-                        string[] IDs = DB.runReadColumn("SELECT id FROM users WHERE name LIKE '%" + Search + "%'", HabboProtocol.MESSENGER_SEARCH_LIMIT);
+                        string[] IDs = UserRepository.Instance.SearchUsersByName(Search, HabboProtocol.MESSENGER_SEARCH_LIMIT);
 
                         // Loop through results
                         for (int i = 0; i < IDs.Length; i++)
@@ -44,7 +46,7 @@ namespace Holo.Virtual.Users
                             bool online = userManager.containsUser(thisID);
                             string onlineStr = online ? HabboProtocol.BOOL_TRUE : HabboProtocol.BOOL_FALSE;
 
-                            string[] row = DB.runReadRow("SELECT name, mission, lastvisit, figure FROM users WHERE id = " + thisID.ToString());
+                            string[] row = UserRepository.Instance.GetUserSearchData(thisID);
                             var userEntry = new HabboPacketBuilder()
                                 .AppendVL64(thisID)
                                 .Append(row[0]).Separator()
@@ -84,12 +86,12 @@ namespace Holo.Virtual.Users
                     {
                         if (Messenger != null)
                         {
-                            string Username = DB.Stripslash(currentPacket.Substring(4));
-                            int toID = DB.runRead("SELECT id FROM users WHERE name = '" + Username + "'", null);
+                            string Username = currentPacket.Substring(4);
+                            int toID = UserRepository.Instance.GetUserId(Username);
                             if (toID > 0 && Messenger.hasFriendRequests(toID) == false && Messenger.hasFriendship(toID) == false)
                             {
-                                int requestID = DB.runReadUnsafe("SELECT MAX(requestid) FROM messenger_friendrequests WHERE userid_to = '" + toID + "'", null) + 1;
-                                DB.runQuery("INSERT INTO messenger_friendrequests(userid_to,userid_from,requestid) VALUES ('" + toID + "','" + userID + "','" + requestID + "')");
+                                int requestID = MessengerRepository.Instance.GetMaxRequestId(toID) + 1;
+                                MessengerRepository.Instance.CreateFriendRequestWithId(userID, toID, requestID);
                                 var requestPacket = new HabboPacketBuilder(HabboPackets.BUDDY_REQUEST_SENT)
                                     .Append(HabboProtocol.BOOL_TRUE)
                                     .Append(_Username).Separator()
@@ -116,7 +118,7 @@ namespace Holo.Virtual.Users
                                 if (currentPacket == "")
                                     return true;
                                 int requestID = Encoding.decodeVL64(currentPacket);
-                                int fromUserID = DB.runRead("SELECT userid_from FROM messenger_friendrequests WHERE userid_to = '" + this.userID + "' AND requestid = '" + requestID + "'", null);
+                                int fromUserID = MessengerRepository.Instance.GetRequestSender(this.userID, requestID);
                                 if (fromUserID == 0) // Corrupt data
                                     return true;
 
@@ -128,8 +130,8 @@ namespace Holo.Virtual.Users
                                 if (userManager.containsUser(fromUserID))
                                     userManager.getUser(fromUserID).Messenger.addBuddy(Me, true);
 
-                                DB.runQuery("INSERT INTO messenger_friendships(userid,friendid) VALUES ('" + fromUserID + "','" + this.userID + "')");
-                                DB.runQuery("DELETE FROM messenger_friendrequests WHERE userid_to = '" + this.userID + "' AND requestid = '" + requestID + "' LIMIT 1");
+                                MessengerRepository.Instance.AddFriendship(fromUserID, this.userID);
+                                MessengerRepository.Instance.DeleteFriendRequestById(this.userID, requestID);
                                 currentPacket = currentPacket.Substring(Encoding.encodeVL64(requestID).Length);
                             }
 
@@ -159,7 +161,7 @@ namespace Holo.Virtual.Users
                                     return true;
 
                                 int requestID = Encoding.decodeVL64(currentPacket);
-                                DB.runQuery("DELETE FROM messenger_friendrequests WHERE userid_to = '" + this.userID + "' AND requestid = '" + requestID + "' LIMIT 1");
+                                MessengerRepository.Instance.DeleteFriendRequestById(this.userID, requestID);
 
                                 currentPacket = currentPacket.Substring(Encoding.encodeVL64(requestID).Length);
                             }
@@ -175,7 +177,7 @@ namespace Holo.Virtual.Users
                             Messenger.removeBuddy(buddyID);
                             if (userManager.containsUser(buddyID))
                                 userManager.getUser(buddyID).Messenger.removeBuddy(userID);
-                            DB.runQuery("DELETE FROM messenger_friendships WHERE (userid = '" + userID + "' AND friendid = '" + buddyID + "') OR (userid = '" + buddyID + "' AND friendid = '" + userID + "') LIMIT 1");
+                            MessengerRepository.Instance.RemoveFriendship(userID, buddyID);
                         }
                         break;
                     }

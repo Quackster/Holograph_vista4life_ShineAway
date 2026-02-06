@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Collections.ObjectModel;
 
 using Holo.Virtual.Users;
@@ -86,7 +87,7 @@ namespace Holo.Virtual.Rooms.Games
         private bool[,] Blocked;
         private bbTileState[,] bbTState;
         private bbTileColor[,] bbTColor;
-        private Thread updateHandler;
+        private CancellationTokenSource? _updateCts;
         #endregion
         #endregion
 
@@ -149,7 +150,7 @@ namespace Holo.Virtual.Rooms.Games
         /// </summary>
         internal void Abort()
         {
-            try { updateHandler.Abort(); }
+            try { _updateCts?.Cancel(); }
             catch { }
 
             string Data = "Cm" + "H";

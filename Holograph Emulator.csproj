@@ -12,5 +12,8 @@
 
   <ItemGroup>
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
+    <PackageReference Include="DotNetty.Transport" Version="0.7.6" />
+    <PackageReference Include="DotNetty.Handlers" Version="0.7.6" />
+    <PackageReference Include="DotNetty.Codecs" Version="0.7.6" />
   </ItemGroup>
 </Project>

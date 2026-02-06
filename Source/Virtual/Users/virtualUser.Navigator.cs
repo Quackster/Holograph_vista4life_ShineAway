@@ -1,6 +1,9 @@
 using System;
 using System.Text;
 
+using Holo.Data.Repositories.Rooms;
+using Holo.Data.Repositories.Users;
+using Holo.Data.Repositories.Furniture;
 using Holo.Managers;
 using Holo.Protocol;
 
@@ -29,12 +32,12 @@ namespace Holo.Virtual.Users
                         int hideFull = Encoding.decodeVL64(currentPacket.Substring(2, 1));
                         int cataID = Encoding.decodeVL64(currentPacket.Substring(3));
 
-                        string Name = DB.runReadUnsafe("SELECT name FROM room_categories WHERE id = '" + cataID + "' AND (access_rank_min <= " + _Rank + " OR access_rank_hideforlower = '0')");
+                        string Name = RoomCategoryRepository.Instance.GetCategoryName(cataID, _Rank) ?? "";
                         if (Name == "") // User has no access to this category/it does not exist
                             return true;
 
-                        int Type = DB.runRead("SELECT type FROM room_categories WHERE id = '" + cataID + "'", null);
-                        int parentID = DB.runRead("SELECT parent FROM room_categories WHERE id = '" + cataID + "'", null);
+                        int Type = RoomCategoryRepository.Instance.GetCategoryType(cataID);
+                        int parentID = RoomCategoryRepository.Instance.GetCategoryParent(cataID);
 
                         var Navigator = new HabboPacketBuilder(HabboPackets.NAVIGATOR_MAIN)
                             .AppendVL64(hideFull)
@@ -60,23 +63,23 @@ namespace Holo.Virtual.Users
                                 _SQL_ORDER_HELPER = "ORDER BY visitors_now DESC LIMIT " + Config.Navigator_openCategory_maxResults;
                         }
 
-                        int[] roomIDs = DB.runReadColumn("SELECT id FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0, null);
+                        int[] roomIDs = RoomRepository.Instance.GetRoomsByCategory(cataID, _SQL_ORDER_HELPER, Type == 0 ? 0 : (hideFull == 1 ? 30 : Config.Navigator_openCategory_maxResults));
                         if (Type == 2) // Guestrooms
                             Navigator.AppendVL64(roomIDs.Length);
                         if (roomIDs.Length > 0)
                         {
                             bool canSeeHiddenNames = false;
-                            int[] roomStates = DB.runReadColumn("SELECT state FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0, null);
-                            int[] showNameFlags = DB.runReadColumn("SELECT showname FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0, null);
-                            int[] nowVisitors = DB.runReadColumn("SELECT visitors_now FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0, null);
-                            int[] maxVisitors = DB.runReadColumn("SELECT visitors_max FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0, null);
-                            string[] roomNames = DB.runReadColumn("SELECT name FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0);
-                            string[] roomDescriptions = DB.runReadColumn("SELECT description FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0);
-                            string[] roomOwners = DB.runReadColumn("SELECT owner FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0);
+                            int[] roomStates = RoomRepository.Instance.GetRoomStates(cataID, _SQL_ORDER_HELPER);
+                            int[] showNameFlags = RoomRepository.Instance.GetRoomShowNames(cataID, _SQL_ORDER_HELPER);
+                            int[] nowVisitors = RoomRepository.Instance.GetRoomNowVisitors(cataID, _SQL_ORDER_HELPER);
+                            int[] maxVisitors = RoomRepository.Instance.GetRoomMaxVisitors(cataID, _SQL_ORDER_HELPER);
+                            string[] roomNames = RoomRepository.Instance.GetRoomNames(cataID, _SQL_ORDER_HELPER);
+                            string[] roomDescriptions = RoomRepository.Instance.GetRoomDescriptions(cataID, _SQL_ORDER_HELPER);
+                            string[] roomOwners = RoomRepository.Instance.GetRoomOwners(cataID, _SQL_ORDER_HELPER);
                             string[] roomCCTs = null;
 
                             if (Type == 0) // Publicroom
-                                roomCCTs = DB.runReadColumn("SELECT ccts FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0);
+                                roomCCTs = RoomRepository.Instance.GetRoomCcts(cataID, _SQL_ORDER_HELPER);
                             else
                                 canSeeHiddenNames = rankManager.containsRight(_Rank, "fuse_enter_locked_rooms");
 
@@ -110,17 +113,17 @@ namespace Holo.Virtual.Users
                             }
                         }
 
-                        int[] subCataIDs = DB.runReadColumn("SELECT id FROM room_categories WHERE parent = '" + cataID + "' AND (access_rank_min <= " + _Rank + " OR access_rank_hideforlower = '0') ORDER BY id ASC", 0, null);
+                        int[] subCataIDs = RoomCategoryRepository.Instance.GetSubCategoryIds(cataID, _Rank);
                         if (subCataIDs.Length > 0) // Sub categories
                         {
                             for (int i = 0; i < subCataIDs.Length; i++)
                             {
-                                int visitorCount = DB.runReadUnsafe("SELECT SUM(visitors_now) FROM rooms WHERE category = '" + subCataIDs[i] + "'", null);
-                                int visitorMax = DB.runReadUnsafe("SELECT SUM(visitors_max) FROM rooms WHERE category = '" + subCataIDs[i] + "'", null);
+                                int visitorCount = RoomRepository.Instance.GetCategoryVisitorSum(subCataIDs[i]);
+                                int visitorMax = RoomRepository.Instance.GetCategoryMaxVisitorSum(subCataIDs[i]);
                                 if (visitorMax > 0 && hideFull == 1 && visitorCount >= visitorMax)
                                     continue;
 
-                                string subName = DB.runRead("SELECT name FROM room_categories WHERE id = '" + subCataIDs[i] + "'");
+                                string subName = RoomCategoryRepository.Instance.GetCategoryName(subCataIDs[i], _Rank) ?? "";
                                 Navigator.AppendVL64(subCataIDs[i])
                                     .AppendVL64(0)
                                     .Append(subName).Separator()
@@ -137,8 +140,8 @@ namespace Holo.Virtual.Users
                 case "BW": // Navigator - request index of categories to place guestroom on
                     {
                         var catBuilder = new HabboPacketBuilder(HabboPackets.NAVIGATOR_CATEGORY_INDEX);
-                        int[] cataIDs = DB.runReadColumn("SELECT id FROM room_categories WHERE type = '2' AND parent > 0 AND access_rank_min <= " + _Rank + " ORDER BY id ASC", 0, null);
-                        string[] cataNames = DB.runReadColumn("SELECT name FROM room_categories WHERE type = '2' AND parent > 0 AND access_rank_min <= " + _Rank + " ORDER BY id ASC", 0);
+                        int[] cataIDs = RoomCategoryRepository.Instance.GetGuestroomCategoryIds(_Rank);
+                        string[] cataNames = RoomCategoryRepository.Instance.GetGuestroomCategoryNames(_Rank);
                         catBuilder.AppendVL64(cataIDs.Length);
                         for (int i = 0; i < cataIDs.Length; i++)
                             catBuilder.AppendVL64(cataIDs[i]).Append(cataNames[i]).Separator();
@@ -153,7 +156,7 @@ namespace Holo.Virtual.Users
                             .AppendVL64(3);
                         for (int i = 0; i <= 3; i++)
                         {
-                            string[] roomDetails = DB.runReadRow("SELECT id,name,owner,description,state,visitors_now,visitors_max FROM rooms WHERE NOT(owner IS NULL) ORDER BY RAND()");
+                            string[] roomDetails = RoomRepository.Instance.GetRandomGuestRoom();
                             if (roomDetails.Length == 0)
                                 return true;
                             else
@@ -171,23 +174,24 @@ namespace Holo.Virtual.Users
 
                 case "@P": // Navigator - view user's own guestrooms
                     {
-                        string[] roomIDs = DB.runReadColumn("SELECT id FROM rooms WHERE owner = '" + _Username + "' ORDER BY id ASC", 0);
+                        string[] roomIDs = RoomRepository.Instance.GetRoomsByOwner(_Username);
                         if (roomIDs.Length > 0)
                         {
                             var roomsBuilder = new HabboPacketBuilder(HabboPackets.NAVIGATOR_CATEGORIES);
                             for (int i = 0; i < roomIDs.Length; i++)
                             {
-                                string[] roomDetails = DB.runReadRow("SELECT name,description,state,showname,visitors_now,visitors_max FROM rooms WHERE id = '" + roomIDs[i] + "'");
+                                // GetRoomDetails returns: name[0], owner[1], description[2], model[3], state[4], superusers[5], showname[6], category[7], visitors_now[8], visitors_max[9]
+                                string[] roomDetails = RoomRepository.Instance.GetRoomDetails(int.Parse(roomIDs[i]));
                                 roomsBuilder.Append(roomIDs[i]).TabSeparator()
-                                    .Append(roomDetails[0]).TabSeparator()
+                                    .Append(roomDetails[0]).TabSeparator()  // name
                                     .Append(_Username).TabSeparator()
-                                    .Append(roomManager.getRoomState(int.Parse(roomDetails[2]))).TabSeparator()
+                                    .Append(roomManager.getRoomState(int.Parse(roomDetails[4]))).TabSeparator()  // state
                                     .Append("x").TabSeparator()
-                                    .Append(roomDetails[4]).TabSeparator()
-                                    .Append(roomDetails[5]).TabSeparator()
+                                    .Append(roomDetails[8]).TabSeparator()  // visitors_now
+                                    .Append(roomDetails[9]).TabSeparator()  // visitors_max
                                     .Append("null").TabSeparator()
-                                    .Append(roomDetails[1]).TabSeparator()
-                                    .Append(roomDetails[1]).TabSeparator()
+                                    .Append(roomDetails[2]).TabSeparator()  // description
+                                    .Append(roomDetails[2]).TabSeparator()  // description
                                     .RecordSeparator();
                             }
                             sendData(roomsBuilder.Build());
@@ -200,25 +204,27 @@ namespace Holo.Virtual.Users
                 case "@Q": // Navigator - perform guestroom search on name/owner with a given criticeria
                     {
                         bool seeAllRoomOwners = rankManager.containsRight(_Rank, "fuse_see_all_roomowners");
-                        string _SEARCH = DB.Stripslash(currentPacket.Substring(2));
-                        string[] roomIDs = DB.runReadColumn("SELECT id FROM rooms WHERE NOT(owner IS NULL) AND (owner = '" + _SEARCH + "' OR name LIKE '%" + _SEARCH + "%') ORDER BY id ASC", Config.Navigator_roomSearch_maxResults);
+                        string searchTerm = currentPacket.Substring(2);
+                        string[] roomIDs = RoomRepository.Instance.SearchRooms(searchTerm, Config.Navigator_roomSearch_maxResults);
                         if (roomIDs.Length > 0)
                         {
                             var roomsBuilder = new HabboPacketBuilder(HabboPackets.NAVIGATOR_SEARCH);
                             for (int i = 0; i < roomIDs.Length; i++)
                             {
-                                string[] roomDetails = DB.runReadRow("SELECT name,owner,description,state,showname,visitors_now,visitors_max FROM rooms WHERE id = '" + roomIDs[i] + "'");
-                                if (roomDetails[4] == "0" && roomDetails[1] != _Username && seeAllRoomOwners == false) // The room owner has hidden his name at the guestroom and this user hasn't got the fuseright to see all room owners
-                                    roomDetails[1] = "-";
+                                // GetRoomDetails returns: name[0], owner[1], description[2], model[3], state[4], superusers[5], showname[6], category[7], visitors_now[8], visitors_max[9]
+                                string[] roomDetails = RoomRepository.Instance.GetRoomDetails(int.Parse(roomIDs[i]));
+                                string ownerName = roomDetails[1];
+                                if (roomDetails[6] == "0" && ownerName != _Username && seeAllRoomOwners == false) // The room owner has hidden his name at the guestroom and this user hasn't got the fuseright to see all room owners
+                                    ownerName = "-";
                                 roomsBuilder.Append(roomIDs[i]).TabSeparator()
-                                    .Append(roomDetails[0]).TabSeparator()
-                                    .Append(roomDetails[1]).TabSeparator()
-                                    .Append(roomManager.getRoomState(int.Parse(roomDetails[3]))).TabSeparator()
+                                    .Append(roomDetails[0]).TabSeparator()  // name
+                                    .Append(ownerName).TabSeparator()       // owner
+                                    .Append(roomManager.getRoomState(int.Parse(roomDetails[4]))).TabSeparator()  // state
                                     .Append("x").TabSeparator()
-                                    .Append(roomDetails[5]).TabSeparator()
-                                    .Append(roomDetails[6]).TabSeparator()
+                                    .Append(roomDetails[8]).TabSeparator()  // visitors_now
+                                    .Append(roomDetails[9]).TabSeparator()  // visitors_max
                                     .Append("null").TabSeparator()
-                                    .Append(roomDetails[2]).TabSeparator()
+                                    .Append(roomDetails[2]).TabSeparator()  // description
                                     .RecordSeparator();
                             }
                             sendData(roomsBuilder.Build());
@@ -231,7 +237,8 @@ namespace Holo.Virtual.Users
                 case "@U": // Navigator - get guestroom details
                     {
                         int roomID = int.Parse(currentPacket.Substring(2));
-                        string[] roomDetails = DB.runReadRow("SELECT name,owner,description,model,state,superusers,showname,category,visitors_now,visitors_max FROM rooms WHERE id = '" + roomID + "' AND NOT(owner IS NULL)");
+                        // GetRoomDetails returns: name[0], owner[1], description[2], model[3], state[4], superusers[5], showname[6], category[7], visitors_now[8], visitors_max[9]
+                        string[] roomDetails = RoomRepository.Instance.GetRoomDetails(roomID);
 
                         if (roomDetails.Length > 0) // Guestroom does exist
                         {
@@ -251,7 +258,7 @@ namespace Holo.Virtual.Users
                                 .Append(roomDetails[2]).Separator()
                                 .AppendVL64(int.Parse(roomDetails[6]));
 
-                            if (DB.checkExists("SELECT id FROM room_categories WHERE id = '" + roomDetails[7] + "' AND trading = '1'"))
+                            if (RoomCategoryRepository.Instance.IsTradingCategory(int.Parse(roomDetails[7])))
                                 detailsBuilder.Append(HabboProtocol.BOOL_TRUE); // Allow trading
                             else
                                 detailsBuilder.Append(HabboProtocol.BOOL_FALSE); // Disallow trading
@@ -264,7 +271,7 @@ namespace Holo.Virtual.Users
 
                 case "@R": // Navigator - initialize user's favorite rooms
                     {
-                        int[] roomIDs = DB.runReadColumn("SELECT roomid FROM users_favouriterooms WHERE userid = '" + userID + "' ORDER BY roomid DESC", Config.Navigator_Favourites_maxRooms, null);
+                        int[] roomIDs = UserRepository.Instance.GetFavoriteRooms(userID, Config.Navigator_Favourites_maxRooms);
                         if (roomIDs.Length > 0)
                         {
                             int deletedAmount = 0;
@@ -273,26 +280,27 @@ namespace Holo.Virtual.Users
                             var roomsBuilder = new HabboPacketBuilder();
                             for (int i = 0; i < roomIDs.Length; i++)
                             {
-                                string[] roomData = DB.runReadRow("SELECT name,owner,state,showname,visitors_now,visitors_max,description FROM rooms WHERE id = '" + roomIDs[i] + "'");
+                                // GetRoomDetails returns: name[0], owner[1], description[2], model[3], state[4], superusers[5], showname[6], category[7], visitors_now[8], visitors_max[9]
+                                string[] roomData = RoomRepository.Instance.GetRoomDetails(roomIDs[i]);
                                 if (roomData.Length == 0)
                                 {
                                     if (guestRoomAmount > 0)
                                         deletedAmount++;
-                                    DB.runQuery("DELETE FROM users_favouriterooms WHERE userid = '" + userID + "' AND roomid = '" + roomIDs[i] + "' LIMIT 1");
+                                    UserRepository.Instance.RemoveFavoriteRoom(userID, roomIDs[i]);
                                 }
                                 else
                                 {
                                     if (roomData[1] == "") // Publicroom
                                     {
-                                        int categoryID = DB.runRead("SELECT category FROM rooms WHERE id = '" + roomIDs[i] + "'", null);
-                                        string CCTs = DB.runRead("SELECT ccts FROM rooms WHERE id = '" + roomIDs[i] + "'");
+                                        int categoryID = RoomRepository.Instance.GetRoomCategory(roomIDs[i]);
+                                        string CCTs = RoomRepository.Instance.GetRoomCct(roomIDs[i]) ?? "";
                                         roomsBuilder.AppendVL64(roomIDs[i])
                                             .Append(HabboProtocol.BOOL_TRUE)
-                                            .Append(roomData[0]).Separator()
-                                            .AppendVL64(int.Parse(roomData[4]))
-                                            .AppendVL64(int.Parse(roomData[5]))
+                                            .Append(roomData[0]).Separator()      // name
+                                            .AppendVL64(int.Parse(roomData[8]))   // visitors_now
+                                            .AppendVL64(int.Parse(roomData[9]))   // visitors_max
                                             .AppendVL64(categoryID)
-                                            .Append(roomData[6]).Separator()
+                                            .Append(roomData[2]).Separator()      // description
                                             .AppendVL64(roomIDs[i])
                                             .Append(HabboProtocol.BOOL_FALSE)
                                             .Append(CCTs).Separator()
@@ -300,15 +308,16 @@ namespace Holo.Virtual.Users
                                     }
                                     else // Guestroom
                                     {
-                                        if (roomData[3] == "0" && _Username != roomData[1] && seeHiddenRoomOwners == false) // Room owner doesn't wish to show his name, and this user isn't the room owner and this user doesn't has the right to see hidden room owners, change room owner to '-'
-                                            roomData[1] = "-";
+                                        string ownerName = roomData[1];
+                                        if (roomData[6] == "0" && _Username != ownerName && seeHiddenRoomOwners == false) // Room owner doesn't wish to show his name, and this user isn't the room owner and this user doesn't has the right to see hidden room owners, change room owner to '-'
+                                            ownerName = "-";
                                         roomsBuilder.AppendVL64(roomIDs[i])
-                                            .Append(roomData[0]).Separator()
-                                            .Append(roomData[1]).Separator()
-                                            .Append(roomManager.getRoomState(int.Parse(roomData[2]))).Separator()
-                                            .AppendVL64(int.Parse(roomData[4]))
-                                            .AppendVL64(int.Parse(roomData[5]))
-                                            .Append(roomData[6]).Separator();
+                                            .Append(roomData[0]).Separator()      // name
+                                            .Append(ownerName).Separator()        // owner
+                                            .Append(roomManager.getRoomState(int.Parse(roomData[4]))).Separator()  // state
+                                            .AppendVL64(int.Parse(roomData[8]))   // visitors_now
+                                            .AppendVL64(int.Parse(roomData[9]))   // visitors_max
+                                            .Append(roomData[2]).Separator();     // description
                                         guestRoomAmount++;
                                     }
                                 }
@@ -328,10 +337,10 @@ namespace Holo.Virtual.Users
                 case "@S": // Navigator - add room to favourite rooms list
                     {
                         int roomID = Encoding.decodeVL64(currentPacket.Substring(3));
-                        if (DB.checkExists("SELECT id FROM rooms WHERE id = '" + roomID + "'") == true && DB.checkExists("SELECT userid FROM users_favouriterooms WHERE userid = '" + userID + "' AND roomid = '" + roomID + "'") == false) // The virtual room does exist, and the virtual user hasn't got it in the list already
+                        if (RoomRepository.Instance.RoomExists(roomID) && !UserRepository.Instance.IsFavoriteRoom(userID, roomID)) // The virtual room does exist, and the virtual user hasn't got it in the list already
                         {
-                            if (DB.runReadUnsafe("SELECT COUNT(userid) FROM users_favouriterooms WHERE userid = '" + userID + "'", null) < Config.Navigator_Favourites_maxRooms)
-                                DB.runQuery("INSERT INTO users_favouriterooms(userid,roomid) VALUES ('" + userID + "','" + roomID + "')");
+                            if (UserRepository.Instance.GetFavoriteRoomCount(userID) < Config.Navigator_Favourites_maxRooms)
+                                UserRepository.Instance.AddFavoriteRoom(userID, roomID);
                             else
                                 sendData(new HabboPacketBuilder(HabboPackets.ROOM_PASSWORD_REQUIRED).Append("nav_error_toomanyfavrooms").Build());
                         }
@@ -340,7 +349,7 @@ namespace Holo.Virtual.Users
                 case "@T": // Navigator - remove room from favourite rooms list
                     {
                         int roomID = Encoding.decodeVL64(currentPacket.Substring(3));
-                        DB.runQuery("DELETE FROM users_favouriterooms WHERE userid = '" + userID + "' AND roomid = '" + roomID + "' LIMIT 1");
+                        UserRepository.Instance.RemoveFavoriteRoom(userID, roomID);
                         break;
                     }
 
@@ -430,7 +439,7 @@ namespace Holo.Virtual.Users
                 case "@]": // Create guestroom - phase 1
                     {
                         string[] roomSettings = currentPacket.Split('/');
-                        if (DB.runRead("SELECT COUNT(id) FROM rooms WHERE owner = '" + _Username + "'", null) < Config.Navigator_createRoom_maxRooms)
+                        if (RoomRepository.Instance.GetRoomCountByOwner(_Username) < Config.Navigator_createRoom_maxRooms)
                         {
                             roomSettings[2] = stringManager.filterSwearwords(roomSettings[2]);
                             roomSettings[3] = roomSettings[3].Substring(6, 1);
@@ -438,9 +447,8 @@ namespace Holo.Virtual.Users
                             if (roomSettings[5] != "0" && roomSettings[5] != "1")
                                 return true;
 
-                            DB.runQuery("INSERT INTO rooms (name,owner,model,state,showname) VALUES ('" + DB.Stripslash(roomSettings[2]) + "','" + _Username + "','" + roomSettings[3] + "','" + roomSettings[4] + "','" + roomSettings[5] + "')");
-                            string roomID = DB.runRead("SELECT MAX(id) FROM rooms WHERE owner = '" + _Username + "'");
-                            sendData(new HabboPacketBuilder(HabboPackets.ROOM_CREATED).Append(roomID).RecordSeparator().Append(roomSettings[2]).Build());
+                            long newRoomId = RoomRepository.Instance.CreateRoom(roomSettings[2], _Username, roomSettings[3], int.Parse(roomSettings[4]), int.Parse(roomSettings[5]));
+                            sendData(new HabboPacketBuilder(HabboPackets.ROOM_CREATED).Append(newRoomId.ToString()).RecordSeparator().Append(roomSettings[2]).Build());
                         }
                         else
                             sendData(new HabboPacketBuilder(HabboPackets.ROOM_PASSWORD_REQUIRED).Append("Error creating a private room").Build());
@@ -469,7 +477,6 @@ namespace Holo.Virtual.Users
                             {
                                 case "description":
                                     roomDescription = stringManager.filterSwearwords(updValue);
-                                    roomDescription = DB.Stripslash(roomDescription);
                                     break;
 
                                 case "allsuperuser":
@@ -485,14 +492,14 @@ namespace Holo.Virtual.Users
                                     break;
 
                                 case "password":
-                                    roomPassword = DB.Stripslash(updValue);
+                                    roomPassword = updValue;
                                     break;
 
                                 default:
                                     return true;
                             }
                         }
-                        DB.runQuery("UPDATE rooms SET description = '" + roomDescription + "',superusers = '" + superUsers + "',visitors_max = '" + maxVisitors + "',password = '" + roomPassword + "' WHERE id = '" + roomID + "' AND owner = '" + _Username + "' LIMIT 1");
+                        RoomRepository.Instance.UpdateRoomSettings(roomID, _Username, roomDescription, superUsers, maxVisitors, roomPassword);
                         break;
                     }
 
@@ -500,20 +507,20 @@ namespace Holo.Virtual.Users
                     {
                         string[] packetContent = currentPacket.Substring(2).Split('/');
                         int roomID = int.Parse(packetContent[0]);
-                        string roomName = DB.Stripslash(stringManager.filterSwearwords(packetContent[1]));
+                        string roomName = stringManager.filterSwearwords(packetContent[1]);
                         string showName = packetContent[2];
                         if (showName != "1" && showName != "0")
                             showName = "1";
                         int roomState = roomManager.getRoomState(packetContent[2]);
-                        DB.runQuery("UPDATE rooms SET name = '" + roomName + "',state = '" + roomState + "',showname = '" + showName + "' WHERE id = '" + roomID + "' AND owner = '" + _Username + "' LIMIT 1");
+                        RoomRepository.Instance.UpdateRoomNameAndState(roomID, _Username, roomName, roomState, int.Parse(showName));
                         break;
                     }
 
                 case "BX": // Navigator - trigger guestroom modify
                     {
                         int roomID = Encoding.decodeVL64(currentPacket.Substring(2));
-                        string roomCategory = DB.runRead("SELECT category FROM rooms WHERE id = '" + roomID + "' AND owner = '" + _Username + "'");
-                        if (roomCategory != "")
+                        string? roomCategory = RoomRepository.Instance.GetRoomCategoryForOwner(roomID, _Username);
+                        if (roomCategory != null && roomCategory != "")
                         {
                             var modifyPacket = new HabboPacketBuilder(HabboPackets.ROOM_MODIFY)
                                 .AppendVL64(roomID)
@@ -527,22 +534,22 @@ namespace Holo.Virtual.Users
                     {
                         int roomID = Encoding.decodeVL64(currentPacket.Substring(2));
                         int cataID = Encoding.decodeVL64(currentPacket.Substring(Encoding.encodeVL64(roomID).Length + 2));
-                        if (DB.checkExists("SELECT id FROM room_categories WHERE id = '" + cataID + "' AND type = '2' AND parent > 0 AND access_rank_min <= " + _Rank)) // Category is valid for this user
-                            DB.runQuery("UPDATE rooms SET category = '" + cataID + "' WHERE id = '" + roomID + "' AND owner = '" + _Username + "' LIMIT 1");
+                        if (RoomCategoryRepository.Instance.CategoryExistsForRank(cataID, _Rank)) // Category is valid for this user
+                            RoomRepository.Instance.UpdateRoomCategory(roomID, _Username, cataID);
                         break;
                     }
 
                 case "@W": // Guestroom - Delete
                     {
                         int roomID = int.Parse(currentPacket.Substring(2));
-                        if (DB.checkExists("SELECT id FROM rooms WHERE id = '" + roomID + "' AND owner = '" + _Username + "'") == true)
+                        if (RoomRepository.Instance.IsRoomOwner(roomID, _Username))
                         {
-                            DB.runQuery("DELETE FROM room_rights WHERE roomid = '" + roomID + "'");
-                            DB.runQuery("DELETE FROM rooms WHERE id = '" + roomID + "' LIMIT 1");
-                            DB.runQuery("DELETE FROM room_votes WHERE roomid = '" + roomID + "'");
-                            DB.runQuery("DELETE FROM room_bans WHERE roomid = '" + roomID + "' LIMIT 1");
-                            DB.runQuery("DELETE FROM furniture WHERE roomid = '" + roomID + "'");
-                            DB.runQuery("DELETE FROM furniture_moodlight WHERE roomid = '" + roomID + "'");
+                            RoomAccessRepository.Instance.RemoveAllRights(roomID);
+                            RoomRepository.Instance.DeleteRoom(roomID);
+                            RoomAccessRepository.Instance.RemoveAllVotes(roomID);
+                            RoomAccessRepository.Instance.RemoveAllBans(roomID);
+                            FurnitureRepository.Instance.DeleteRoomItems(roomID);
+                            FurnitureExtrasRepository.Instance.DeleteMoodlight(roomID);
                         }
                         if (roomManager.containsRoom(roomID) == true)
                         {

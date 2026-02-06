@@ -1,4 +1,6 @@
 using System.Text;
+using Holo.Data.Repositories.Catalogue;
+using Holo.Data.Repositories.Furniture;
 
 namespace Holo.Managers;
 
@@ -17,7 +19,7 @@ public static class catalogueManager
         {
             Out.WriteLine("Starting caching of catalogue + items...");
 
-            int[] pageIDs = DB.runReadColumn("SELECT indexid FROM catalogue_pages ORDER BY indexid", 0, null);
+            int[] pageIDs = CatalogueRepository.Instance.GetPageIds();
             cataloguePages = new Dictionary<string, cataloguePage>();
             itemCache = new Dictionary<int, itemTemplate>();
 
@@ -35,7 +37,7 @@ public static class catalogueManager
         /// <param name="pageID">The ID of the page to cache. If -1 is specified, all the items that aren't on a page are cached.</param>
         private static void cachePage(int pageID)
         {
-            string[] pageData = DB.runReadRow("SELECT indexname,minrank,displayname,style_layout,img_header,img_side,label_description,label_misc,label_moredetails FROM catalogue_pages WHERE indexid = '" + pageID + "'");
+            string[] pageData = CatalogueRepository.Instance.GetPageData(pageID);
             if (pageID > 0 && pageData.Length == 0)
                 return;
 
@@ -68,19 +70,19 @@ public static class catalogueManager
                 }
             }
 
-            int[] itemTemplateIDs = DB.runReadColumn("SELECT tid FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0, null);
-            int[] itemTypeIDs = DB.runReadColumn("SELECT typeid FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0, null);
-            int[] itemLengths = DB.runReadColumn("SELECT length FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0, null);
-            int[] itemWidths = DB.runReadColumn("SELECT width FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0, null);
-            int[] itemCosts = DB.runReadColumn("SELECT catalogue_cost FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0, null);
-            int[] itemDoorFlags = DB.runReadColumn("SELECT door FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0, null);
-            int[] itemTradeableFlags = DB.runReadColumn("SELECT tradeable FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0, null);
-            int[] itemRecycleableFlags = DB.runReadColumn("SELECT recycleable FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0, null);
-            string[] itemNames = DB.runReadColumn("SELECT catalogue_name FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0);
-            string[] itemDescs = DB.runReadColumn("SELECT catalogue_description FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0);
-            string[] itemCCTs = DB.runReadColumn("SELECT name_cct FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0);
-            string[] itemColours = DB.runReadColumn("SELECT colour FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0);
-            string[] itemTopHs = DB.runReadColumn("SELECT top FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' ORDER BY catalogue_id_index ASC", 0);
+            int[] itemTemplateIDs = CatalogueRepository.Instance.GetItemTemplateIds(pageID);
+            int[] itemTypeIDs = CatalogueRepository.Instance.GetItemTypeIds(pageID);
+            int[] itemLengths = CatalogueRepository.Instance.GetItemLengths(pageID);
+            int[] itemWidths = CatalogueRepository.Instance.GetItemWidths(pageID);
+            int[] itemCosts = CatalogueRepository.Instance.GetItemCosts(pageID);
+            int[] itemDoorFlags = CatalogueRepository.Instance.GetItemDoorFlags(pageID);
+            int[] itemTradeableFlags = CatalogueRepository.Instance.GetItemTradeableFlags(pageID);
+            int[] itemRecycleableFlags = CatalogueRepository.Instance.GetItemRecycleableFlags(pageID);
+            string[] itemNames = CatalogueRepository.Instance.GetItemNames(pageID);
+            string[] itemDescs = CatalogueRepository.Instance.GetItemDescriptions(pageID);
+            string[] itemCCTs = CatalogueRepository.Instance.GetItemCcts(pageID);
+            string[] itemColours = CatalogueRepository.Instance.GetItemColours(pageID);
+            string[] itemTopHs = CatalogueRepository.Instance.GetItemTopHeights(pageID);
 
             for (int i = 0; i < itemTemplateIDs.Length; i++)
             {
@@ -119,8 +121,8 @@ public static class catalogueManager
                 else
                 {
                     int dealID = int.Parse(itemCCTs[i].Substring(4));
-                    int[] dealItemIDs = DB.runReadColumn("SELECT tid FROM catalogue_deals WHERE id = '" + dealID + "'", 0, null);
-                    int[] dealItemAmounts = DB.runReadColumn("SELECT amount FROM catalogue_deals WHERE id = '" + dealID + "'", 0, null);
+                    int[] dealItemIDs = CatalogueRepository.Instance.GetDealItemIds(dealID);
+                    int[] dealItemAmounts = CatalogueRepository.Instance.GetDealItemAmounts(dealID);
 
                     pageBuilder.Append("p:" + itemNames[i] + Convert.ToChar(9) + itemDescs[i] + Convert.ToChar(9) + itemCosts[i] + Convert.ToChar(9) + Convert.ToChar(9) + "d");
                     pageBuilder.Append(Convert.ToChar(9), 4);
@@ -128,8 +130,8 @@ public static class catalogueManager
 
                     for (int y = 0; y < dealItemIDs.Length; y++)
                     {
-                        string itemCCT = DB.runRead("SELECT name_cct FROM catalogue_items WHERE tid = '" + dealItemIDs[y] + "'");
-                        string itemColour = DB.runRead("SELECT colour FROM catalogue_items WHERE tid = '" + dealItemIDs[y] + "'");
+                        string itemCCT = CatalogueRepository.Instance.GetItemCctByTemplateId(dealItemIDs[y]) ?? "";
+                        string itemColour = CatalogueRepository.Instance.GetItemColourByTemplateId(dealItemIDs[y]) ?? "";
                         pageBuilder.Append(itemCCT + Convert.ToChar(9) + dealItemAmounts[y] + Convert.ToChar(9) + itemColour + Convert.ToChar(9));
                     }
                 }
@@ -158,7 +160,7 @@ public static class catalogueManager
             try
             {
                 StringBuilder listBuilder = new StringBuilder();
-                string[] pageNames = DB.runReadColumn("SELECT indexname FROM catalogue_pages WHERE minrank <= '" + userRank + "' ORDER BY indexid ASC", 0);
+                string[] pageNames = CatalogueRepository.Instance.GetPageNamesForRank(userRank);
 
                 for (int i = 0; i < pageNames.Length; i++)
                 {
@@ -211,7 +213,7 @@ public static class catalogueManager
                 case "floor":
                     {
                         int itemID = lastItemID;
-                        DB.runQuery("UPDATE furniture SET var = '" + decorID + "' WHERE id = '" + itemID + "' LIMIT 1");
+                        FurnitureRepository.Instance.UpdateVar(itemID, decorID);
                         break;
                     }
 
@@ -220,8 +222,8 @@ public static class catalogueManager
                         int itemID = lastItemID;
                         string defaultPreset = "1,#000000,155";
                         string defaultSetPreset = "1,1,1,#000000,155";
-                        DB.runQuery("INSERT INTO furniture_moodlight(id,roomid,preset_cur,preset_1,preset_2,preset_3) VALUES ('" + itemID + "','0','1','" + defaultPreset + "','" + defaultPreset + "','" + defaultPreset + "')");
-                        DB.runQuery("UPDATE furniture SET var = '" + defaultSetPreset + "' WHERE id = '" + itemID + "' LIMIT 1");
+                        FurnitureExtrasRepository.Instance.CreateMoodlight(itemID, 0, defaultPreset, defaultSetPreset);
+                        FurnitureRepository.Instance.UpdateVar(itemID, defaultSetPreset);
                         break;
                     }
 
@@ -234,13 +236,12 @@ public static class catalogueManager
                 case "ads_cltele":
                     {
                         int itemID1 = lastItemID;
-                        DB.runQuery("INSERT INTO furniture(tid,ownerid,roomid,teleportid) VALUES ('" + templateID + "','" + receiverID + "','" + roomID + "','" + itemID1 + "')");
-                        int itemID2 = lastItemID;
-                        DB.runQuery("UPDATE furniture SET teleportid = '" + itemID2 + "' WHERE id = '" + itemID1 + "' LIMIT 1");
+                        int itemID2 = (int)FurnitureRepository.Instance.CreateItemWithTeleport(templateID, receiverID, roomID, itemID1);
+                        FurnitureRepository.Instance.SetTeleporterId(itemID1, itemID2);
                         if (presentBoxID > 0)
                         {
-                            DB.runQuery("INSERT INTO furniture_presents(id,itemid) VALUES ('" + presentBoxID + "','" + itemID1 + "')");
-                            DB.runQuery("INSERT INTO furniture_presents(id,itemid) VALUES ('" + presentBoxID + "','" + itemID2 + "')");
+                            FurnitureExtrasRepository.Instance.AddPresentItem(presentBoxID, itemID1);
+                            FurnitureExtrasRepository.Instance.AddPresentItem(presentBoxID, itemID2);
                         }
                         handlePresentbox = false;
                         break;
@@ -250,7 +251,7 @@ public static class catalogueManager
                 case "post.it.vd":
                     {
                         int itemID = lastItemID;
-                        DB.runQuery("UPDATE furniture SET var = '20' WHERE id = '" + itemID + "' LIMIT 1");
+                        FurnitureRepository.Instance.UpdateVar(itemID, "20");
                         break;
                     }
 
@@ -260,7 +261,7 @@ public static class catalogueManager
                         {
                             int itemID = lastItemID;
                             int soundSet = int.Parse(Sprite.Substring(10));
-                            DB.runQuery("UPDATE furniture SET soundmachine_soundset = '" + soundSet + "' WHERE id = '" + itemID + "' LIMIT 1");
+                            FurnitureRepository.Instance.SetSoundMachineSoundSet(itemID, soundSet);
                         }
                         break;
                     }
@@ -268,7 +269,7 @@ public static class catalogueManager
 
             if (presentBoxID > 0 && handlePresentbox)
             {
-                DB.runQuery("INSERT INTO furniture_presents(id,itemid) VALUES ('" + presentBoxID + "','" + lastItemID + "')");
+                FurnitureExtrasRepository.Instance.AddPresentItem(presentBoxID, lastItemID);
             }
         }
         /// <summary>
@@ -278,7 +279,7 @@ public static class catalogueManager
         {
             get
             {
-                return DB.runRead("SELECT MAX(id) FROM furniture", null);
+                return FurnitureRepository.Instance.GetLastInsertedId();
             }
         }
         public static string tradeItemList(int[] itemIDs)
@@ -289,7 +290,7 @@ public static class catalogueManager
                 if (itemIDs[i] == 0)
                     continue;
 
-                int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemIDs[i] + "'", null);
+                int templateID = FurnitureRepository.Instance.GetTemplateId(itemIDs[i]);
                 itemTemplate Template = getTemplate(templateID);
                 List.Append("SI" + Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + i + Convert.ToChar(30));
                 if (Template.typeID > 0)
@@ -297,7 +298,7 @@ public static class catalogueManager
                 else
                     List.Append("I");
                 List.Append(Convert.ToChar(30).ToString() + itemIDs[i] + Convert.ToChar(30).ToString() + Template.Sprite + Convert.ToChar(30));
-                if (Template.typeID > 0) { List.Append(Template.Length + Convert.ToChar(30).ToString() + Template.Width + Convert.ToChar(30).ToString() + DB.runRead("SELECT var FROM furniture WHERE id = '" + itemIDs[i] + "'") + Convert.ToChar(30).ToString()); }
+                if (Template.typeID > 0) { List.Append(Template.Length + Convert.ToChar(30).ToString() + Template.Width + Convert.ToChar(30).ToString() + (FurnitureRepository.Instance.GetVar(itemIDs[i]) ?? "") + Convert.ToChar(30).ToString()); }
                 List.Append(Template.Colour + Convert.ToChar(30).ToString() + i + Convert.ToChar(30).ToString() + "/");
             }
             return List.ToString();

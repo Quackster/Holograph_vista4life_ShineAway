@@ -1,6 +1,8 @@
 using System;
 using System.Text;
 
+using Holo.Data.Repositories.System;
+using Holo.Data.Repositories.Users;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Users.Messenger;
@@ -63,13 +65,13 @@ namespace Holo.Virtual.Users
 
                 case "Ej":
                     {
-                        DB.runQuery("UPDATE users SET guideavailable = '1' WHERE id = '" + userID + "' LIMIT 1");
+                        UserRepository.Instance.SetGuideAvailable(userID, true);
                         break;
                     }
 
                 case "Ek":
                     {
-                        DB.runQuery("UPDATE users SET guideavailable = '0' WHERE id = '" + userID + "' LIMIT 1");
+                        UserRepository.Instance.SetGuideAvailable(userID, false);
                         break;
                     }
 
@@ -104,7 +106,7 @@ namespace Holo.Virtual.Users
                             return true;
                         }
 
-                        int ReceiverID = DB.runRead("SELECT id FROM users WHERE name = '" + DB.Stripslash(Receiver) + "'", null);
+                        int ReceiverID = UserRepository.Instance.GetUserId(Receiver);
                         if (!(ReceiverID > 0)) // Does the user exist?
                         {
                             sendData(new HabboPacketBuilder(HabboPackets.USER_NOT_FOUND).Append(Receiver).Build());
@@ -113,8 +115,8 @@ namespace Holo.Virtual.Users
 
                         _Credits -= Price; // New credit amount
                         sendData(HabboPacketBuilder.CreditsUpdate(_Credits));
-                        DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
-                        DB.runQuery("UPDATE users SET tickets = tickets+" + Ticketamount + " WHERE id = '" + ReceiverID + "' LIMIT 1");
+                        UserRepository.Instance.UpdateCredits(userID, _Credits);
+                        UserRepository.Instance.AddTickets(ReceiverID, Ticketamount);
 
                         if (userManager.containsUser(ReceiverID)) // Check or the user is online
                         {
@@ -133,16 +135,16 @@ namespace Holo.Virtual.Users
 
                 case "BA": // Purse - redeem credit voucher
                     {
-                        string Code = DB.Stripslash(currentPacket.Substring(4));
-                        if (DB.checkExists("SELECT voucher FROM vouchers WHERE voucher = '" + Code + "'"))
+                        string Code = currentPacket.Substring(4);
+                        if (MiscRepository.Instance.VoucherExists(Code))
                         {
-                            int voucherAmount = DB.runRead("SELECT credits FROM vouchers WHERE voucher = '" + Code + "'", null);
-                            DB.runQuery("DELETE FROM vouchers WHERE voucher = '" + Code + "' LIMIT 1");
+                            int voucherAmount = MiscRepository.Instance.GetVoucherCredits(Code);
+                            MiscRepository.Instance.DeleteVoucher(Code);
 
                             _Credits += voucherAmount;
                             sendData(HabboPacketBuilder.CreditsUpdate(_Credits));
                             sendData(HabboPackets.VOUCHER_REDEEMED);
-                            DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
+                            UserRepository.Instance.UpdateCredits(userID, _Credits);
                         }
                         else
                             sendData(HabboPackets.VOUCHER_INVALID);

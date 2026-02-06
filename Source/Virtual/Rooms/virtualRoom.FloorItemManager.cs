@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Rooms.Items;
+using Holo.Data.Repositories.Furniture;
 
 namespace Holo.Virtual.Rooms;
 
@@ -182,9 +183,9 @@ public partial class virtualRoom
                 _Room.sendData(new HabboPacketBuilder("A^").Append(itemID).Build());
                 _Items.Remove(itemID);
                 if (ownerID > 0) // Return to current owner/new owner
-                    DB.runQuery("UPDATE furniture SET x = '0',y = '0',z = '0', h = '0', ownerid = '" + ownerID + "',roomid = '0' WHERE id = '" + itemID + "' LIMIT 1");
+                    FurnitureRepository.Instance.ReturnItemToOwner(itemID, ownerID);
                 else
-                    DB.runQuery("DELETE FROM furniture WHERE id = '" + itemID + "' LIMIT 1");
+                    FurnitureRepository.Instance.DeleteItem(itemID);
             }
         }
         internal void placeItem(int itemID, int templateID, int X, int Y, byte typeID, byte Z)
@@ -293,8 +294,8 @@ public partial class virtualRoom
                     }
                 }
 
-                string Var = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
-                DB.runQuery("UPDATE furniture SET roomid = '" + _Room.roomID + "',x = '" + X + "',y = '" + Y + "',z = '" + Z + "',h = '" + H.ToString().Replace(',','.') + "' WHERE id = '" + itemID + "' LIMIT 1");
+                string Var = FurnitureRepository.Instance.GetVar(itemID) ?? "";
+                FurnitureRepository.Instance.PlaceFloorItem(itemID, _Room.roomID, X, Y, Z, H);
                 var Item = new floorItem(itemID, templateID, X, Y, Z, H, Var);
                 _Items.Add(itemID, Item);
                 _Room.sendData(new HabboPacketBuilder("A]").Append(Item.ToString()).Build());
@@ -476,7 +477,7 @@ public partial class virtualRoom
                 Item.Z = Z;
                 Item.H = H;
                 _Room.sendData(new HabboPacketBuilder("A_").Append(Item.ToString()).Build());
-                DB.runQuery("UPDATE furniture SET x = '" + X + "',y = '" + Y + "',z = '" + Z + "',h = '" + H.ToString().Replace(',','.') + "' WHERE id = '" + itemID + "' LIMIT 1");
+                FurnitureRepository.Instance.MoveFloorItem(itemID, X, Y, Z, H);
 
                 for (int jX = X; jX < X + Width; jX++)
                 {
@@ -562,13 +563,13 @@ public partial class virtualRoom
                     #endregion
                     Item.Var = toStatus;
                     _Room.sendData(new HabboPacketBuilder("AX").Append(itemID).Separator().Append(toStatus).Separator().Build());
-                    DB.runQuery("UPDATE furniture SET var = '" + toStatus + "' WHERE id = '" + itemID + "' LIMIT 1");
+                    FurnitureRepository.Instance.UpdateVar(itemID, toStatus);
                 }
                 return;
             }
             Item.Var = toStatus;
             _Room.sendData(new HabboPacketBuilder("AX").Append(itemID).Separator().Append(toStatus).Separator().Build());
-            DB.runQuery("UPDATE furniture SET var = '" + toStatus + "' WHERE id = '" + itemID + "' LIMIT 1");
+            FurnitureRepository.Instance.UpdateVar(itemID, toStatus);
         }
         /// <summary>
         /// Returns a string with all the virtual wallitems in this item manager.

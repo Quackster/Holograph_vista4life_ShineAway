@@ -116,4 +116,13 @@ public class RoomModelRepository : BaseRepository
             Param("@id", triggerId));
     }
     #endregion
+
+    #region Special Cast
+    public int[] GetSpecialCastSettings(string model)
+    {
+        return ReadRowInt(
+            "SELECT specialcast_interval, specialcast_rnd_min, specialcast_rnd_max FROM room_modeldata WHERE model = @model",
+            Param("@model", model));
+    }
+    #endregion
 }

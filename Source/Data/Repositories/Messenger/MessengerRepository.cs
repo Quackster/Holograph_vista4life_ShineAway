@@ -80,12 +80,44 @@ public class MessengerRepository : BaseRepository
             Param("@to", toUserId));
     }
 
+    public void CreateFriendRequestWithId(int fromUserId, int toUserId, int requestId)
+    {
+        Execute(
+            "INSERT INTO messenger_friendrequests (userid_to, userid_from, requestid) VALUES (@to, @from, @requestid)",
+            Param("@to", toUserId),
+            Param("@from", fromUserId),
+            Param("@requestid", requestId));
+    }
+
+    public int GetMaxRequestId(int toUserId)
+    {
+        return ReadScalarIntUnsafe(
+            "SELECT MAX(requestid) FROM messenger_friendrequests WHERE userid_to = @to",
+            Param("@to", toUserId));
+    }
+
+    public int GetRequestSender(int toUserId, int requestId)
+    {
+        return ReadScalarInt(
+            "SELECT userid_from FROM messenger_friendrequests WHERE userid_to = @to AND requestid = @requestid",
+            Param("@to", toUserId),
+            Param("@requestid", requestId));
+    }
+
     public void DeleteFriendRequest(int fromUserId, int toUserId)
     {
         Execute(
             "DELETE FROM messenger_friendrequests WHERE userid_from = @from AND userid_to = @to LIMIT 1",
             Param("@from", fromUserId),
             Param("@to", toUserId));
+    }
+
+    public void DeleteFriendRequestById(int toUserId, int requestId)
+    {
+        Execute(
+            "DELETE FROM messenger_friendrequests WHERE userid_to = @to AND requestid = @requestid LIMIT 1",
+            Param("@to", toUserId),
+            Param("@requestid", requestId));
     }
 
     public void DeleteAllFriendRequests(int userId)

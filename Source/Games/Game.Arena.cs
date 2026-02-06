@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 using Holo.Protocol;
 using Holo.Virtual.Users;
@@ -119,30 +120,42 @@ namespace Holo.Virtual.Rooms.Games
             }
 
             sendData(new HabboPacketBuilder("Cq").AppendVL64(-1).Build()); // Send players to arena
-            new Eucalypt.commonDelegate(countDownTicker).BeginInvoke(null, null); // Start countdown bar
+            _updateCts = new CancellationTokenSource();
+            _ = CountDownTickerAsync(_updateCts.Token); // Start countdown bar
         }
+
         /// <summary>
-        /// Counts
+        /// Async countdown ticker that counts down before game starts.
         /// </summary>
-        private void countDownTicker()
+        private async Task CountDownTickerAsync(CancellationToken cancellationToken)
         {
-            while (leftCountdownSeconds > 0)
+            try
             {
-                leftCountdownSeconds--;
-                Thread.Sleep(1000);
-            }
-            for (int i = 0; i < Teams.Length; i++)
-                foreach (gamePlayer Player in Teams[i])
+                while (leftCountdownSeconds > 0 && !cancellationToken.IsCancellationRequested)
                 {
-                    Player.User._Tickets -= 2;
-                    Player.User.sendData(new HabboPacketBuilder("A|").Append(Player.User._Tickets).Build());
-                    DB.runQuery("UPDATE users SET tickets = '" + Player.User._Tickets + "' WHERE id = '" + Player.User.userID + "' LIMIT 1");
+                    leftCountdownSeconds--;
+                    await Task.Delay(1000, cancellationToken);
                 }
 
-            // Start game
-            updateHandler = new Thread(new ThreadStart(updateLoop));
-            updateHandler.Start();
-            sendData(new HabboPacketBuilder("Cw").AppendVL64(totalTime).Build());
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
+                for (int i = 0; i < Teams.Length; i++)
+                    foreach (gamePlayer Player in Teams[i])
+                    {
+                        Player.User._Tickets -= 2;
+                        Player.User.sendData(new HabboPacketBuilder("A|").Append(Player.User._Tickets).Build());
+                        DB.runQuery("UPDATE users SET tickets = '" + Player.User._Tickets + "' WHERE id = '" + Player.User.userID + "' LIMIT 1");
+                    }
+
+                // Start game loop
+                sendData(new HabboPacketBuilder("Cw").AppendVL64(totalTime).Build());
+                await UpdateLoopAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Game was aborted
+            }
         }
         internal string getMap()
         {
@@ -193,7 +206,7 @@ namespace Holo.Virtual.Rooms.Games
 
             return Setup.ToString();
         }
-        private void updateLoop()
+        private async Task UpdateLoopAsync(CancellationToken cancellationToken)
         {
             if (isBattleBall)
             {
@@ -211,7 +224,7 @@ namespace Holo.Virtual.Rooms.Games
 
                 Random RND = new Random(DateTime.Now.Millisecond * teamAmount);
 
-                while (leftTime > 0)
+                while (leftTime > 0 && !cancellationToken.IsCancellationRequested)
                 {
                     int[] Amounts = new int[3]; // [0] = unit amount, [1] = updated tile amount, [2] = moving units amount
                     StringBuilder Players = new StringBuilder();
@@ -295,7 +308,7 @@ namespace Holo.Virtual.Rooms.Games
                     if (subtrSecond)
                         leftTime--;
                     subtrSecond = (subtrSecond != true);
-                    Thread.Sleep(470);
+                    await Task.Delay(470, cancellationToken);
                 }
                 State = gameState.Ended;
 

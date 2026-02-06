@@ -1,6 +1,9 @@
 using System;
 using System.Text;
 
+using Holo.Data.Repositories.Rooms;
+using Holo.Data.Repositories.System;
+using Holo.Data.Repositories.Users;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Rooms;
@@ -117,7 +120,7 @@ namespace Holo.Virtual.Users
                                         return true;
                                     else
                                     {
-                                        string[] userDetails = DB.runReadRow("SELECT id,rank,ipaddress_last FROM users WHERE name = '" + DB.Stripslash(targetUser) + "'");
+                                        string[] userDetails = UserRepository.Instance.GetUserDetailsForBanReport(UserRepository.Instance.GetUserId(targetUser));
                                         if (userDetails.Length == 0)
                                         {
                                             sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfail")).Append("\r").Append(stringManager.getString("modtool_usernotfound")).Build());
@@ -129,7 +132,7 @@ namespace Holo.Virtual.Users
                                             return true;
                                         }
 
-                                        int targetID = int.Parse(userDetails[0]);
+                                        int targetID = UserRepository.Instance.GetUserId(targetUser);
                                         string Report = "";
                                         staffManager.addStaffMessage("ban", userID, targetID, Message, staffNote);
                                         if (banIP && rankManager.containsRight(_Rank, "fuse_superban")) // IP ban is chosen and allowed for this staff member
@@ -198,7 +201,7 @@ namespace Holo.Virtual.Users
                 #region User Side
                 case "Cm": // User wants to send a CFH message
                     {
-                        string[] cfhStats = DB.runReadRow("SELECT id, date, message, picked_up FROM cms_help WHERE username = '" + _Username + "' AND picked_up = '0'");
+                        string[] cfhStats = MiscRepository.Instance.GetPendingCfhByUsername(_Username);
                         if (cfhStats.Length == 0)
                             sendData(new HabboPacketBuilder("D").Append("H").Build());
                         else
@@ -208,8 +211,8 @@ namespace Holo.Virtual.Users
 
                 case "Cn": // User deletes his pending CFH message
                     {
-                        int cfhID = DB.runRead("SELECT id FROM cms_help WHERE username = '" + _Username + "' AND picked_up = '0'", null);
-                        DB.runQuery("DELETE FROM cms_help WHERE picked_up = '0' AND username = '" + _Username + "' LIMIT 1");
+                        int cfhID = MiscRepository.Instance.GetPendingCfhIdByUsername(_Username);
+                        MiscRepository.Instance.DeletePendingCfhByUsername(_Username);
                         sendData("DH");
                         userManager.sendToRank(Config.Minimum_CFH_Rank, true, new HabboPacketBuilder("BT").AppendVL64(cfhID).Separator().Append("I").Append("User Deleted!").Separator().Append("User Deleted!").Separator().Append("User Deleted!").Separator().AppendVL64(0).Separator().Append("").Separator().Append("H").Separator().AppendVL64(0).Build());
                         break;
@@ -217,17 +220,17 @@ namespace Holo.Virtual.Users
 
                 case "AV": // User sends CFH message
                     {
-                        if (DB.checkExists("SELECT id FROM cms_help WHERE username = '" + _Username + "' AND picked_up = '0'"))
+                        if (MiscRepository.Instance.HasPendingCfh(_Username))
                             return true;
                         int messageLength = Encoding.decodeB64(currentPacket.Substring(2, 2));
                         if (messageLength == 0)
                             return true;
                         string cfhMessage = currentPacket.Substring(4, messageLength);
-                        DB.runQuery("INSERT INTO cms_help (username,ip,message,date,picked_up,subject,roomid) VALUES ('" + _Username + "','" + connectionRemoteIP + "','" + DB.Stripslash(cfhMessage) + "','" + DateTime.Now + "','0','CFH message [hotel]','" + _roomID.ToString() + "')");
-                        int cfhID = DB.runRead("SELECT id FROM cms_help WHERE username = '" + _Username + "' AND picked_up = '0'", null);
-                        string roomName = DB.runRead("SELECT name FROM rooms WHERE id = '" + _roomID + "'"); //          H = Automated / I = Manual                                                                                                                                                                          H = Hide Room ID / I = Show Room ID
+                        MiscRepository.Instance.CreateCfh(_Username, connectionRemoteIP, cfhMessage, _roomID);
+                        int cfhID = MiscRepository.Instance.GetPendingCfhIdByUsername(_Username);
+                        string? roomName = RoomRepository.Instance.GetRoomName(_roomID); //          H = Automated / I = Manual                                                                                                                                                                          H = Hide Room ID / I = Show Room ID
                         sendData("EAH"); //                                                                                           \_/                                                                                                                                                                                                    \_/
-                        userManager.sendToRank(Config.Minimum_CFH_Rank, true, new HabboPacketBuilder("BT").AppendVL64(cfhID).Separator().Append("I").Append("Sent: " + DateTime.Now).Separator().Append(_Username).Separator().Append(cfhMessage).Separator().AppendVL64(_roomID).Separator().Append(roomName).Separator().Append("I").Separator().AppendVL64(_roomID).Build());
+                        userManager.sendToRank(Config.Minimum_CFH_Rank, true, new HabboPacketBuilder("BT").AppendVL64(cfhID).Separator().Append("I").Append("Sent: " + DateTime.Now).Separator().Append(_Username).Separator().Append(cfhMessage).Separator().AppendVL64(_roomID).Separator().Append(roomName ?? "").Separator().Append("I").Separator().AppendVL64(_roomID).Build());
                         break;
                     }
                 #endregion
@@ -240,7 +243,7 @@ namespace Holo.Virtual.Users
                         int cfhID = Encoding.decodeVL64(currentPacket.Substring(4, Encoding.decodeB64(currentPacket.Substring(2, 2))));
                         string cfhReply = currentPacket.Substring(Encoding.decodeB64(currentPacket.Substring(2, 2)) + 6);
 
-                        string toUserName = DB.runRead("SELECT username FROM cms_help WHERE id = '" + cfhID + "'");
+                        string? toUserName = MiscRepository.Instance.GetCfhUsername(cfhID);
                         if (toUserName == null)
                             sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("cfh_fail")).Build());
                         else
@@ -250,7 +253,7 @@ namespace Holo.Virtual.Users
                             if (toVirtualUser._isLoggedIn)
                             {
                                 toVirtualUser.sendData(new HabboPacketBuilder("DR").Append(cfhReply).Separator().Build());
-                                DB.runQuery("UPDATE cms_help SET picked_up = '" + _Username + "' WHERE id = '" + cfhID + "' LIMIT 1");
+                                MiscRepository.Instance.MarkCfhPickedUp(cfhID, _Username);
                             }
                         }
                         break;
@@ -261,7 +264,7 @@ namespace Holo.Virtual.Users
                         if (rankManager.containsRight(_Rank, "fuse_receive_calls_for_help") == false)
                             return true;
                         int cfhID = Encoding.decodeVL64(currentPacket.Substring(4, Encoding.decodeB64(currentPacket.Substring(2, 2))));
-                        string[] cfhStats = DB.runReadRow("SELECT username,message,date,picked_up,roomid FROM cms_help WHERE id = '" + cfhID + "'");
+                        string[] cfhStats = MiscRepository.Instance.GetCfhDetails(cfhID);
                         if (cfhStats.Length == 0)
                             return true;
                         else
@@ -270,7 +273,7 @@ namespace Holo.Virtual.Users
                                 sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("cfh_picked_up")).Build());
                             else
                             {
-                                DB.runQuery("DELETE FROM cms_help WHERE id = '" + cfhID + "' LIMIT 1");
+                                MiscRepository.Instance.DeleteCfh(cfhID);
                                 userManager.sendToRank(Config.Minimum_CFH_Rank, true, new HabboPacketBuilder("BT").AppendVL64(cfhID).Separator().Append("H").Append("Staff Deleted!").Separator().Append("Staff Deleted!").Separator().Append("Staff Deleted!").Separator().AppendVL64(0).Separator().Append("").Separator().Append("H").Separator().AppendVL64(0).Build());
                             }
                         }
@@ -280,18 +283,18 @@ namespace Holo.Virtual.Users
                 case "@p": // CFH center - Pickup
                     {
                         int cfhID = Encoding.decodeVL64(currentPacket.Substring(4));
-                        if (DB.checkExists("SELECT id FROM cms_help WHERE id = '" + cfhID + "'") == false)
+                        if (MiscRepository.Instance.CfhExists(cfhID) == false)
                         {
                             sendData(stringManager.getString("cfh_deleted"));
                             return true;
                         }
-                        string[] cfhData = DB.runReadRow("SELECT picked_up,username,message,roomid FROM cms_help WHERE id = '" + cfhID + "'");
-                        string roomName = DB.runRead("SELECT name FROM rooms WHERE id = '" + cfhData[3] + "'");
-                        if (cfhData[0] == "1")
+                        string[] cfhData = MiscRepository.Instance.GetCfhDetails(cfhID);
+                        string? roomName = RoomRepository.Instance.GetRoomName(int.Parse(cfhData[4]));
+                        if (cfhData[3] == "1")
                             sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("cfh_picked_up")).Build());
                         else
-                            userManager.sendToRank(Config.Minimum_CFH_Rank, true, new HabboPacketBuilder("BT").AppendVL64(cfhID).Separator().Append("I").Append("Picked up: " + DateTime.Now).Separator().Append(cfhData[1]).Separator().Append(cfhData[2]).Separator().AppendVL64(int.Parse(cfhData[3])).Separator().Append(roomName).Separator().Append("I").Separator().AppendVL64(int.Parse(cfhData[3])).Build());
-                        DB.runQuery("UPDATE cms_help SET picked_up = '1' WHERE id = '" + cfhID + "' LIMIT 1");
+                            userManager.sendToRank(Config.Minimum_CFH_Rank, true, new HabboPacketBuilder("BT").AppendVL64(cfhID).Separator().Append("I").Append("Picked up: " + DateTime.Now).Separator().Append(cfhData[0]).Separator().Append(cfhData[1]).Separator().AppendVL64(int.Parse(cfhData[4])).Separator().Append(roomName ?? "").Separator().Append("I").Separator().AppendVL64(int.Parse(cfhData[4])).Build());
+                        MiscRepository.Instance.MarkCfhPickedUp(cfhID, "1");
                         break;
                     }
 
@@ -301,7 +304,7 @@ namespace Holo.Virtual.Users
                             return true;
                         int idLength = Encoding.decodeB64(currentPacket.Substring(2, 2));
                         int cfhID = Encoding.decodeVL64(currentPacket.Substring(4, idLength));
-                        int roomID = DB.runRead("SELECT roomid FROM cms_help WHERE id = '" + cfhID + "'", null);
+                        int roomID = MiscRepository.Instance.GetCfhRoomId(cfhID);
                         if (roomID == 0)
                             return true;
                         virtualRoom room = roomManager.getRoom(roomID);

@@ -262,6 +262,31 @@ public class UserRepository : BaseRepository
             Param("@id", userId),
             Param("@badge", badge));
     }
+
+    public void ResetBadgeSlots(int userId)
+    {
+        Execute(
+            "UPDATE users_badges SET slotid = 0 WHERE userid = @id",
+            Param("@id", userId));
+    }
+    #endregion
+
+    #region Users - Ignores
+    public void AddIgnore(int userId, int targetId)
+    {
+        Execute(
+            "INSERT INTO user_ignores (userid, targetid) VALUES (@userid, @targetid)",
+            Param("@userid", userId),
+            Param("@targetid", targetId));
+    }
+
+    public void RemoveIgnore(int userId, int targetId)
+    {
+        Execute(
+            "DELETE FROM user_ignores WHERE userid = @userid AND targetid = @targetid LIMIT 1",
+            Param("@userid", userId),
+            Param("@targetid", targetId));
+    }
     #endregion
 
     #region Users - Favorite Rooms
@@ -359,6 +384,13 @@ public class UserRepository : BaseRepository
             Param("@id", userId),
             Param("@points", points));
     }
+
+    public void DecrementTickets(int userId)
+    {
+        Execute(
+            "UPDATE users SET tickets = tickets - 1 WHERE id = @id LIMIT 1",
+            Param("@id", userId));
+    }
     #endregion
 
     #region Users - Groups
@@ -375,6 +407,150 @@ public class UserRepository : BaseRepository
     {
         return ReadRow(
             "SELECT name, rank, ipaddress_last FROM users WHERE id = @id",
+            Param("@id", userId));
+    }
+    #endregion
+
+    #region Users - SSO/Login
+    public int GetUserIdByTicketSso(string ticket)
+    {
+        return ReadScalarInt(
+            "SELECT id FROM users WHERE ticket_sso = @ticket",
+            Param("@ticket", ticket));
+    }
+
+    public string[] GetLoginUserData(int userId)
+    {
+        return ReadRow(
+            "SELECT name, figure, sex, mission, rank, consolemission FROM users WHERE id = @id",
+            Param("@id", userId));
+    }
+
+    public int GetGuideStatus(int userId)
+    {
+        return ReadScalarInt(
+            "SELECT guide FROM users WHERE id = @id",
+            Param("@id", userId));
+    }
+
+    public void SetGuideAvailable(int userId, bool available)
+    {
+        Execute(
+            "UPDATE users SET guideavailable = @available WHERE id = @id LIMIT 1",
+            Param("@id", userId),
+            Param("@available", available ? 1 : 0));
+    }
+    #endregion
+
+    #region Users - Ignored Users
+    public int[] GetIgnoredUserIds(int userId)
+    {
+        return ReadColumnInt(
+            "SELECT targetid FROM user_ignores WHERE userid = @id",
+            0,
+            Param("@id", userId));
+    }
+    #endregion
+
+    #region Users - Appearance
+    public string[] GetAppearanceData(int userId)
+    {
+        return ReadRow(
+            "SELECT figure, sex, mission FROM users WHERE id = @id",
+            Param("@id", userId));
+    }
+    #endregion
+
+    #region Users - Search
+    public string[] SearchUsersByName(string pattern, int limit)
+    {
+        return ReadColumn(
+            "SELECT id FROM users WHERE name LIKE @pattern",
+            limit,
+            Param("@pattern", $"%{pattern}%"));
+    }
+
+    public string[] GetUserSearchData(int userId)
+    {
+        return ReadRow(
+            "SELECT name, mission, lastvisit, figure FROM users WHERE id = @id",
+            Param("@id", userId));
+    }
+    #endregion
+
+    #region Users - Admin Commands
+    public int[] GetUserIdAndRankByName(string username)
+    {
+        return ReadRowInt(
+            "SELECT id, rank FROM users WHERE name = @name",
+            Param("@name", username));
+    }
+
+    public void AddTickets(int userId, int amount)
+    {
+        Execute(
+            "UPDATE users SET tickets = tickets + @amount WHERE id = @id LIMIT 1",
+            Param("@id", userId),
+            Param("@amount", amount));
+    }
+
+    public string? GetIpAddressById(int userId)
+    {
+        return ReadScalar(
+            "SELECT ipaddress_last FROM users WHERE id = @id",
+            Param("@id", userId));
+    }
+    #endregion
+
+    #region Users - Club Subscription
+    public string[] GetClubDetails(int userId)
+    {
+        return ReadRow(
+            "SELECT months_expired, months_left, date_monthstarted FROM users_club WHERE userid = @id",
+            Param("@id", userId));
+    }
+    #endregion
+
+    #region Users - Group Membership
+    public int GetCurrentGroupId(int userId)
+    {
+        return ReadScalarIntUnsafe(
+            "SELECT groupid FROM groups_memberships WHERE userid = @id AND is_current = '1'",
+            Param("@id", userId));
+    }
+
+    public int GetGroupMemberRank(int userId, int groupId)
+    {
+        return ReadScalarInt(
+            "SELECT member_rank FROM groups_memberships WHERE userid = @id AND groupID = @groupId",
+            Param("@id", userId),
+            Param("@groupId", groupId));
+    }
+    #endregion
+
+    #region Users - Badges (sorted)
+    public string[] GetUserBadgesSorted(int userId)
+    {
+        return ReadColumn(
+            "SELECT badge FROM users_badges WHERE userid = @id ORDER BY slotid ASC",
+            0,
+            Param("@id", userId));
+    }
+
+    public int[] GetUserBadgeSlotsSorted(int userId)
+    {
+        return ReadColumnInt(
+            "SELECT slotid FROM users_badges WHERE userid = @id ORDER BY slotid ASC",
+            0,
+            Param("@id", userId));
+    }
+    #endregion
+
+    #region Users - Decrement Credits
+    public void DecrementCredits(int userId)
+    {
+        Execute(
+            "UPDATE users SET credits = credits - 1 WHERE id = @id LIMIT 1",
             Param("@id", userId));
     }
     #endregion

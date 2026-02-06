@@ -2,8 +2,10 @@ using System;
 using System.Text;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
+using System.Threading.Tasks;
 
+using Holo.Data.Repositories.Furniture;
+using Holo.Data.Repositories.Users;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Rooms;
@@ -31,7 +33,7 @@ public partial class virtualUser
     {
         if (Reload)
         {
-            string[] userData = DB.runReadRow("SELECT figure,sex,mission FROM users WHERE id = '" + userID + "'");
+            string[] userData = UserRepository.Instance.GetAppearanceData(userID);
             _Figure = userData[0];
             _Sex = char.Parse(userData[1]);
             _Mission = userData[2];
@@ -79,13 +81,13 @@ public partial class virtualUser
     {
         if (Credits)
         {
-            _Credits = DB.runRead("SELECT credits FROM users WHERE id = '" + userID + "'", null);
+            _Credits = UserRepository.Instance.GetCredits(userID);
             sendData(HabboPacketBuilder.CreditsUpdate(_Credits));
         }
 
         if (Tickets)
         {
-            _Tickets = DB.runRead("SELECT tickets FROM users WHERE id = '" + userID + "'", null);
+            _Tickets = UserRepository.Instance.GetTickets(userID);
             sendData(HabboPacketBuilder.TicketsUpdate(_Tickets));
         }
     }
@@ -98,7 +100,7 @@ public partial class virtualUser
         int restingDays = 0;
         int passedMonths = 0;
         int restingMonths = 0;
-        string[] subscrDetails = DB.runReadRow("SELECT months_expired,months_left,date_monthstarted FROM users_club WHERE userid = '" + userID + "'");
+        string[] subscrDetails = UserRepository.Instance.GetClubDetails(userID);
         if (subscrDetails.Length > 0)
         {
             passedMonths = int.Parse(subscrDetails[0]);
@@ -127,8 +129,8 @@ public partial class virtualUser
         _Badges.Clear();
         _badgeSlotIDs.Clear();
 
-        string[] myBadges = DB.runReadColumn("SELECT badge FROM users_badges WHERE userid = '" + userID + "' ORDER BY slotid ASC", 0);
-        int[] myBadgeSlotIDs = DB.runReadColumn("SELECT slotid FROM users_badges WHERE userid = '" + userID + "' ORDER BY slotid ASC", 0, null);
+        string[] myBadges = UserRepository.Instance.GetUserBadgesSorted(userID);
+        int[] myBadgeSlotIDs = UserRepository.Instance.GetUserBadgeSlotsSorted(userID);
 
         var sbMessage = new HabboPacketBuilder()
             .AppendVL64(myBadges.Length);
@@ -204,9 +206,9 @@ public partial class virtualUser
     /// </summary>
     internal void refreshGroupStatus()
     {
-        _groupID = DB.runReadUnsafe("SELECT groupid FROM groups_memberships WHERE userid = '" + userID + "' AND is_current = '1'", null);
+        _groupID = UserRepository.Instance.GetCurrentGroupId(userID);
         if (_groupID > 0)
-            _groupMemberRank = Holo.DB.runRead("SELECT member_rank FROM groups_memberships WHERE userid = '" + userID + "' AND groupID = '" + _groupID + "'", null);
+            _groupMemberRank = UserRepository.Instance.GetGroupMemberRank(userID, _groupID);
     }
 
     /// <summary>
@@ -215,7 +217,7 @@ public partial class virtualUser
     /// <param name="Mode">The refresh mode, available: 'next', 'prev', 'update', 'last' and 'new'.</param>
     internal void refreshHand(string Mode)
     {
-        int[] itemIDs = DB.runReadColumn("SELECT id FROM furniture WHERE ownerid = '" + userID + "' AND roomid = '0' ORDER BY id ASC", 0, null);
+        int[] itemIDs = FurnitureRepository.Instance.GetHandItemIdsSorted(userID);
         var Hand = new HabboPacketBuilder(HabboPackets.INVENTORY_HAND);
         int startID = 0;
         int stopID = itemIDs.Length;
@@ -249,7 +251,7 @@ public partial class virtualUser
 
                 for (int i = startID; i < stopID; i++)
                 {
-                    int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemIDs[i] + "'", null);
+                    int templateID = FurnitureRepository.Instance.GetTemplateId(itemIDs[i]);
                     catalogueManager.itemTemplate Template = catalogueManager.getTemplate(templateID);
                     char Recycleable = Template.isRecycleable ? '1' : '0';
 
@@ -257,7 +259,7 @@ public partial class virtualUser
                     {
                         string Colour = Template.Colour;
                         if (Template.Sprite == "post.it" || Template.Sprite == "post.it.vd")
-                            Colour = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemIDs[i] + "'");
+                            Colour = FurnitureRepository.Instance.GetVar(itemIDs[i]) ?? "";
 
                         Hand.StartInventoryItem()
                             .AppendItemField(itemIDs[i])
@@ -271,7 +273,7 @@ public partial class virtualUser
                     }
                     else // Flooritem
                     {
-                        string itemVar = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemIDs[i] + "'");
+                        string itemVar = FurnitureRepository.Instance.GetVar(itemIDs[i]) ?? "";
                         Hand.StartInventoryItem()
                             .AppendItemField(itemIDs[i])
                             .AppendItemField(i)
@@ -389,15 +391,14 @@ public partial class virtualUser
         this.gamePlayer = null;
     }
 
-    private delegate void TeleporterUsageSleep(Rooms.Items.floorItem Teleporter1, int idTeleporter2, int roomIDTeleporter2);
-    private void useTeleporter(Rooms.Items.floorItem Teleporter1, int idTeleporter2, int roomIDTeleporter2)
+    private async Task UseTeleporterAsync(Rooms.Items.floorItem Teleporter1, int idTeleporter2, int roomIDTeleporter2)
     {
         roomUser.walkLock = true;
         string Sprite = Teleporter1.Sprite;
         if (roomIDTeleporter2 == _roomID)
         {
             Rooms.Items.floorItem Teleporter2 = Room.floorItemManager.getItem(idTeleporter2);
-            Thread.Sleep(500);
+            await Task.Delay(500);
             Room.sendData(new HabboPacketBuilder(HabboPackets.TELEPORTER_ENTER)
                 .Append(Teleporter1.ID).Append("/").Append(_Username).Append("/").Append(Sprite).Build());
             Room.sendData(new HabboPacketBuilder(HabboPackets.TELEPORTER_EXIT)

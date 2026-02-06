@@ -1,6 +1,11 @@
 using System;
 using System.Text;
 
+using Holo.Data.Repositories.Groups;
+using Holo.Data.Repositories.Games;
+using Holo.Data.Repositories.Rooms;
+using Holo.Data.Repositories.System;
+using Holo.Data.Repositories.Users;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Rooms;
@@ -92,7 +97,7 @@ public partial class virtualUser
                             roomUser.walkLock = false;
                             roomUser.goalX = Trigger.goalX;
                             roomUser.goalY = Trigger.goalY;
-                            DB.runQuery("UPDATE users SET figure_swim = '" + Outfit + "' WHERE id = '" + userID + "' LIMIT 1");
+                            UserRepository.Instance.UpdateSwimFigure(userID, Outfit);
                             //Refresh();
                             userManager.getUser(userID).refreshAppearance(true, true, true);
                         }
@@ -104,7 +109,7 @@ public partial class virtualUser
                     if (Room != null && roomUser != null)
                     {
                         // Reset slots
-                        DB.runQuery("UPDATE users_badges SET slotid = '0' WHERE userid = '" + this.userID + "'");
+                        UserRepository.Instance.ResetBadgeSlots(this.userID);
 
                         int enabledBadgeAmount = 0;
                         string szWorkData = currentPacket.Substring(2);
@@ -118,7 +123,7 @@ public partial class virtualUser
                             if (badgeNameLength > 0)
                             {
                                 string Badge = szWorkData.Substring(2, badgeNameLength);
-                                DB.runQuery("UPDATE users_badges SET slotid = '" + slotID + "' WHERE userid = '" + this.userID + "' AND badge = '" + Badge + "' LIMIT 1"); // update slot
+                                UserRepository.Instance.UpdateBadgeSlot(this.userID, Badge, slotID);
                                 enabledBadgeAmount++;
                             }
 
@@ -151,7 +156,7 @@ public partial class virtualUser
             case "DG": // Tags - get tags of virtual user
                 {
                     int ownerID = Encoding.decodeVL64(currentPacket.Substring(2));
-                    string[] Tags = DB.runReadColumn("SELECT tag FROM cms_tags WHERE ownerid = '" + ownerID + "'", 20);
+                    string[] Tags = MiscRepository.Instance.GetUserTags(ownerID, 20);
                     var tagPacket = new HabboPacketBuilder("E^")
                         .AppendVL64(ownerID)
                         .AppendVL64(Tags.Length);
@@ -166,15 +171,15 @@ public partial class virtualUser
                     if (Room != null && roomUser != null)
                     {
                         int groupID = Encoding.decodeVL64(currentPacket.Substring(2));
-                        if (DB.checkExists("SELECT id FROM groups_details WHERE id = '" + groupID + "'"))
+                        if (GroupRepository.Instance.GroupExists(groupID))
                         {
-                            string Name = DB.runRead("SELECT name FROM groups_details WHERE id = '" + groupID + "'");
-                            string Description = DB.runRead("SELECT description FROM groups_details WHERE id = '" + groupID + "'");
+                            string Name = GroupRepository.Instance.GetGroupName(groupID) ?? "";
+                            string Description = GroupRepository.Instance.GetGroupDescription(groupID) ?? "";
 
-                            int roomID = DB.runRead("SELECT roomid FROM groups_details WHERE id = '" + groupID + "'", null);
+                            int roomID = GroupRepository.Instance.GetGroupRoomId(groupID);
                             string roomName = "";
                             if (roomID > 0)
-                                roomName = DB.runRead("SELECT name FROM rooms WHERE id = '" + roomID + "'");
+                                roomName = RoomRepository.Instance.GetRoomName(roomID) ?? "";
                             else
                                 roomID = -1;
 
@@ -197,7 +202,7 @@ public partial class virtualUser
                         virtualUser Target = userManager.getUser(DB.Stripslash(currentPacket.Substring(4)));
                         if (Target._Rank > 3)
                             return true;
-                        DB.runQuery("INSERT INTO user_ignores(userid,targetid) VALUES ('" + userID + "','" + Target.userID + "')");
+                        UserRepository.Instance.AddIgnore(userID, Target.userID);
                         ignoreList.Add(Target.userID);
                         sendData("FcI");
                     }
@@ -212,7 +217,7 @@ public partial class virtualUser
                         virtualUser Target = userManager.getUser(DB.Stripslash(currentPacket.Substring(4)));
                         if (Target._Rank > 3)
                             return true;
-                        DB.runQuery("DELETE FROM user_ignores WHERE userid = '" + userID + "' AND targetid = '" + Target.userID + "'");
+                        UserRepository.Instance.RemoveIgnore(userID, Target.userID);
                         ignoreList.Remove(Target.userID);
                         sendData("FcK");
                     }
@@ -296,18 +301,18 @@ public partial class virtualUser
                         return true;
                     int subStringSkip = 2;
                     int pollID = Encoding.decodeVL64(currentPacket.Substring(subStringSkip));
-                    if (DB.checkExists("SELECT aid FROM poll_results WHERE uid = '" + userID + "' AND pid = '" + pollID + "'"))
+                    if (PollRepository.Instance.HasUserAnsweredPoll(userID, pollID))
                         return true;
                     subStringSkip += Encoding.encodeVL64(pollID).Length;
                     int questionID = Encoding.decodeVL64(currentPacket.Substring(subStringSkip));
                     subStringSkip += Encoding.encodeVL64(questionID).Length;
-                    bool typeThree = DB.checkExists("SELECT type FROM poll_questions WHERE qid = '" + questionID + "' AND type = '3'");
+                    bool typeThree = PollRepository.Instance.IsTypeThreeQuestion(questionID);
                     if (typeThree)
                     {
                         int countAnswers = Encoding.decodeB64(currentPacket.Substring(subStringSkip, 2));
                         subStringSkip += 2;
                         string Answer = DB.Stripslash(currentPacket.Substring(subStringSkip, countAnswers));
-                        DB.runQuery("INSERT INTO poll_results (pid,qid,aid,answers,uid) VALUES ('" + pollID + "','" + questionID + "','0','" + Answer + "','" + userID + "')");
+                        PollRepository.Instance.SavePollResultWithAnswer(pollID, questionID, 0, Answer, userID);
                     }
                     else
                     {
@@ -321,7 +326,7 @@ public partial class virtualUser
                         }
                         foreach (int a in Answer)
                         {
-                            DB.runQuery("INSERT INTO poll_results (pid,qid,aid,answers,uid) VALUES ('" + pollID + "','" + questionID + "','" + a + "',' ','" + userID + "')");
+                            PollRepository.Instance.SavePollResultWithAnswer(pollID, questionID, a, " ", userID);
                         }
                     }
                     break;
@@ -455,7 +460,7 @@ public partial class virtualUser
                     if (_Target._roomID != _roomID || _Target._hasRights || _Target._isOwner)
                         return true;
 
-                    DB.runQuery("INSERT INTO room_rights(roomid,userid) VALUES ('" + _roomID + "','" + _Target.userID + "')");
+                    RoomAccessRepository.Instance.AddRights(_roomID, _Target.userID);
                     _Target._hasRights = true;
                     _Target.statusManager.addStatus("flatctrl", "onlyfurniture");
                     _Target.roomUser.Refresh();
@@ -476,7 +481,7 @@ public partial class virtualUser
                     if (_Target._roomID != _roomID || _Target._hasRights == false || _Target._isOwner)
                         return true;
 
-                    DB.runQuery("DELETE FROM room_rights WHERE roomid = '" + _roomID + "' AND userid = '" + _Target.userID + "' LIMIT 1");
+                    RoomAccessRepository.Instance.RemoveRights(_roomID, _Target.userID);
                     _Target._hasRights = false;
                     _Target.statusManager.removeStatus("flatctrl");
                     _Target.roomUser.Refresh();
@@ -524,7 +529,7 @@ public partial class virtualUser
                         return true;
 
                     string banExpireMoment = DateTime.Now.AddMinutes(Config.Rooms_roomBan_banDuration).ToString();
-                    DB.runQuery("INSERT INTO room_bans (roomid,userid,ban_expire) VALUES ('" + _roomID + "','" + _Target.userID + "','" + banExpireMoment + "')");
+                    RoomAccessRepository.Instance.AddBanWithExpiry(_roomID, _Target.userID, banExpireMoment);
 
                     _Target.roomUser.walkLock = true;
                     _Target.roomUser.walkDoor = true;
@@ -539,10 +544,10 @@ public partial class virtualUser
                         return true;
 
                     int Vote = Encoding.decodeVL64(currentPacket.Substring(2));
-                    if ((Vote == 1 || Vote == -1) && DB.checkExists("SELECT userid FROM room_votes WHERE userid = '" + userID + "' AND roomid = '" + _roomID + "'") == false)
+                    if ((Vote == 1 || Vote == -1) && RoomAccessRepository.Instance.HasVoted(_roomID, userID) == false)
                     {
-                        DB.runQuery("INSERT INTO room_votes (userid,roomid,vote) VALUES ('" + userID + "','" + _roomID + "','" + Vote + "')");
-                        int voteAmount = DB.runRead("SELECT SUM(vote) FROM room_votes WHERE roomid = '" + _roomID + "'", null);
+                        RoomAccessRepository.Instance.AddVote(_roomID, userID, Vote);
+                        int voteAmount = RoomAccessRepository.Instance.GetVoteSum(_roomID);
                         if (voteAmount < 0)
                             voteAmount = 0;
                         roomUser.hasVoted = true;

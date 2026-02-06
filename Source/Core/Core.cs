@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 using Holo.Managers;
-using Holo.Socketservers;
+using Holo.Network;
 
 namespace Holo
 {
@@ -11,15 +12,24 @@ namespace Holo
     /// </summary>
     public class Eucalypt
     {
-        private static Thread serverMonitor = new Thread(new ThreadStart(monitorServer));
+        private static CancellationTokenSource? _monitorCts;
         public delegate void commonDelegate();
+
         /// <summary>
         /// Starts up Holograph Emulator codename "Eucalypt".
         /// </summary>
-        private static void Main()
+        private static async Task Main()
         {
-            Console.WindowHeight = Console.LargestWindowHeight - 25;
-            Console.WindowWidth = Console.LargestWindowWidth - 25;
+            try
+            {
+                Console.WindowHeight = Console.LargestWindowHeight - 25;
+                Console.WindowWidth = Console.LargestWindowWidth - 25;
+            }
+            catch
+            {
+                // Ignore on non-Windows platforms
+            }
+
             Console.CursorVisible = false;
             Console.Title = "Holograph Emulator";
             Out.WritePlain("HOLOGRAPH EMULATOR");
@@ -28,20 +38,21 @@ namespace Holo
             Out.WritePlain("FOR MORE DETAILS CHECK UPDATE.TXT");
             Out.WriteBlank();
             Out.WritePlain("BUILD");
-            Out.WritePlain(" CORE: Eucalypt, C#.NET");
+            Out.WritePlain(" CORE: Eucalypt, .NET 10 + DotNetty");
             Out.WritePlain(" CLIENT: V26");
             Out.WritePlain(" STABLE CLIENT: V26+");
             Out.WritePlain(" Vista4life's & Shine-Away's V26 Source");
             Out.WriteBlank();
 
-            Boot();
+            await BootAsync();
         }
+
         /// <summary>
-        /// Boots the emulator.
+        /// Boots the emulator asynchronously.
         /// </summary>
-        private static void Boot()
+        private static async Task BootAsync()
         {
-            ThreadPool.SetMaxThreads(300,400);
+            ThreadPool.SetMaxThreads(300, 400);
             DateTime _START = DateTime.Now;
             Out.WriteLine("Starting up Holograph Emulator for " + Environment.UserName + "...");
             Out.WriteLine("Expanded threadpool.");
@@ -51,7 +62,7 @@ namespace Holo
             if (System.IO.File.Exists(sqlConfigLocation) == false)
             {
                 Out.WriteError("mysql.ini not found at " + sqlConfigLocation);
-                Shutdown();
+                await ShutdownAsync();
                 return;
             }
 
@@ -69,28 +80,22 @@ namespace Holo
 
             Out.WriteBlank();
 
-
             int gamePort;
             int gameMaxConnections;
             int musPort;
-            int musMaxConnections;
             string musHost;
-
-            
 
             try
             {
                 gamePort = int.Parse(Config.getTableEntry("server_game_port"));
                 gameMaxConnections = int.Parse(Config.getTableEntry("server_game_maxconnections"));
                 musPort = int.Parse(Config.getTableEntry("server_mus_port"));
-                musMaxConnections = int.Parse(Config.getTableEntry("server_mus_maxconnections"));
                 musHost = Config.getTableEntry("server_mus_host");
             }
-
             catch
             {
                 Out.WriteError("system_config table contains invalid values for socket server configuration!");
-                Shutdown();
+                await ShutdownAsync();
                 return;
             }
 
@@ -98,7 +103,7 @@ namespace Holo
             if (langExt == "")
             {
                 Out.WriteError("No valid language extension [field: lang] was set in the system_config table!");
-                Shutdown();
+                await ShutdownAsync();
                 return;
             }
 
@@ -121,67 +126,104 @@ namespace Holo
             Out.WriteBlank();
 
             userManager.Init();
-            //userManager.Init1();
             eventManager.Init();
 
-            if (gameSocketServer.Init(gamePort, gameMaxConnections) == false)
+            if (await GameSocketServer.InitAsync(gamePort, gameMaxConnections) == false)
             {
-                Shutdown();
+                await ShutdownAsync();
                 return;
             }
             Out.WriteBlank();
 
-            if (musSocketServer.Init(musPort, musHost) == false)
+            if (await MusSocketServer.InitAsync(musPort, musHost) == false)
             {
-                Shutdown();
+                await ShutdownAsync();
                 return;
             }
             Out.WriteBlank();
 
-            resetDynamics();
+            ResetDynamics();
             Out.WriteBlank();
 
-            printDatabaseStats();
+            PrintDatabaseStats();
             Out.WriteBlank();
 
             DateTime _STOP = DateTime.Now;
             TimeSpan _TST = _STOP - _START;
             Out.WriteLine("Startup time in fixed milliseconds: " + _TST.TotalMilliseconds.ToString() + ".");
-            
+
             GC.Collect();
             Out.WriteLine("Holograph Emulator ready. Status: idle");
             Out.WriteBlank();
 
             Out.minimumImportance = Out.logFlags.MehAction; // All logs
-            serverMonitor.Priority = ThreadPriority.Lowest;
-            serverMonitor.Start();
+
+            // Start server monitor as a background task
+            _monitorCts = new CancellationTokenSource();
+            _ = MonitorServerAsync(_monitorCts.Token);
+
+            // Keep the application running
+            Console.WriteLine("Press Ctrl+C to shutdown...");
+            var tcs = new TaskCompletionSource<bool>();
+            Console.CancelKeyPress += (sender, e) =>
+            {
+                e.Cancel = true;
+                tcs.TrySetResult(true);
+            };
+
+            await tcs.Task;
+            await ShutdownAsync();
         }
+
         /// <summary>
-        /// Safely shutdowns Holograph Emulator, closing database and socket connections. Requires key press from user for final abort.
+        /// Safely shutdowns Holograph Emulator, closing database and socket connections.
+        /// </summary>
+        public static async Task ShutdownAsync()
+        {
+            Out.WriteBlank();
+
+            // Cancel the monitor
+            _monitorCts?.Cancel();
+
+            // Shutdown socket servers
+            await GameSocketServer.ShutdownAsync();
+            await MusSocketServer.ShutdownAsync();
+
+            DB.closeConnection();
+            Out.WriteLine("Shutdown completed.");
+
+            try
+            {
+                Console.Beep(1400, 1000);
+            }
+            catch
+            {
+                // Ignore on non-Windows platforms
+            }
+
+            Environment.Exit(0);
+        }
+
+        /// <summary>
+        /// Legacy shutdown method for compatibility.
         /// </summary>
         public static void Shutdown()
         {
-            Out.WriteBlank();
-            if(serverMonitor.IsAlive)
-                serverMonitor.Abort();
-            
-            DB.closeConnection();
-            Out.WriteLine("Shutdown completed. Press a key to exit.");
-            Console.ReadKey(true);
-            Console.Beep(1400,1000);
-            Environment.Exit(2);
+            ShutdownAsync().GetAwaiter().GetResult();
         }
+
         /// <summary>
-        /// Prints the usercount, guestroomcount and furniturecount in datebase to console.
+        /// Prints the usercount, guestroomcount and furniturecount in database to console.
         /// </summary>
-        private static void printDatabaseStats()
+        private static void PrintDatabaseStats()
         {
-            int userCount = DB.runRead("SELECT COUNT(*) FROM users",null);
-            int roomCount = DB.runRead("SELECT COUNT(*) FROM rooms",null);
-            int itemCount = DB.runRead("SELECT COUNT(*) FROM furniture",null);
+            int userCount = DB.runRead("SELECT COUNT(*) FROM users", null);
+            int roomCount = DB.runRead("SELECT COUNT(*) FROM rooms", null);
+            int itemCount = DB.runRead("SELECT COUNT(*) FROM furniture", null);
             Out.WriteLine("Result: " + userCount + " users, " + roomCount + " rooms and " + itemCount + " furnitures.");
         }
-        private static void resetDynamics()
+
+        private static void ResetDynamics()
         {
             DB.runQuery("UPDATE system SET onlinecount = '0',onlinecount_peak = '0',connections_accepted = '0',activerooms = '0'");
             DB.runQuery("UPDATE users SET ticket_sso = NULL");
@@ -191,24 +233,37 @@ namespace Holo
             Out.WriteLine("Room inside counts reset.");
             Out.WriteLine("Login tickets nulled.");
         }
-        /// <summary>
-        /// Threaded void. Ran on background thread at lowest priority, interval = 3500 ms. Updates console title and online users count, active rooms count, peak connections count and peak online users count in database.
-        /// </summary>
-        private static void monitorServer()
-        {
-            while(true)
-            {
-                int onlineCount = userManager.userCount;
-                int peakOnlineCount = userManager.peakUserCount;
-                int roomCount = roomManager.roomCount;
-                int peakRoomCount = roomManager.peakRoomCount;
-                int acceptedConnections = gameSocketServer.acceptedConnections;
-                long memUsage = GC.GetTotalMemory(false) / 1024;
 
-                Console.Title = "Holograph Emulator 26 | online users: " + onlineCount + " | loaded rooms " + roomCount + " | RAM usage: " + memUsage + "KB";
-                DB.runQuery("UPDATE system SET onlinecount = '" + onlineCount + "',onlinecount_peak = '" + peakOnlineCount + "',activerooms = '" + roomCount + "',activerooms_peak = '" + peakRoomCount + "',connections_accepted = '" + acceptedConnections + "'");
-                Thread.Sleep(6000);
-                Out.WriteTrace("Servermonitor loop");
+        /// <summary>
+        /// Async server monitor. Updates console title and statistics in database.
+        /// </summary>
+        private static async Task MonitorServerAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    int onlineCount = userManager.userCount;
+                    int peakOnlineCount = userManager.peakUserCount;
+                    int roomCount = roomManager.roomCount;
+                    int peakRoomCount = roomManager.peakRoomCount;
+                    int acceptedConnections = GameSocketServer.AcceptedConnections;
+                    long memUsage = GC.GetTotalMemory(false) / 1024;
+
+                    Console.Title = "Holograph Emulator 26 | online users: " + onlineCount + " | loaded rooms " + roomCount + " | RAM usage: " + memUsage + "KB";
+                    DB.runQuery("UPDATE system SET onlinecount = '" + onlineCount + "',onlinecount_peak = '" + peakOnlineCount + "',activerooms = '" + roomCount + "',activerooms_peak = '" + peakRoomCount + "',connections_accepted = '" + acceptedConnections + "'");
+
+                    await Task.Delay(6000, cancellationToken);
+                    Out.WriteTrace("Servermonitor loop");
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Out.WriteError($"Monitor error: {ex.Message}");
+                }
             }
         }
     }

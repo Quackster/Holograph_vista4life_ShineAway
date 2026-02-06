@@ -1,12 +1,14 @@
 using System;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms.Bots;
+using Holo.Data.Repositories.Users;
 
 namespace Holo.Virtual.Rooms;
 
@@ -17,13 +19,13 @@ public partial class virtualRoom
 {
     #region User and bot status management
     /// <summary>
-    /// Ran on a thread and handles walking and pathfinding. All status updates are sent to all room users.
+    /// Async task that handles walking and pathfinding. All status updates are sent to all room users.
     /// </summary>
-    private void cycleStatuses()
+    private async Task CycleStatusesAsync(CancellationToken cancellationToken)
     {
         try
         {
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 foreach (var roomUser in new Dictionary<int, virtualRoomUser>(_Users).Values)
                 #region Virtual user status handling
@@ -72,7 +74,7 @@ public partial class virtualRoom
                                         sendData("A}");
                                         roomUser.User._Tickets--;
                                         roomUser.User.sendData(new HabboPacketBuilder("A|").Append(roomUser.User._Tickets).Build());
-                                        DB.runQuery("UPDATE users SET tickets = tickets - 1 WHERE id = '" + roomUser.userID + "' LIMIT 1");
+                                        UserRepository.Instance.DecrementTickets(roomUser.userID);
                                     }
                                     else if (Trigger.Object.Substring(0, 6) == "Splash") // User has entered/left a swimming pool
                                     {
@@ -227,11 +229,15 @@ public partial class virtualRoom
                     sendData(new HabboPacketBuilder("@b").Append(_statusUpdates.ToString()).Build());
                     _statusUpdates = new StringBuilder();
                 }
-                Thread.Sleep(410);
+                await Task.Delay(410, cancellationToken);
                 Out.WriteTrace("Status update loop");
-            } // Repeat (infinite loop on thread)
+            } // Repeat (async loop)
         }
-        catch (Exception e) { Out.WriteError(e.Message); } // thread aborted
+        catch (OperationCanceledException)
+        {
+            // Task was cancelled, normal shutdown
+        }
+        catch (Exception e) { Out.WriteError(e.Message); }
     }
 
     /// <summary>
@@ -303,10 +309,10 @@ public partial class virtualRoom
     /// <param name="toY">The Y of the destination coord.</param>
     internal void moveUser(virtualRoomUser roomUser, int toX, int toY, bool secondRefresh)
     {
-        new userMover(MOVEUSER).BeginInvoke(roomUser, toX, toY, secondRefresh, null, null);
+        _ = MoveUserAsync(roomUser, toX, toY, secondRefresh);
     }
-    private delegate void userMover(virtualRoomUser roomUser, int toX, int toY, bool secondRefresh);
-    private void MOVEUSER(virtualRoomUser roomUser, int toX, int toY, bool secondRefresh)
+
+    private async Task MoveUserAsync(virtualRoomUser roomUser, int toX, int toY, bool secondRefresh)
     {
         try
         {
@@ -323,7 +329,7 @@ public partial class virtualRoom
             roomUser.statusManager.addStatus("mv", toX + "," + toY + "," + nextHeight.ToString().Replace(',','.'));
             sendData(new HabboPacketBuilder("@b").Append(roomUser.statusString).Build());
 
-            Thread.Sleep(310);
+            await Task.Delay(310);
             roomUser.X = toX;
             roomUser.Y = toY;
             roomUser.H = nextHeight;

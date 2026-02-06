@@ -1,10 +1,16 @@
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 using Holo.Managers;
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms.Bots;
 using Holo.Virtual.Rooms.Items;
 using Holo.Virtual.Rooms.Games;
+using Holo.Data.Repositories.Rooms;
+using Holo.Data.Repositories.Furniture;
+using Holo.Data.Repositories.Bots;
+using Holo.Data.Repositories.Games;
 
 namespace Holo.Virtual.Rooms;
 
@@ -83,11 +89,11 @@ namespace Holo.Virtual.Rooms;
         /// </summary>
         private HashSet<int> _activeGroups;
         /// <summary>
-        /// The thread that handles the @b status updating and walking of virtual unit.
+        /// The cancellation token source for stopping background tasks when the room is destroyed.
         /// </summary>
-        private Thread _statusHandler;
+        private CancellationTokenSource _cancellationTokenSource;
         /// <summary>
-        /// The string that contains the status updates for the next cycle of the _statusHandler thread.
+        /// The string that contains the status updates for the next cycle of the status handler task.
         /// </summary>
         private StringBuilder _statusUpdates;
 
@@ -119,10 +125,6 @@ namespace Holo.Virtual.Rooms;
         internal string pollPacket;
         //Poll Variables End
 
-        /// <summary>
-        /// Sends timed 'AG' casts to the room, such as disco lights and camera's.
-        /// </summary>
-        private Thread specialCastHandler;
         #endregion
 
         #region Constructors/Destructors
@@ -136,12 +138,12 @@ namespace Holo.Virtual.Rooms;
             this.roomID = roomID;
             this.isPublicroom = isPublicroom;
 
-            string roomModel = DB.runRead("SELECT model FROM rooms WHERE id = '" + roomID + "'");
-            doorX = DB.runRead("SELECT door_x FROM room_modeldata WHERE model = '" + roomModel + "'", null);
-            doorY = DB.runRead("SELECT door_y FROM room_modeldata WHERE model = '" + roomModel + "'", null);
-            doorH = DB.runRead("SELECT door_h FROM room_modeldata WHERE model = '" + roomModel + "'", null);
-            doorZ = byte.Parse(DB.runRead("SELECT door_z FROM room_modeldata WHERE model = '" + roomModel + "'"));
-            _Heightmap = DB.runRead("SELECT heightmap FROM room_modeldata WHERE model = '" + roomModel + "'");
+            string roomModel = RoomRepository.Instance.GetRoomModel(roomID) ?? "";
+            doorX = RoomModelRepository.Instance.GetDoorX(roomModel);
+            doorY = RoomModelRepository.Instance.GetDoorY(roomModel);
+            doorH = RoomModelRepository.Instance.GetDoorH(roomModel);
+            doorZ = byte.Parse(RoomModelRepository.Instance.GetDoorZ(roomModel) ?? "0");
+            _Heightmap = RoomModelRepository.Instance.GetHeightmap(roomModel) ?? "";
 
             string[] tmpHeightmap = _Heightmap.Split(Convert.ToChar(13));
             int colX = tmpHeightmap[0].Length;
@@ -173,7 +175,8 @@ namespace Holo.Virtual.Rooms;
 
             if (isPublicroom)
             {
-                string[] Items = DB.runRead("SELECT publicroom_items FROM room_modeldata WHERE model = '" + roomModel + "'").Split("\n".ToCharArray());
+                string publicroomItemsData = RoomModelRepository.Instance.GetPublicroomItems(roomModel) ?? "";
+                string[] Items = publicroomItemsData.Split("\n".ToCharArray());
                 for (int i = 0; i < Items.Length; i++)
                 {
                     string[] itemData = Items[i].Split(' ');
@@ -190,47 +193,45 @@ namespace Holo.Virtual.Rooms;
                     _publicroomItems += itemData[0] + " " + itemData[1] + " " + itemData[2] + " " + itemData[3] + " " + itemData[4] + " " + itemData[5] + Convert.ToChar(13);
                 }
 
-                int[] triggerIDs = DB.runReadColumn("SELECT id FROM room_modeldata_triggers WHERE model = '" + roomModel + "'",0,null);
+                int[] triggerIDs = RoomModelRepository.Instance.GetTriggerIds(roomModel);
                 if (triggerIDs.Length > 0)
                 {
                     for (int i = 0; i < triggerIDs.Length; i++)
                     {
-                        string Object = DB.runRead("SELECT object FROM room_modeldata_triggers WHERE id = '" + triggerIDs[i] + "'");
-                        int[] Nums = DB.runReadRow("SELECT x,y,goalx,goaly,stepx,stepy,roomid,state FROM room_modeldata_triggers WHERE id = '" + triggerIDs[i] + "'",null);
+                        string Object = RoomModelRepository.Instance.GetTriggerObject(triggerIDs[i]) ?? "";
+                        int[] Nums = RoomModelRepository.Instance.GetTriggerData(triggerIDs[i]);
                         sqTRIGGER[Nums[0], Nums[1]] = new squareTrigger(Object, Nums[2], Nums[3],Nums[4],Nums[5],(Nums[7] == 1),Nums[6]);
                     }
                 }
 
-                if(DB.checkExists("SELECT specialcast_interval FROM room_modeldata WHERE model = '" + roomModel + "' AND specialcast_interval > 0"))
+                if(RoomModelRepository.Instance.HasSpecialCast(roomModel))
                 {
-                    specialCastHandler = new Thread(new ParameterizedThreadStart(handleSpecialCasts));
-                    specialCastHandler.Priority = ThreadPriority.Lowest;
-                    specialCastHandler.Start(roomModel);
+                    _ = HandleSpecialCastsAsync(roomModel, _cancellationTokenSource.Token);
                 }
 
-                hasSwimmingPool = DB.checkExists("SELECT swimmingpool FROM room_modeldata WHERE model = '" + roomModel + "' AND swimmingpool = '1'");
+                hasSwimmingPool = RoomModelRepository.Instance.HasSwimmingPool(roomModel);
 
-                if (DB.checkExists("SELECT id FROM games_lobbies WHERE id = '" + roomID + "'"))
+                if (GameRepository.Instance.IsGameLobby(roomID))
                 {
-                    string[] Settings = DB.runReadRow("SELECT type,rank FROM games_lobbies WHERE id = '" + roomID + "'");
+                    string[] Settings = GameRepository.Instance.GetLobbySettings(roomID);
                     this.Lobby = new gameLobby(this, (Settings[0] == "bb"), Settings[1]);
                 }
             }
             else
             {
-                int[] itemIDs = DB.runReadColumn("SELECT id FROM furniture WHERE roomid = '" + roomID + "' ORDER BY h ASC",0,null);
+                int[] itemIDs = FurnitureRepository.Instance.GetRoomItemIds(roomID);
                 floorItemManager = new FloorItemManager(this);
                 wallItemManager = new WallItemManager(this);
 
                 if(itemIDs.Length > 0)
                 {
-                    int[] itemTIDs = DB.runReadColumn("SELECT tid FROM furniture WHERE roomid = '" + roomID + "' ORDER BY h ASC",0,null);
-                    int[] itemXs = DB.runReadColumn("SELECT x FROM furniture WHERE roomid = '" + roomID + "' ORDER BY h ASC",0,null);
-                    int[] itemYs = DB.runReadColumn("SELECT y FROM furniture WHERE roomid = '" + roomID + "' ORDER BY h ASC",0,null);
-                    int[] itemZs = DB.runReadColumn("SELECT z FROM furniture WHERE roomid = '" + roomID + "' ORDER BY h ASC",0,null);
-                    string[] itemHs = DB.runReadColumn("SELECT h FROM furniture WHERE roomid = '" + roomID + "' ORDER BY h ASC",0);
-                    string[] itemVars = DB.runReadColumn("SELECT var FROM furniture WHERE roomid = '" + roomID + "' ORDER BY h ASC",0);
-                    string[] itemWallPos = DB.runReadColumn("SELECT wallpos FROM furniture WHERE roomid = '" + roomID + "' ORDER BY h ASC",0);
+                    int[] itemTIDs = FurnitureRepository.Instance.GetRoomItemTemplateIds(roomID);
+                    int[] itemXs = FurnitureRepository.Instance.GetRoomItemXs(roomID);
+                    int[] itemYs = FurnitureRepository.Instance.GetRoomItemYs(roomID);
+                    int[] itemZs = FurnitureRepository.Instance.GetRoomItemZs(roomID);
+                    string[] itemHs = FurnitureRepository.Instance.GetRoomItemHs(roomID);
+                    string[] itemVars = FurnitureRepository.Instance.GetRoomItemVars(roomID);
+                    string[] itemWallPos = FurnitureRepository.Instance.GetRoomItemWallPositions(roomID);
 
                     for(int i = 0; i < itemIDs.Length; i++)
                     {
@@ -247,10 +248,10 @@ namespace Holo.Virtual.Rooms;
 
             _activeGroups = new HashSet<int>();
             _statusUpdates = new StringBuilder();
-            _statusHandler = new Thread(new ThreadStart(cycleStatuses));
-            _statusHandler.Start();
+            _cancellationTokenSource = new CancellationTokenSource();
+            _ = CycleStatusesAsync(_cancellationTokenSource.Token);
             sqSTATE[doorX, doorY] = 0; // Door always walkable
-            containsPoll = DB.checkExists("SELECT pid FROM poll WHERE rid = '" + roomID + "'");
+            containsPoll = PollRepository.Instance.RoomHasPoll(roomID);
             if (containsPoll)
             {
                 pollPacket = roomManager.getPoll(roomID);

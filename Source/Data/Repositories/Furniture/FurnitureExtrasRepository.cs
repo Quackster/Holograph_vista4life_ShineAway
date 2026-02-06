@@ -52,6 +52,21 @@ public class FurnitureExtrasRepository : BaseRepository
             "DELETE FROM furniture_moodlight WHERE roomid = @roomid",
             Param("@roomid", roomId));
     }
+
+    public bool MoodlightExists(int itemId)
+    {
+        return Exists(
+            "SELECT id FROM furniture_moodlight WHERE id = @id",
+            Param("@id", itemId));
+    }
+
+    public void UpdateMoodlightRoomId(int itemId, int roomId)
+    {
+        Execute(
+            "UPDATE furniture_moodlight SET roomid = @roomid WHERE id = @id LIMIT 1",
+            Param("@id", itemId),
+            Param("@roomid", roomId));
+    }
     #endregion
 
     #region Presents
@@ -84,6 +99,13 @@ public class FurnitureExtrasRepository : BaseRepository
     {
         return ReadScalar(
             "SELECT text FROM furniture_stickies WHERE id = @id",
+            Param("@id", itemId));
+    }
+
+    public void CreateSticky(int itemId)
+    {
+        Execute(
+            "INSERT INTO furniture_stickies (id) VALUES (@id)",
             Param("@id", itemId));
     }
 

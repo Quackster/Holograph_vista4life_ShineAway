@@ -5,6 +5,8 @@ using Holo.Protocol;
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms.Bots;
 using Holo.Virtual.Rooms.Items;
+using Holo.Data.Repositories.Rooms;
+using Holo.Data.Repositories.Users;
 
 namespace Holo.Virtual.Rooms;
 
@@ -52,20 +54,20 @@ namespace Holo.Virtual.Rooms;
                     if (User._isOwner == false) { User.statusManager.addStatus("flatctrl", "onlyfurniture"); }
                 if (User._isOwner)
                     User.statusManager.addStatus("flatctrl", "useradmin");
-                User.roomUser.hasVoted = DB.checkExists("SELECT userid FROM room_votes WHERE userid = '" + User.userID + "' AND roomid = '" + this.roomID + "'");
+                User.roomUser.hasVoted = RoomAccessRepository.Instance.HasVoted(this.roomID, User.userID);
             }
             else
                 if (this.hasSwimmingPool)
-                    User.roomUser.SwimOutfit = DB.runRead("SELECT figure_swim FROM users WHERE id = '" + User.userID + "'");
+                    User.roomUser.SwimOutfit = UserRepository.Instance.GetSwimFigure(User.userID) ?? "";
             if (this.Lobby != null) // Game lobby here
             {
-                User.roomUser.gamePoints = DB.runReadUnsafe("SELECT " + Lobby.Type + "_totalpoints FROM users WHERE id = '" + User.userID + "'", null);
+                User.roomUser.gamePoints = UserRepository.Instance.GetGamePoints(User.userID, Lobby.Type);
                 sendData(new HabboPacketBuilder("Cz").Append("I").AppendVL64(User.roomUser.roomUID).Append(User.roomUser.gamePoints).Separator().Append(rankManager.getGameRankTitle(Lobby.isBattleBall, User.roomUser.gamePoints)).Separator().Build());
             }
             sendData(@"@\" + User.roomUser.detailsString);
             if (User._groupID > 0 && _activeGroups.Contains(User._groupID) == false)
             {
-                string groupBadge = DB.runRead("SELECT badge FROM groups_details WHERE id = '" + User._groupID + "'");
+                string groupBadge = UserRepository.Instance.GetGroupBadge(User._groupID) ?? "";
                 sendData(new HabboPacketBuilder("Du").Append("I").AppendVL64(User._groupID).Append(groupBadge).Separator().Build());
                 _activeGroups.Add(User._groupID);
             }
@@ -133,11 +135,12 @@ namespace Holo.Virtual.Rooms;
                     floorItemManager.Clear();
                     wallItemManager.Clear();
                 }
-                try { specialCastHandler.Abort(); }
+
+                // Cancel all background tasks
+                try { _cancellationTokenSource?.Cancel(); }
                 catch { }
 
                 roomManager.removeRoom(this.roomID);
-                _statusHandler.Abort();
             }
         }
         /// <summary>

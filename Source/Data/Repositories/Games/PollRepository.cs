@@ -107,5 +107,31 @@ public class PollRepository : BaseRepository
             Param("@pid", pollId),
             Param("@uid", userId));
     }
+
+    public bool HasUserAnsweredPoll(int userId, int pollId)
+    {
+        return Exists(
+            "SELECT aid FROM poll_results WHERE uid = @uid AND pid = @pid",
+            Param("@uid", userId),
+            Param("@pid", pollId));
+    }
+
+    public bool IsTypeThreeQuestion(int questionId)
+    {
+        return Exists(
+            "SELECT type FROM poll_questions WHERE qid = @qid AND type = 3",
+            Param("@qid", questionId));
+    }
+
+    public void SavePollResultWithAnswer(int pollId, int questionId, int answerId, string answers, int userId)
+    {
+        Execute(
+            "INSERT INTO poll_results (pid, qid, aid, answers, uid) VALUES (@pid, @qid, @aid, @answers, @uid)",
+            Param("@pid", pollId),
+            Param("@qid", questionId),
+            Param("@aid", answerId),
+            Param("@answers", answers),
+            Param("@uid", userId));
+    }
     #endregion
 }

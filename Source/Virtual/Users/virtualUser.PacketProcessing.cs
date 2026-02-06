@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Threading;
 
+using Holo.Data.Repositories.Users;
 using Holo.Managers;
 using Holo.Protocol;
 
@@ -65,8 +66,8 @@ namespace Holo.Virtual.Users
 
                         case "CL":
                             {
-                                string ssoTicket = DB.Stripslash(currentPacket.Substring(4));
-                                int myID = DB.runRead("SELECT id FROM users WHERE ticket_sso = '" + ssoTicket + "'", null);
+                                string ssoTicket = currentPacket.Substring(4);
+                                int myID = UserRepository.Instance.GetUserIdByTicketSso(ssoTicket);
                                 if (myID == 0) // No user found for this sso ticket and/or IP address
                                 {
                                     Disconnect();
@@ -81,7 +82,7 @@ namespace Holo.Virtual.Users
                                     return;
                                 }
                                 this.userID = myID;
-                                string[] userData = DB.runReadRow("SELECT name,figure,sex,mission,rank,consolemission FROM users WHERE id = '" + myID + "'");
+                                string[] userData = UserRepository.Instance.GetLoginUserData(myID);
                                 _Username = userData[0];
                                 _Figure = userData[1];
                                 _Sex = char.Parse(userData[2]);
@@ -95,7 +96,7 @@ namespace Holo.Virtual.Users
                                 sendData(HabboPackets.SECOND_CONNECTION);
                                 sendData(HabboPackets.INIT_COMPLETE);
 
-                                int isguide = DB.runRead("SELECT guide FROM users WHERE id = '" + userID + "'", null);
+                                int isguide = UserRepository.Instance.GetGuideStatus(userID);
 
                                 if (isguide == 1)
                                     sendData(HabboPackets.GUIDE_STATUS);
@@ -106,7 +107,7 @@ namespace Holo.Virtual.Users
                                     sendData(HabboPacketBuilder.SystemMessage(stringManager.getString("welcomemessage_text")));
 
                                 //Send list of ignored users
-                                int[] ignoredUsers = DB.runReadColumn("SELECT targetid FROM user_ignores WHERE userid = '" + userID + "'", 0, null);
+                                int[] ignoredUsers = UserRepository.Instance.GetIgnoredUserIds(userID);
                                 if (ignoredUsers.Length > 0)
                                 {
                                     var ignoredPacket = new HabboPacketBuilder(HabboPackets.IGNORED_USERS)

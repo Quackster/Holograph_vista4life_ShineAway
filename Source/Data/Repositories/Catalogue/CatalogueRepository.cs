@@ -33,6 +33,14 @@ public class CatalogueRepository : BaseRepository
             0,
             Param("@rank", rank));
     }
+
+    public int GetPageIdByIndexName(string indexName, byte minRank)
+    {
+        return ReadScalarInt(
+            "SELECT indexid FROM catalogue_pages WHERE indexname = @name AND minrank <= @rank",
+            Param("@name", indexName),
+            Param("@rank", minRank));
+    }
     #endregion
 
     #region Catalogue Items
@@ -158,6 +166,21 @@ public class CatalogueRepository : BaseRepository
     {
         return ReadScalarInt(
             "SELECT catalogue_cost FROM catalogue_items WHERE tid = @tid",
+            Param("@tid", templateId));
+    }
+
+    public int GetTemplateIdByCct(string cctName)
+    {
+        return ReadScalarInt(
+            "SELECT tid FROM catalogue_items WHERE name_cct = @name",
+            Param("@name", cctName));
+    }
+
+    public int GetItemCostByPageAndTemplate(int pageId, int templateId)
+    {
+        return ReadScalarInt(
+            "SELECT catalogue_cost FROM catalogue_items WHERE catalogue_id_page = @page AND tid = @tid",
+            Param("@page", pageId),
             Param("@tid", templateId));
     }
     #endregion

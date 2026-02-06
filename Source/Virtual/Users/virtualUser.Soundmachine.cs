@@ -1,6 +1,9 @@
 using System;
 using System.Text;
 
+using Holo.Data.Repositories.Furniture;
+using Holo.Data.Repositories.SoundMachine;
+using Holo.Data.Repositories.Users;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Rooms;
@@ -55,11 +58,11 @@ namespace Holo.Virtual.Users
                             if (Amount < 6) // Max playlist size
                             {
                                 currentPacket = currentPacket.Substring(Encoding.encodeVL64(Amount).Length + 2);
-                                DB.runQuery("DELETE FROM soundmachine_playlists WHERE machineid = '" + Room.floorItemManager.soundMachineID + "'");
+                                SoundMachineRepository.Instance.ClearPlaylist(Room.floorItemManager.soundMachineID);
                                 for (int i = 0; i < Amount; i++)
                                 {
                                     int songID = Encoding.decodeVL64(currentPacket);
-                                    DB.runQuery("INSERT INTO soundmachine_playlists(machineid,songid,pos) VALUES ('" + Room.floorItemManager.soundMachineID + "','" + songID + "','" + i + "')");
+                                    SoundMachineRepository.Instance.AddToPlaylist(Room.floorItemManager.soundMachineID, songID, i);
                                     currentPacket = currentPacket.Substring(Encoding.encodeVL64(songID).Length);
                                 }
                                 Room.sendData(new HabboPacketBuilder("EC").Append(soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID)).Build()); // Refresh playlist
@@ -73,15 +76,14 @@ namespace Holo.Virtual.Users
                         if (_isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
                         {
                             int songID = Encoding.decodeVL64(currentPacket.Substring(2));
-                            if (_Credits > 0 && DB.checkExists("SELECT id FROM soundmachine_songs WHERE id = '" + songID + "' AND userid = '" + userID + "' AND machineid = '" + Room.floorItemManager.soundMachineID + "'"))
+                            if (_Credits > 0 && SoundMachineRepository.Instance.SongExistsForUserAndMachine(songID, userID, Room.floorItemManager.soundMachineID))
                             {
-                                string[] songData = DB.runReadRow("SELECT title,length FROM soundmachine_songs WHERE id = '" + songID + "'");
-                                int Length = DB.runRead("SELECT length FROM soundmachine_songs WHERE id = '" + songID + "'", null);
+                                string[] songData = SoundMachineRepository.Instance.GetSongTitleAndLength(songID);
                                 string Status = Encoding.encodeVL64(songID) + _Username + Convert.ToChar(10) + DateTime.Today.Day + Convert.ToChar(10) + DateTime.Today.Month + Convert.ToChar(10) + DateTime.Today.Year + Convert.ToChar(10) + songData[1] + Convert.ToChar(10) + songData[0];
 
-                                DB.runQuery("INSERT INTO furniture(tid,ownerid,var) VALUES ('" + Config.Soundmachine_burnToDisk_diskTemplateID + "','" + userID + "','" + Status + "')");
-                                DB.runQuery("UPDATE soundmachine_songs SET burnt = '1' WHERE id = '" + songID + "' LIMIT 1");
-                                DB.runQuery("UPDATE users SET credits = credits - 1 WHERE id = '" + userID + "' LIMIT 1");
+                                FurnitureRepository.Instance.CreateItemWithVar(Config.Soundmachine_burnToDisk_diskTemplateID, userID, Status);
+                                SoundMachineRepository.Instance.SetSongBurnt(songID);
+                                UserRepository.Instance.DecrementCredits(userID);
 
                                 _Credits--;
                                 sendData(new HabboPacketBuilder("@F").Append(_Credits).Build());
@@ -99,11 +101,11 @@ namespace Holo.Virtual.Users
                         if (_isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
                         {
                             int songID = Encoding.decodeVL64(currentPacket.Substring(2));
-                            if (DB.checkExists("SELECT id FROM soundmachine_songs WHERE id = '" + songID + "' AND machineid = '" + Room.floorItemManager.soundMachineID + "'"))
+                            if (SoundMachineRepository.Instance.SongExistsInMachine(songID, Room.floorItemManager.soundMachineID))
                             {
-                                DB.runQuery("UPDATE soundmachine_songs SET machineid = '0' WHERE id = '" + songID + "' AND burnt = '1'"); // If the song is burnt atleast once, then the song is removed from this machine
-                                DB.runQuery("DELETE FROM soundmachine_songs WHERE id = '" + songID + "' AND burnt = '0' LIMIT 1"); // If the song isn't burnt; delete song from database
-                                DB.runQuery("DELETE FROM soundmachine_playlists WHERE machineid = '" + Room.floorItemManager.soundMachineID + "' AND songid = '" + songID + "'"); // Remove song from playlist
+                                SoundMachineRepository.Instance.RemoveSongFromMachineIfBurnt(songID); // If the song is burnt atleast once, then the song is removed from this machine
+                                SoundMachineRepository.Instance.DeleteUnburntSong(songID); // If the song isn't burnt; delete song from database
+                                SoundMachineRepository.Instance.RemoveFromPlaylist(Room.floorItemManager.soundMachineID, songID); // Remove song from playlist
                                 Room.sendData(new HabboPacketBuilder("EC").Append(soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID)).Build());
                             }
                         }
@@ -165,9 +167,8 @@ namespace Holo.Virtual.Users
 
                             if (Length != -1)
                             {
-                                Title = DB.Stripslash(stringManager.filterSwearwords(Title));
-                                Data = DB.Stripslash(Data);
-                                DB.runQuery("INSERT INTO soundmachine_songs (userid,machineid,title,length,data) VALUES ('" + userID + "','" + Room.floorItemManager.soundMachineID + "','" + Title + "','" + Length + "','" + DB.Stripslash(Data) + "')");
+                                Title = stringManager.filterSwearwords(Title);
+                                SoundMachineRepository.Instance.CreateSong(userID, Room.floorItemManager.soundMachineID, Title, Length, Data);
 
                                 sendData(new HabboPacketBuilder("EB").Append(soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID)).Build());
                                 sendData(new HabboPacketBuilder("EK").Append(Encoding.encodeVL64(Room.floorItemManager.soundMachineID)).Append(Title).Separator().Build());
@@ -197,7 +198,7 @@ namespace Holo.Virtual.Users
                         if (songEditor != null && _isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
                         {
                             int songID = Encoding.decodeVL64(currentPacket.Substring(2));
-                            if (DB.checkExists("SELECT id FROM soundmachine_songs WHERE id = '" + songID + "' AND userid = '" + userID + "' AND machineid = '" + Room.floorItemManager.soundMachineID + "'"))
+                            if (SoundMachineRepository.Instance.SongExistsForUserAndMachine(songID, userID, Room.floorItemManager.soundMachineID))
                             {
                                 int idLength = Encoding.encodeVL64(songID).Length;
                                 int nameLength = Encoding.decodeB64(currentPacket.Substring(idLength + 2, 2));
@@ -206,9 +207,8 @@ namespace Holo.Virtual.Users
                                 int Length = soundMachineManager.calculateSongLength(Data);
                                 if (Length != -1)
                                 {
-                                    Title = DB.Stripslash(stringManager.filterSwearwords(Title));
-                                    Data = DB.Stripslash(Data);
-                                    DB.runQuery("UPDATE soundmachine_songs SET title = '" + Title + "',data = '" + Data + "',length = '" + Length + "' WHERE id = '" + songID + "' LIMIT 1");
+                                    Title = stringManager.filterSwearwords(Title);
+                                    SoundMachineRepository.Instance.UpdateSong(songID, Title, Data, Length);
 
                                     sendData("ES");
                                     sendData(new HabboPacketBuilder("EB").Append(soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID)).Build());

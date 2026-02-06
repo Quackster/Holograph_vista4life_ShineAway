@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 
 using Holo.Managers;
@@ -26,11 +27,9 @@ public class virtualRoomUserStatusManager
     /// </summary>
     private Dictionary<string, string> _Statuses;
     /// <summary>
-    /// The thread that handles the carrying, drinking and finally vanishing the item in the virtual room.
+    /// Cancellation token source for the item carrier task.
     /// </summary>
-    private Thread itemCarrier;
-    private delegate void statusVoid(string Key, string Value, int Length);
-    private delegate void actionThread(string Key, string Value, int Length);
+    private CancellationTokenSource? _itemCarrierCts;
     #endregion
 
     #region Constructors/destructors
@@ -47,7 +46,7 @@ public class virtualRoomUserStatusManager
     {
         try
         {
-            itemCarrier.Abort();
+            _itemCarrierCts?.Cancel();
             _Statuses.Clear();
             _Statuses = null;
         }
@@ -149,24 +148,22 @@ public class virtualRoomUserStatusManager
 
     #region Statuses
     /// <summary>
-    /// Makes the user carry a drink/item in the virtual room. Starts a thread that uses config-defined values. The thread will handle the animations of the sips etc, and finally the drop.
+    /// Makes the user carry a drink/item in the virtual room. Starts an async task that uses config-defined values. The task will handle the animations of the sips etc, and finally the drop.
     /// </summary>
     /// <param name="Item">The item to carry.</param>
     internal void carryItem(string Item)
     {
         dropCarrydItem();
         _Statuses.Remove("dance");
-        itemCarrier = new Thread(new ParameterizedThreadStart(itemCarrierLoop));
-        itemCarrier.Priority = ThreadPriority.Lowest;
-        itemCarrier.Start(Item);
+        _itemCarrierCts = new CancellationTokenSource();
+        _ = ItemCarrierLoopAsync(Item, _itemCarrierCts.Token);
     }
     /// <summary>
     /// Immediately stops carrying an item.
     /// </summary>
     internal void dropCarrydItem()
     {
-        if (itemCarrier != null && itemCarrier.IsAlive)
-            itemCarrier.Abort();
+        _itemCarrierCts?.Cancel();
         removeStatus("carryd");
         removeStatus("drink");
     }
@@ -184,54 +181,64 @@ public class virtualRoomUserStatusManager
     {
         if (_Statuses.ContainsKey(Key))
             _Statuses.Remove(Key);
-        new statusVoid(HANDLESTATUS).BeginInvoke(Key, Value, Length, null, null);
+        _ = HandleStatusAsync(Key, Value, Length);
     }
-    private void HANDLESTATUS(string Key, string Value, int Length)
+
+    private async Task HandleStatusAsync(string Key, string Value, int Length)
     {
         try
         {
             _Statuses.Add(Key, Value);
             roomUser.Refresh();
-            Thread.Sleep(Length);
+            await Task.Delay(Length);
             _Statuses.Remove(Key);
             roomUser.Refresh();
         }
         catch { }
     }
+
     /// <summary>
-    /// Ran on thread with lowest priority. Handles the carrying and drinking of an item in the virtual room.
+    /// Async task that handles the carrying and drinking of an item in the virtual room.
     /// </summary>
-    /// <param name="s">The object that will be converted in a string to serve as the item being carryd.</param>
-    private void itemCarrierLoop(object s)
+    /// <param name="carrydItem">The item being carried.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    private async Task ItemCarrierLoopAsync(string carrydItem, CancellationToken cancellationToken)
     {
-        string carrydItem = (string)s;
-        for(int i = 1; i <= Config.Statuses_itemCarrying_SipAmount; i++)
+        try
         {
-            addStatus("carryd",carrydItem);
+            for (int i = 1; i <= Config.Statuses_itemCarrying_SipAmount && !cancellationToken.IsCancellationRequested; i++)
+            {
+                addStatus("carryd", carrydItem);
+                roomUser.Refresh();
+                await Task.Delay(Config.Statuses_itemCarrying_SipInterval, cancellationToken);
+
+                _Statuses.Remove("carryd");
+
+                addStatus("drink", carrydItem);
+                roomUser.Refresh();
+                await Task.Delay(Config.Statuses_itemCarrying_SipDuration, cancellationToken);
+
+                _Statuses.Remove("drink");
+            }
             roomUser.Refresh();
-            Thread.Sleep(Config.Statuses_itemCarrying_SipInterval);
-
-            _Statuses.Remove("carryd");
-
-            addStatus("drink",carrydItem);
-            roomUser.Refresh();
-            Thread.Sleep(Config.Statuses_itemCarrying_SipDuration);
-
-            _Statuses.Remove("drink");
         }
-        roomUser.Refresh();
+        catch (OperationCanceledException)
+        {
+            // Item was dropped
+        }
+        catch { }
     }
+
     internal void showTalkAnimation(int talkTime, string talkGesture)
     {
-        actionThread talkAction = new actionThread(HANDLESTATUS);
-        talkAction.BeginInvoke("talk", "", talkTime, null, null);
+        _ = HandleStatusAsync("talk", "", talkTime);
         if (!string.IsNullOrEmpty(talkGesture))
             showGesture(talkGesture, talkTime + 3000);
     }
+
     internal void showGesture(string theGesture, int timeToShow)
     {
-        actionThread gestAction = new actionThread(HANDLESTATUS);
-        gestAction.BeginInvoke("gest", theGesture, timeToShow, null, null);
+        _ = HandleStatusAsync("gest", theGesture, timeToShow);
     }
     #endregion
 }

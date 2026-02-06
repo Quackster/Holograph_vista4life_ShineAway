@@ -4,6 +4,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
+using Holo.Data.Repositories.Furniture;
+using Holo.Data.Repositories.Users;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Rooms;
@@ -37,7 +39,7 @@ public partial class virtualUser
 
                 case "emptyhand":
                     {
-                        DB.runQuery("DELETE FROM furniture WHERE ownerid = '" + userID + "' AND roomid = '0'");
+                        FurnitureRepository.Instance.DeleteAllHandItems(userID);
                         refreshHand("new");
                     }
                     break;
@@ -186,7 +188,7 @@ public partial class virtualUser
                             return false;
                         else
                         {
-                            int[] userDetails = DB.runReadRow("SELECT id,rank FROM users WHERE name = '" + DB.Stripslash(args[1]) + "'", null);
+                            int[] userDetails = UserRepository.Instance.GetUserIdAndRankByName(DB.Stripslash(args[1]));
                             if (userDetails.Length == 0)
                                 sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfailed")).Append("\r").Append(stringManager.getString("modtool_usernotfound")).Build());
                             else if ((byte)userDetails[1] > _Rank)
@@ -214,7 +216,7 @@ public partial class virtualUser
                             return false;
                         else
                         {
-                            int[] userDetails = DB.runReadRow("SELECT id,rank FROM users WHERE name = '" + DB.Stripslash(args[1]) + "'", null);
+                            int[] userDetails = UserRepository.Instance.GetUserIdAndRankByName(DB.Stripslash(args[1]));
                             if (userDetails.Length == 0)
                                 sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfailed")).Append("\r").Append(stringManager.getString("modtool_usernotfound")).Build());
                             else if ((byte)userDetails[1] > _Rank)
@@ -227,7 +229,7 @@ public partial class virtualUser
                                     sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_failed")).Build());
                                 else
                                 {
-                                    string IP = DB.runRead("SELECT ipaddress_last FROM users WHERE id = '" + userDetails[0] + "'");
+                                    string IP = UserRepository.Instance.GetIpAddressById(userDetails[0]) ?? "";
                                     staffManager.addStaffMessage("ban", userID, userDetails[0], Reason, "");
                                     userManager.setBan(IP, banHours, Reason);
                                     sendData(new HabboPacketBuilder("BK").Append(userManager.generateBanReport(IP)).Build());
@@ -391,7 +393,7 @@ public partial class virtualUser
                             sendData(new HabboPacketBuilder("BK").Append("You don't have the rights to give coins to someone!").Build());
                         else
                         {
-                            DB.runQuery("UPDATE users SET credits = " + Target._Credits + " + " + Credits + " WHERE id = " + Target.userID + "");
+                            UserRepository.Instance.AddCredits(Target.userID, Credits);
                             Target.sendData(new HabboPacketBuilder("BK").Append("You have recieved ").Append(Credits.ToString()).Append(" credits from a staff member!").Build());
                             sendData(new HabboPacketBuilder("BK").Append("You've succesfully sent ").Append(Credits.ToString()).Append(" coins to ").Append(Target._Username).Append(".").Build());
                             Room.Refresh(roomUser);

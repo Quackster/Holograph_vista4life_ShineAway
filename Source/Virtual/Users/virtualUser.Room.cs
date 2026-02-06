@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 
+using Holo.Data.Repositories.Rooms;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Rooms;
@@ -74,7 +75,7 @@ namespace Holo.Virtual.Users
                             if (_teleporterID == 0)
                             {
                                 bool allowEnterLockedRooms = rankManager.containsRight(_Rank, "fuse_enter_locked_rooms");
-                                int accessLevel = DB.runRead("SELECT state FROM rooms WHERE id = '" + roomID + "'", null);
+                                int accessLevel = RoomRepository.Instance.GetRoomState(roomID);
                                 if (accessLevel == 3 && _clubMember == false && allowEnterLockedRooms == false) // Room is only for club subscribers and the user isn't club and hasn't got the fuseright for entering all rooms nomatter the state
                                 {
                                     sendData(new HabboPacketBuilder(HabboPackets.ROOM_FULL).Append("Kc").Build());
@@ -86,10 +87,10 @@ namespace Holo.Virtual.Users
                                     return true;
                                 }
 
-                                int nowVisitors = DB.runRead("SELECT SUM(visitors_now) FROM rooms WHERE id = '" + roomID + "'", null);
+                                int nowVisitors = RoomRepository.Instance.GetRoomVisitorsNow(roomID);
                                 if (nowVisitors > 0)
                                 {
-                                    int maxVisitors = DB.runRead("SELECT SUM(visitors_max) FROM rooms WHERE id = '" + roomID + "'", null);
+                                    int maxVisitors = RoomRepository.Instance.GetRoomVisitorsMax(roomID);
                                     if (nowVisitors >= maxVisitors && rankManager.containsRight(_Rank, "fuse_enter_full_rooms") == false)
                                     {
                                         if (isPublicroom == false)
@@ -107,7 +108,7 @@ namespace Holo.Virtual.Users
 
                             if (isPublicroom)
                             {
-                                string roomModel = DB.runRead("SELECT model FROM rooms WHERE id = '" + roomID + "'");
+                                string roomModel = RoomRepository.Instance.GetRoomModel(roomID) ?? "";
                                 sendData(new HabboPacketBuilder("AE").Append(roomModel).Append(" ").Append(roomID).Build());
                                 _ROOMACCESS_SECONDARY_OK = true;
                             }
@@ -125,30 +126,34 @@ namespace Holo.Virtual.Users
                     {
                         if (_inPublicroom == false)
                         {
-                            _isOwner = DB.checkExists("SELECT id FROM rooms WHERE id = '" + _roomID + "' AND owner = '" + _Username + "'");
+                            _isOwner = RoomRepository.Instance.IsRoomOwner(_roomID, _Username);
                             if (_isOwner == false)
-                                _hasRights = DB.checkExists("SELECT userid FROM room_rights WHERE roomid = '" + _roomID + "' AND userid = '" + userID + "'");
+                                _hasRights = RoomAccessRepository.Instance.HasRights(_roomID, userID);
                             if (_hasRights == false)
-                                _hasRights = DB.checkExists("SELECT id FROM rooms WHERE id = '" + _roomID + "' AND superusers = '1'");
+                                _hasRights = RoomRepository.Instance.HasSuperUsers(_roomID);
 
                             if (_teleporterID == 0 && _isOwner == false && rankManager.containsRight(_Rank, "fuse_enter_locked_rooms") == false)
                             {
-                                int accessFlag = DB.runRead("SELECT state FROM rooms WHERE id = '" + _roomID + "'", null);
+                                int accessFlag = RoomRepository.Instance.GetRoomState(_roomID);
                                 if (_ROOMACCESS_PRIMARY_OK == false && accessFlag != 2)
                                     return true;
 
                                 // Check for roombans
-                                if (DB.checkExists("SELECT roomid FROM room_bans WHERE roomid = '" + _roomID + "' AND userid = '" + userID + "'"))
+                                if (RoomAccessRepository.Instance.IsBanned(_roomID, userID))
                                 {
-                                    DateTime banExpireMoment = DateTime.Parse(DB.runRead("SELECT ban_expire FROM room_bans WHERE roomid = '" + _roomID + "' AND userid = '" + userID + "'"));
-                                    if (DateTime.Compare(banExpireMoment, DateTime.Now) > 0)
+                                    string? banExpireStr = RoomAccessRepository.Instance.GetBanExpiry(_roomID, userID);
+                                    if (!string.IsNullOrEmpty(banExpireStr))
                                     {
-                                        sendData(new HabboPacketBuilder(HabboPackets.ROOM_FULL).Append("PA").Build());
-                                        sendData(HabboPackets.USER_KICK);
-                                        return true;
+                                        DateTime banExpireMoment = DateTime.Parse(banExpireStr);
+                                        if (DateTime.Compare(banExpireMoment, DateTime.Now) > 0)
+                                        {
+                                            sendData(new HabboPacketBuilder(HabboPackets.ROOM_FULL).Append("PA").Build());
+                                            sendData(HabboPackets.USER_KICK);
+                                            return true;
+                                        }
+                                        else
+                                            RoomAccessRepository.Instance.RemoveBan(_roomID, userID);
                                     }
-                                    else
-                                        DB.runQuery("DELETE FROM room_bans WHERE roomid = '" + _roomID + "' AND userid = '" + userID + "' LIMIT 1");
                                 }
 
                                 if (accessFlag == 1) // Doorbell
@@ -170,7 +175,7 @@ namespace Holo.Virtual.Users
                                     string givenPassword = "";
                                     try { givenPassword = currentPacket.Split('/')[1]; }
                                     catch { }
-                                    string roomPassword = DB.runRead("SELECT password FROM rooms WHERE id = '" + _roomID + "'");
+                                    string roomPassword = RoomRepository.Instance.GetRoomPassword(_roomID) ?? "";
                                     if (givenPassword != roomPassword) { sendData(new HabboPacketBuilder(HabboPackets.ROOM_PASSWORD_REQUIRED).Append("Incorrect flat password").Build()); return true; }
                                 }
                             }
@@ -220,12 +225,12 @@ namespace Holo.Virtual.Users
                     {
                         if (_ROOMACCESS_SECONDARY_OK && _inPublicroom == false)
                         {
-                            string Model = "model_" + DB.runRead("SELECT model FROM rooms WHERE id = '" + _roomID + "'");
+                            string Model = "model_" + (RoomRepository.Instance.GetRoomModel(_roomID) ?? "");
                             sendData(new HabboPacketBuilder("AE").Append(Model).Append(" ").Append(_roomID).Build());
 
-                            int Wallpaper = DB.runRead("SELECT wallpaper FROM rooms WHERE id = '" + _roomID + "'", null);
-                            int Floor = DB.runRead("SELECT floor FROM rooms WHERE id = '" + _roomID + "'", null);
-                            string Landscape = DB.runRead("SELECT landscape FROM rooms WHERE id = '" + _roomID + "'");
+                            int Wallpaper = RoomRepository.Instance.GetRoomWallpaper(_roomID);
+                            int Floor = RoomRepository.Instance.GetRoomFloor(_roomID);
+                            string Landscape = RoomRepository.Instance.GetRoomLandscape(_roomID) ?? "";
                             sendData(new HabboPacketBuilder(HabboPackets.USER_STATUS).Append("landscape/").Append(Landscape).Build());
                             if (Wallpaper > 0)
                                 sendData(new HabboPacketBuilder(HabboPackets.USER_STATUS).Append("wallpaper/").Append(Wallpaper).Build());
@@ -247,9 +252,9 @@ namespace Holo.Virtual.Users
                                 sendData("@j");
 
                             int voteAmount = -1;
-                            if (DB.checkExists("SELECT userid FROM room_votes WHERE userid = '" + userID + "' AND roomid = '" + _roomID + "'"))
+                            if (RoomAccessRepository.Instance.HasVoted(_roomID, userID))
                             {
-                                voteAmount = DB.runRead("SELECT SUM(vote) FROM room_votes WHERE roomid = '" + _roomID + "'", null);
+                                voteAmount = RoomAccessRepository.Instance.GetVoteSum(_roomID);
                                 if (voteAmount < 0) { voteAmount = 0; }
                             }
                             sendData(new HabboPacketBuilder(HabboPackets.VOTE_UPDATE).AppendVL64(voteAmount).Build());
@@ -260,11 +265,19 @@ namespace Holo.Virtual.Users
 
                 case "A~": // Enter room - get room advertisement
                     {
-                        if (_inPublicroom && DB.checkExists("SELECT roomid FROM room_ads WHERE roomid = '" + _roomID + "'"))
+                        if (_inPublicroom && RoomRepository.Instance.RoomHasAd(_roomID))
                         {
-                            string advImg = DB.runRead("SELECT img FROM room_ads WHERE roomid = '" + _roomID + "'");
-                            string advUri = DB.runRead("SELECT uri FROM room_ads WHERE roomid = '" + _roomID + "'");
-                            sendData(new HabboPacketBuilder(HabboPackets.ROOM_INTERSTITIAL).Append(advImg).TabSeparator().Append(advUri).Build());
+                            string[] adData = RoomRepository.Instance.GetRoomAd(_roomID);
+                            if (adData.Length >= 2)
+                            {
+                                string advImg = adData[0];
+                                string advUri = adData[1];
+                                sendData(new HabboPacketBuilder(HabboPackets.ROOM_INTERSTITIAL).Append(advImg).TabSeparator().Append(advUri).Build());
+                            }
+                            else
+                            {
+                                sendData(new HabboPacketBuilder(HabboPackets.ROOM_INTERSTITIAL).Append("0").Build());
+                            }
                         }
                         else
                             sendData(new HabboPacketBuilder(HabboPackets.ROOM_INTERSTITIAL).Append("0").Build());

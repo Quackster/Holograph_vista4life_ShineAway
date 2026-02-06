@@ -1,4 +1,6 @@
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 using Holo.Virtual.Users;
 
@@ -15,9 +17,9 @@ public static class eventManager
     /// </summary>
     private static Dictionary<int, virtualEvent>[] Events = Array.Empty<Dictionary<int, virtualEvent>>();
         /// <summary>
-        /// The thread that removes the 'dead events' (virtual events where the hoster has left the virtual room where the event is hosted) from the manager every xx seconds. (configureable in system_config)
+        /// Cancellation token source for the dead event dropper task.
         /// </summary>
-        private static Thread deadEventDropper;
+        private static CancellationTokenSource? _deadEventDropperCts;
         /// <summary>
         /// The amount of seconds between every 'check dead events' check. Initialized in seconds and multiplied with 1000, so value in milliseconds.
         /// </summary>
@@ -34,8 +36,8 @@ public static class eventManager
         /// </summary>
         public static void Init()
         {
-            try { deadEventDropper.Abort(); }
-            catch { }
+            _deadEventDropperCts?.Cancel();
+            _deadEventDropperCts = new CancellationTokenSource();
 
             categoryAmount = int.Parse(Config.getTableEntry("events_categorycount"));
             Events = new Dictionary<int, virtualEvent>[categoryAmount];
@@ -43,39 +45,57 @@ public static class eventManager
                 Events[i] = new Dictionary<int, virtualEvent>();
 
             deadEventDropInterval = int.Parse(Config.getTableEntry("events_deadevents_removeinterval")) * 1000;
-            deadEventDropper = new Thread(new ThreadStart(dropDeadEvents));
-            deadEventDropper.Priority = ThreadPriority.BelowNormal;
-            deadEventDropper.Start();
+            _ = DropDeadEventsAsync(_deadEventDropperCts.Token);
         }
+
         /// <summary>
-        /// Ran on a thread with an interval of 2 minutes. Drops 'dead' virtual events (events where the hoster has left the virtual room where the event was hosted) from the manager.
+        /// Stops the dead event dropper.
         /// </summary>
-        private static void dropDeadEvents()
+        public static void Shutdown()
         {
-            while (true)
+            _deadEventDropperCts?.Cancel();
+        }
+
+        /// <summary>
+        /// Async task that drops 'dead' virtual events (events where the hoster has left the virtual room where the event was hosted) from the manager.
+        /// </summary>
+        private static async Task DropDeadEventsAsync(CancellationToken cancellationToken)
+        {
+            try
             {
-                for (int i = 0; i < categoryAmount; i++)
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    foreach (var Event in Events[i].Values.ToArray())
+                    for (int i = 0; i < categoryAmount; i++)
                     {
-                        if (!userManager.containsUser(Event.userID))
+                        foreach (var Event in Events[i].Values.ToArray())
                         {
-                            DB.runQuery("DELETE FROM events WHERE roomid = '" + Event.roomID + "'");
-                            Events[i].Remove(Event.roomID);
-                        }
-                        else
-                        {
-                            var Hoster = userManager.getUser(Event.userID);
-                            if (Hoster != null && Hoster._roomID != Event.roomID)
+                            if (!userManager.containsUser(Event.userID))
                             {
                                 DB.runQuery("DELETE FROM events WHERE roomid = '" + Event.roomID + "'");
                                 Events[i].Remove(Event.roomID);
-                                Hoster._hostsEvent = false;
+                            }
+                            else
+                            {
+                                var Hoster = userManager.getUser(Event.userID);
+                                if (Hoster != null && Hoster._roomID != Event.roomID)
+                                {
+                                    DB.runQuery("DELETE FROM events WHERE roomid = '" + Event.roomID + "'");
+                                    Events[i].Remove(Event.roomID);
+                                    Hoster._hostsEvent = false;
+                                }
                             }
                         }
                     }
+                    await Task.Delay(deadEventDropInterval, cancellationToken);
                 }
-                Thread.Sleep(deadEventDropInterval);
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal shutdown
+            }
+            catch (Exception e)
+            {
+                Out.WriteError($"Dead event dropper error: {e.Message}");
             }
         }
         #endregion
