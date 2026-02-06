@@ -4,6 +4,7 @@ using System.Threading;
 using System.Collections;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms.Bots;
 
@@ -70,12 +71,12 @@ namespace Holo.Virtual.Rooms
                                             sendSpecialCast("door", "close");
                                             sendData("A}");
                                             roomUser.User._Tickets--;
-                                            roomUser.User.sendData("A|" + roomUser.User._Tickets);
+                                            roomUser.User.sendData(new HabboPacketBuilder("A|").Append(roomUser.User._Tickets).Build());
                                             DB.runQuery("UPDATE users SET tickets = tickets - 1 WHERE id = '" + roomUser.userID + "' LIMIT 1");
                                         }
                                         else if (Trigger.Object.Substring(0, 6) == "Splash") // User has entered/left a swimming pool
                                         {
-                                            sendData("AG" + Trigger.Object);
+                                            sendData(new HabboPacketBuilder("AG").Append(Trigger.Object).Build());
                                             if (Trigger.Object.Substring(8) == "enter")
                                             {
                                                 roomUser.statusManager.dropCarrydItem();
@@ -223,7 +224,7 @@ namespace Holo.Virtual.Rooms
                     // Send statuses to all room users [if in stringbuilder]
                     if (_statusUpdates.Length > 0)
                     {
-                        sendData("@b" + _statusUpdates.ToString());
+                        sendData(new HabboPacketBuilder("@b").Append(_statusUpdates.ToString()).Build());
                         _statusUpdates = new StringBuilder();
                     }
                     Thread.Sleep(410);
@@ -320,7 +321,7 @@ namespace Holo.Virtual.Rooms
                 else
                     nextHeight = (double)sqFLOORHEIGHT[toX, toY];
                 roomUser.statusManager.addStatus("mv", toX + "," + toY + "," + nextHeight.ToString().Replace(',','.'));
-                sendData("@b" + roomUser.statusString);
+                sendData(new HabboPacketBuilder("@b").Append(roomUser.statusString).Build());
 
                 Thread.Sleep(310);
                 roomUser.X = toX;
@@ -338,7 +339,7 @@ namespace Holo.Virtual.Rooms
                         roomUser.statusManager.addStatus("sit", sqITEMHEIGHT[toX, toY].ToString().Replace(',', '.'));
                         roomUser.statusManager.removeStatus("mv");
                     }
-                    sendData("@b" + roomUser.statusString);
+                    sendData(new HabboPacketBuilder("@b").Append(roomUser.statusString).Build());
                 }
             }
             catch { }

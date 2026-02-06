@@ -2,6 +2,7 @@ using System;
 using System.Text;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Rooms;
 
 namespace Holo.Virtual.Users
@@ -38,7 +39,7 @@ namespace Holo.Virtual.Users
                             #region Alert single user
                             case "HH": // Alert single user
                                 {
-                                    if (rankManager.containsRight(_Rank, "fuse_alert") == false) { sendData("BK" + stringManager.getString("modtool_accesserror")); return true; }
+                                    if (rankManager.containsRight(_Rank, "fuse_alert") == false) { sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_accesserror")).Build()); return true; }
 
                                     messageLength = Encoding.decodeB64(currentPacket.Substring(4, 2));
                                     Message = currentPacket.Substring(6, messageLength).Replace(Convert.ToChar(1).ToString(), " ");
@@ -51,10 +52,10 @@ namespace Holo.Virtual.Users
 
                                     virtualUser _targetUser = userManager.getUser(targetUser);
                                     if (_targetUser == null)
-                                        sendData("BK" + stringManager.getString("modtool_actionfail") + "\r" + stringManager.getString("modtool_usernotfound"));
+                                        sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfail")).Append("\r").Append(stringManager.getString("modtool_usernotfound")).Build());
                                     else
                                     {
-                                        _targetUser.sendData("B!" + Message + Convert.ToChar(2));
+                                        _targetUser.sendData(new HabboPacketBuilder("B!").Append(Message).Separator().Build());
                                         staffManager.addStaffMessage("alert", userID, _targetUser.userID, Message, staffNote);
                                     }
                                     break;
@@ -64,7 +65,7 @@ namespace Holo.Virtual.Users
                             #region Kick single user from room
                             case "HI": // Kick single user from room
                                 {
-                                    if (rankManager.containsRight(_Rank, "fuse_kick") == false) { sendData("BK" + stringManager.getString("modtool_accesserror")); return true; }
+                                    if (rankManager.containsRight(_Rank, "fuse_kick") == false) { sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_accesserror")).Build()); return true; }
 
                                     messageLength = Encoding.decodeB64(currentPacket.Substring(4, 2));
                                     Message = currentPacket.Substring(6, messageLength).Replace(Convert.ToChar(1).ToString(), " ");
@@ -77,7 +78,7 @@ namespace Holo.Virtual.Users
 
                                     virtualUser _targetUser = userManager.getUser(targetUser);
                                     if (_targetUser == null)
-                                        sendData("BK" + stringManager.getString("modtool_actionfail") + "\r" + stringManager.getString("modtool_usernotfound"));
+                                        sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfail")).Append("\r").Append(stringManager.getString("modtool_usernotfound")).Build());
                                     else
                                     {
                                         if (_targetUser.Room != null && _targetUser.roomUser != null)
@@ -88,7 +89,7 @@ namespace Holo.Virtual.Users
                                                 staffManager.addStaffMessage("kick", userID, _targetUser.userID, Message, staffNote);
                                             }
                                             else
-                                                sendData("BK" + stringManager.getString("modtool_actionfail") + "\r" + stringManager.getString("modtool_rankerror"));
+                                                sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfail")).Append("\r").Append(stringManager.getString("modtool_rankerror")).Build());
                                         }
                                     }
                                     break;
@@ -98,7 +99,7 @@ namespace Holo.Virtual.Users
                             #region Ban single user
                             case "HJ": // Ban single user / IP
                                 {
-                                    if (rankManager.containsRight(_Rank, "fuse_ban") == false) { sendData("BK" + stringManager.getString("modtool_accesserror")); return true; }
+                                    if (rankManager.containsRight(_Rank, "fuse_ban") == false) { sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_accesserror")).Build()); return true; }
 
                                     int targetUserLength = 0;
                                     int banHours = 0;
@@ -119,12 +120,12 @@ namespace Holo.Virtual.Users
                                         string[] userDetails = DB.runReadRow("SELECT id,rank,ipaddress_last FROM users WHERE name = '" + DB.Stripslash(targetUser) + "'");
                                         if (userDetails.Length == 0)
                                         {
-                                            sendData("BK" + stringManager.getString("modtool_actionfail") + "\r" + stringManager.getString("modtool_usernotfound"));
+                                            sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfail")).Append("\r").Append(stringManager.getString("modtool_usernotfound")).Build());
                                             return true;
                                         }
                                         else if (byte.Parse(userDetails[1]) >= _Rank)
                                         {
-                                            sendData("BK" + stringManager.getString("modtool_actionfail") + "\r" + stringManager.getString("modtool_rankerror"));
+                                            sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfail")).Append("\r").Append(stringManager.getString("modtool_rankerror")).Build());
                                             return true;
                                         }
 
@@ -142,7 +143,7 @@ namespace Holo.Virtual.Users
                                             Report = userManager.generateBanReport(targetID);
                                         }
 
-                                        sendData("BK" + Report);
+                                        sendData(new HabboPacketBuilder("BK").Append(Report).Build());
                                     }
                                     break;
                                 }
@@ -151,7 +152,7 @@ namespace Holo.Virtual.Users
                             #region Room alert
                             case "IH": // Alert all users in current room
                                 {
-                                    if (rankManager.containsRight(_Rank, "fuse_room_alert") == false) { sendData("BK" + stringManager.getString("modtool_accesserror")); return true; }
+                                    if (rankManager.containsRight(_Rank, "fuse_room_alert") == false) { sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_accesserror")).Build()); return true; }
                                     if (Room == null || roomUser == null) { return true; }
 
                                     messageLength = Encoding.decodeB64(currentPacket.Substring(4, 2));
@@ -161,7 +162,7 @@ namespace Holo.Virtual.Users
 
                                     if (Message != "")
                                     {
-                                        Room.sendData("B!" + Message + Convert.ToChar(2));
+                                        Room.sendData(new HabboPacketBuilder("B!").Append(Message).Separator().Build());
                                         staffManager.addStaffMessage("ralert", userID, _roomID, Message, staffNote);
                                     }
                                     break;
@@ -171,7 +172,7 @@ namespace Holo.Virtual.Users
                             #region Room kick
                             case "II": // Kick all users below users rank from room
                                 {
-                                    if (rankManager.containsRight(_Rank, "fuse_room_kick") == false) { sendData("BK" + stringManager.getString("modtool_accesserror")); return true; }
+                                    if (rankManager.containsRight(_Rank, "fuse_room_kick") == false) { sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_accesserror")).Build()); return true; }
                                     if (Room == null || roomUser == null) { return true; }
 
                                     messageLength = Encoding.decodeB64(currentPacket.Substring(4, 2));
@@ -199,9 +200,9 @@ namespace Holo.Virtual.Users
                     {
                         string[] cfhStats = DB.runReadRow("SELECT id, date, message, picked_up FROM cms_help WHERE username = '" + _Username + "' AND picked_up = '0'");
                         if (cfhStats.Length == 0)
-                            sendData("D" + "H");
+                            sendData(new HabboPacketBuilder("D").Append("H").Build());
                         else
-                            sendData("D" + "I" + cfhStats[0] + Convert.ToChar(2) + cfhStats[1] + Convert.ToChar(2) + cfhStats[2] + Convert.ToChar(2));
+                            sendData(new HabboPacketBuilder("D").Append("I").Append(cfhStats[0]).Separator().Append(cfhStats[1]).Separator().Append(cfhStats[2]).Separator().Build());
                         break;
                     }
 
@@ -210,7 +211,7 @@ namespace Holo.Virtual.Users
                         int cfhID = DB.runRead("SELECT id FROM cms_help WHERE username = '" + _Username + "' AND picked_up = '0'", null);
                         DB.runQuery("DELETE FROM cms_help WHERE picked_up = '0' AND username = '" + _Username + "' LIMIT 1");
                         sendData("DH");
-                        userManager.sendToRank(Config.Minimum_CFH_Rank, true, "BT" + Encoding.encodeVL64(cfhID) + Convert.ToChar(2) + "I" + "User Deleted!" + Convert.ToChar(2) + "User Deleted!" + Convert.ToChar(2) + "User Deleted!" + Convert.ToChar(2) + Encoding.encodeVL64(0) + Convert.ToChar(2) + "" + Convert.ToChar(2) + "H" + Convert.ToChar(2) + Encoding.encodeVL64(0));
+                        userManager.sendToRank(Config.Minimum_CFH_Rank, true, new HabboPacketBuilder("BT").AppendVL64(cfhID).Separator().Append("I").Append("User Deleted!").Separator().Append("User Deleted!").Separator().Append("User Deleted!").Separator().AppendVL64(0).Separator().Append("").Separator().Append("H").Separator().AppendVL64(0).Build());
                         break;
                     }
 
@@ -226,7 +227,7 @@ namespace Holo.Virtual.Users
                         int cfhID = DB.runRead("SELECT id FROM cms_help WHERE username = '" + _Username + "' AND picked_up = '0'", null);
                         string roomName = DB.runRead("SELECT name FROM rooms WHERE id = '" + _roomID + "'"); //          H = Automated / I = Manual                                                                                                                                                                          H = Hide Room ID / I = Show Room ID
                         sendData("EAH"); //                                                                                           \_/                                                                                                                                                                                                    \_/
-                        userManager.sendToRank(Config.Minimum_CFH_Rank, true, "BT" + Encoding.encodeVL64(cfhID) + Convert.ToChar(2) + "I" + "Sent: " + DateTime.Now + Convert.ToChar(2) + _Username + Convert.ToChar(2) + cfhMessage + Convert.ToChar(2) + Encoding.encodeVL64(_roomID) + Convert.ToChar(2) + roomName + Convert.ToChar(2) + "I" + Convert.ToChar(2) + Encoding.encodeVL64(_roomID));
+                        userManager.sendToRank(Config.Minimum_CFH_Rank, true, new HabboPacketBuilder("BT").AppendVL64(cfhID).Separator().Append("I").Append("Sent: " + DateTime.Now).Separator().Append(_Username).Separator().Append(cfhMessage).Separator().AppendVL64(_roomID).Separator().Append(roomName).Separator().Append("I").Separator().AppendVL64(_roomID).Build());
                         break;
                     }
                 #endregion
@@ -241,14 +242,14 @@ namespace Holo.Virtual.Users
 
                         string toUserName = DB.runRead("SELECT username FROM cms_help WHERE id = '" + cfhID + "'");
                         if (toUserName == null)
-                            sendData("BK" + stringManager.getString("cfh_fail"));
+                            sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("cfh_fail")).Build());
                         else
                         {
                             int toUserID = userManager.getUserID(toUserName);
                             virtualUser toVirtualUser = userManager.getUser(toUserID);
                             if (toVirtualUser._isLoggedIn)
                             {
-                                toVirtualUser.sendData("DR" + cfhReply + Convert.ToChar(2));
+                                toVirtualUser.sendData(new HabboPacketBuilder("DR").Append(cfhReply).Separator().Build());
                                 DB.runQuery("UPDATE cms_help SET picked_up = '" + _Username + "' WHERE id = '" + cfhID + "' LIMIT 1");
                             }
                         }
@@ -266,11 +267,11 @@ namespace Holo.Virtual.Users
                         else
                         {
                             if (cfhStats[3] == "1")
-                                sendData("BK" + stringManager.getString("cfh_picked_up"));
+                                sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("cfh_picked_up")).Build());
                             else
                             {
                                 DB.runQuery("DELETE FROM cms_help WHERE id = '" + cfhID + "' LIMIT 1");
-                                userManager.sendToRank(Config.Minimum_CFH_Rank, true, "BT" + Encoding.encodeVL64(cfhID) + Convert.ToChar(2) + "H" + "Staff Deleted!" + Convert.ToChar(2) + "Staff Deleted!" + Convert.ToChar(2) + "Staff Deleted!" + Convert.ToChar(2) + Encoding.encodeVL64(0) + Convert.ToChar(2) + "" + Convert.ToChar(2) + "H" + Convert.ToChar(2) + Encoding.encodeVL64(0));
+                                userManager.sendToRank(Config.Minimum_CFH_Rank, true, new HabboPacketBuilder("BT").AppendVL64(cfhID).Separator().Append("H").Append("Staff Deleted!").Separator().Append("Staff Deleted!").Separator().Append("Staff Deleted!").Separator().AppendVL64(0).Separator().Append("").Separator().Append("H").Separator().AppendVL64(0).Build());
                             }
                         }
                         break;
@@ -287,9 +288,9 @@ namespace Holo.Virtual.Users
                         string[] cfhData = DB.runReadRow("SELECT picked_up,username,message,roomid FROM cms_help WHERE id = '" + cfhID + "'");
                         string roomName = DB.runRead("SELECT name FROM rooms WHERE id = '" + cfhData[3] + "'");
                         if (cfhData[0] == "1")
-                            sendData("BK" + stringManager.getString("cfh_picked_up"));
+                            sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("cfh_picked_up")).Build());
                         else
-                            userManager.sendToRank(Config.Minimum_CFH_Rank, true, "BT" + Encoding.encodeVL64(cfhID) + Convert.ToChar(2) + "I" + "Picked up: " + DateTime.Now + Convert.ToChar(2) + cfhData[1] + Convert.ToChar(2) + cfhData[2] + Convert.ToChar(2) + Encoding.encodeVL64(int.Parse(cfhData[3])) + Convert.ToChar(2) + roomName + Convert.ToChar(2) + "I" + Convert.ToChar(2) + Encoding.encodeVL64(int.Parse(cfhData[3])));
+                            userManager.sendToRank(Config.Minimum_CFH_Rank, true, new HabboPacketBuilder("BT").AppendVL64(cfhID).Separator().Append("I").Append("Picked up: " + DateTime.Now).Separator().Append(cfhData[1]).Separator().Append(cfhData[2]).Separator().AppendVL64(int.Parse(cfhData[3])).Separator().Append(roomName).Separator().Append("I").Separator().AppendVL64(int.Parse(cfhData[3])).Build());
                         DB.runQuery("UPDATE cms_help SET picked_up = '1' WHERE id = '" + cfhID + "' LIMIT 1");
                         break;
                     }
@@ -305,9 +306,9 @@ namespace Holo.Virtual.Users
                             return true;
                         virtualRoom room = roomManager.getRoom(roomID);
                         if (room.isPublicroom)
-                            sendData("D^" + "I" + Encoding.encodeVL64(roomID));
+                            sendData(new HabboPacketBuilder("D^").Append("I").AppendVL64(roomID).Build());
                         else
-                            sendData("D^" + "H" + Encoding.encodeVL64(roomID));
+                            sendData(new HabboPacketBuilder("D^").Append("H").AppendVL64(roomID).Build());
 
                         break;
                     }

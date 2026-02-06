@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 
 using Holo.Managers;
+using Holo.Protocol;
 
 namespace Holo.Virtual.Rooms
 {
@@ -18,7 +19,7 @@ namespace Holo.Virtual.Rooms
         /// <param name="Cast">The cast to emit.</param>
         internal void sendSpecialCast(string Emitter, string Cast)
         {
-            sendData("AG" + Emitter + " " + Cast);
+            sendData(new HabboPacketBuilder("AG").Append(Emitter).Append(" ").Append(Cast).Build());
         }
 
         /// <summary>

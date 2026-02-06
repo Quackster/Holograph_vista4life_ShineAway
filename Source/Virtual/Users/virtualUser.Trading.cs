@@ -1,6 +1,7 @@
 using System;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Rooms;
 
 namespace Holo.Virtual.Users
@@ -24,7 +25,7 @@ namespace Holo.Virtual.Users
                     {
                         if (Room != null || roomUser != null || _tradePartnerRoomUID == -1)
                         {
-                            if (Config.enableTrading == false) { sendData("BK" + stringManager.getString("trading_disabled")); return true; }
+                            if (Config.enableTrading == false) { sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("trading_disabled")).Build()); return true; }
 
                             int partnerUID = int.Parse(currentPacket.Substring(2));
                             if (Room.containsUser(partnerUID))

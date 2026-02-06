@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Collections.Generic;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms;
 
@@ -99,7 +100,7 @@ namespace Holo.Socketservers
                             {
                                 int userID = int.Parse(musData[0]);
                                 string Message = musData[1];
-                                userManager.getUser(userID).sendData("BK" + Message);
+                                userManager.getUser(userID).sendData(new HabboPacketBuilder("BK").Append(Message).Build());
                                 break;
                             }
 
@@ -107,7 +108,7 @@ namespace Holo.Socketservers
                             {
                                 int userID = int.Parse(musData[0]);
                                 string Message = musData[1];
-                                userManager.getUser(userID).sendData("B!" + Message + Convert.ToChar(2));
+                                userManager.getUser(userID).sendData(new HabboPacketBuilder("B!").Append(Message).Separator().Build());
                                 break;
                             }
 
@@ -135,7 +136,7 @@ namespace Holo.Socketservers
                                 int userID = int.Parse(musData[0]);
                                 string Message = musData[1];
                                 virtualUser User = userManager.getUser(userID);
-                                User.sendData("@c" + Message);
+                                User.sendData(new HabboPacketBuilder("@c").Append(Message).Build());
                                 User.Disconnect(1000);
                                 break;
                             }

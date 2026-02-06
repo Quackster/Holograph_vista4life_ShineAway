@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms.Bots;
 
@@ -73,7 +74,7 @@ namespace Holo.Virtual.Rooms
 
                 _Bots.Add(roomBot.roomUID, roomBot);
                 sendData(@"@\" + roomBot.detailsString);
-                sendData("@b" + roomBot.statusString);
+                sendData(new HabboPacketBuilder("@b").Append(roomBot.statusString).Build());
             }
         }
         #endregion

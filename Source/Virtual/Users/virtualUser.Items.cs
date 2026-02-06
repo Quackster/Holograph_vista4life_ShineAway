@@ -2,6 +2,7 @@ using System;
 using System.Text;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Rooms;
 using Holo.Virtual.Rooms.Items;
 
@@ -23,7 +24,7 @@ namespace Holo.Virtual.Users
                 #region Catalogue and Recycler
                 case "Ae": // Catalogue - open, retrieve index of pages
                     {
-                        sendData("A~" + catalogueManager.getPageIndex(_Rank));
+                        sendData(new HabboPacketBuilder("A~").Append(catalogueManager.getPageIndex(_Rank)).Build());
 
                         break;
                     }
@@ -32,7 +33,7 @@ namespace Holo.Virtual.Users
                     {
                         {
                             string pageIndexName = currentPacket.Split('/')[1];
-                            sendData("A" + catalogueManager.getPage(pageIndexName, _Rank));
+                            sendData(new HabboPacketBuilder("A").Append(catalogueManager.getPage(pageIndexName, _Rank)).Build());
                         }
                         break;
                     }
@@ -61,7 +62,7 @@ namespace Holo.Virtual.Users
                                     receiverID = i;
                                 else
                                 {
-                                    sendData("AL" + receiverName);
+                                    sendData(new HabboPacketBuilder("AL").Append(receiverName).Build());
                                     return;
                                 }
                             }
@@ -75,7 +76,7 @@ namespace Holo.Virtual.Users
                         }
 
                         _Credits -= Cost;
-                        sendData("@F" + _Credits);
+                        sendData(new HabboPacketBuilder("@F").Append(_Credits).Build());
                         DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
 
                         if (stringManager.getStringPart(Item, 0, 4) == "deal")
@@ -157,7 +158,7 @@ namespace Holo.Virtual.Users
 
                             }
 
-                            sendData("Dp" + recyclerManager.sessionString(userID));
+                            sendData(new HabboPacketBuilder("Dp").Append(recyclerManager.sessionString(userID)).Build());
                             refreshHand("update");
                         }
 
@@ -173,7 +174,7 @@ namespace Holo.Virtual.Users
                                 recyclerManager.rewardSession(userID);
                             recyclerManager.dropSession(userID, Redeem);
 
-                            sendData("Dp" + recyclerManager.sessionString(userID));
+                            sendData(new HabboPacketBuilder("Dp").Append(recyclerManager.sessionString(userID)).Build());
                             if (Redeem)
                                 refreshHand("last");
                             else
@@ -220,7 +221,7 @@ namespace Holo.Virtual.Users
 
                         string decorVal = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
                         DB.runQuery("UPDATE rooms SET " + decorType + " = '" + decorVal + "' WHERE id = '" + _roomID + "' LIMIT 1");
-                        Room.sendData("@n" + decorType + "/" + decorVal);
+                        Room.sendData(new HabboPacketBuilder("@n").Append(decorType).Append("/").Append(decorVal).Build());
 
                         DB.runQuery("DELETE FROM furniture WHERE id = '" + itemID + "' LIMIT 1");
                     }
@@ -348,9 +349,18 @@ namespace Holo.Virtual.Users
                             catalogueManager.itemTemplate Template = catalogueManager.getTemplate(lastItemTID);
 
                             if (Template.typeID > 0)
-                                sendData("BA" + Template.Sprite + Convert.ToChar(13) + Template.Sprite + Convert.ToChar(13) + Template.Length + Convert.ToChar(30) + Template.Width + Convert.ToChar(30) + Template.Colour);
+                                sendData(new HabboPacketBuilder("BA")
+                                    .Append(Template.Sprite).RecordSeparator()
+                                    .Append(Template.Sprite).RecordSeparator()
+                                    .Append(Template.Length).Append(Convert.ToChar(30))
+                                    .Append(Template.Width).Append(Convert.ToChar(30))
+                                    .Append(Template.Colour)
+                                    .Build());
                             else
-                                sendData("BA" + Template.Sprite + Convert.ToChar(13) + Template.Sprite + " " + Template.Colour + Convert.ToChar(13));
+                                sendData(new HabboPacketBuilder("BA")
+                                    .Append(Template.Sprite).RecordSeparator()
+                                    .Append(Template.Sprite).Append(" ").Append(Template.Colour).RecordSeparator()
+                                    .Build());
                         }
                         DB.runQuery("DELETE FROM furniture_presents WHERE id = '" + itemID + "' LIMIT " + itemIDs.Length);
                         DB.runQuery("DELETE FROM furniture WHERE id = '" + itemID + "' LIMIT 1");
@@ -376,7 +386,7 @@ namespace Holo.Virtual.Users
                             Room.floorItemManager.removeItem(itemID, 0);
 
                             _Credits += redeemValue;
-                            sendData("@F" + _Credits);
+                            sendData(new HabboPacketBuilder("@F").Append(_Credits).Build());
                             DB.runQuery("UPDATE users SET credits = '" + _Credits + "' WHERE id = '" + userID + "' LIMIT 1");
                         }
                         break;
@@ -438,7 +448,7 @@ namespace Holo.Virtual.Users
                             if (!(Math.Abs(roomUser.X - Item.X) > 1 || Math.Abs(roomUser.Y - Item.Y) > 1)) // User is not more than one square removed from dice
                             {
                                 Item.Var = "0";
-                                Room.sendData("AZ" + itemID + " " + (itemID * 38));
+                                Room.sendData(new HabboPacketBuilder("AZ").Append(itemID).Append(" ").Append(itemID * 38).Build());
                                 DB.runQuery("UPDATE furniture SET var = '0' WHERE id = '" + itemID + "' LIMIT 1");
                             }
                         }
@@ -460,10 +470,10 @@ namespace Holo.Virtual.Users
 
                             if (!(Math.Abs(roomUser.X - Item.X) > 1 || Math.Abs(roomUser.Y - Item.Y) > 1)) // User is not more than one square removed from dice
                             {
-                                Room.sendData("AZ" + itemID);
+                                Room.sendData(new HabboPacketBuilder("AZ").Append(itemID).Build());
 
                                 int rndNum = new Random(DateTime.Now.Millisecond).Next(1, 7);
-                                Room.sendData("AZ" + itemID + " " + ((itemID * 38) + rndNum), 2000);
+                                Room.sendData(new HabboPacketBuilder("AZ").Append(itemID).Append(" ").Append((itemID * 38) + rndNum).Build(), 2000);
                                 Item.Var = rndNum.ToString();
                                 DB.runQuery("UPDATE furniture SET var = '" + rndNum + "' WHERE id = '" + itemID + "' LIMIT 1");
                             }
@@ -483,8 +493,16 @@ namespace Holo.Virtual.Users
                             if (Item.Sprite == "habbowheel")
                             {
                                 int rndNum = new Random(DateTime.Now.Millisecond).Next(0, 10);
-                                Room.sendData("AU" + itemID + Convert.ToChar(9) + "habbowheel" + Convert.ToChar(9) + " " + Item.wallPosition + Convert.ToChar(9) + "-1");
-                                Room.sendData("AU" + itemID + Convert.ToChar(9) + "habbowheel" + Convert.ToChar(9) + " " + Item.wallPosition + Convert.ToChar(9) + rndNum, 4250);
+                                Room.sendData(new HabboPacketBuilder("AU")
+                                    .Append(itemID).TabSeparator()
+                                    .Append("habbowheel").TabSeparator()
+                                    .Append(" ").Append(Item.wallPosition).TabSeparator()
+                                    .Append("-1").Build());
+                                Room.sendData(new HabboPacketBuilder("AU")
+                                    .Append(itemID).TabSeparator()
+                                    .Append("habbowheel").TabSeparator()
+                                    .Append(" ").Append(Item.wallPosition).TabSeparator()
+                                    .Append(rndNum).Build(), 4250);
                                 DB.runQuery("UPDATE furniture SET var = '" + rndNum + "' WHERE id = '" + itemID + "' LIMIT 1");
                             }
                         }
@@ -501,8 +519,14 @@ namespace Holo.Virtual.Users
                         if (Room.floorItemManager.containsItem(itemID) && Room.floorItemManager.getItem(itemID).Sprite == "val_randomizer")
                         {
                             int rndNum = new Random(DateTime.Now.Millisecond).Next(1, 5);
-                            Room.sendData("AX" + itemID + Convert.ToChar(2) + "123456789" + Convert.ToChar(2));
-                            Room.sendData("AX" + itemID + Convert.ToChar(2) + rndNum + Convert.ToChar(2), 5000);
+                            Room.sendData(new HabboPacketBuilder("AX")
+                                .Append(itemID).Separator()
+                                .Append("123456789").Separator()
+                                .Build());
+                            Room.sendData(new HabboPacketBuilder("AX")
+                                .Append(itemID).Separator()
+                                .Append(rndNum).Separator()
+                                .Build(), 5000);
                             DB.runQuery("UPDATE furniture SET var = '" + rndNum + "' WHERE id = '" + itemID + "' LIMIT 1");
                         }
                         break;
@@ -519,7 +543,10 @@ namespace Holo.Virtual.Users
                         {
                             Message = DB.runRead("SELECT text FROM furniture_stickies WHERE id = '" + itemID + "'");
                             string Colour = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
-                            sendData("@p" + itemID + Convert.ToChar(9) + Colour + " " + Message);
+                            sendData(new HabboPacketBuilder("@p")
+                                .Append(itemID).TabSeparator()
+                                .Append(Colour).Append(" ").Append(Message)
+                                .Build());
                         }
                         break;
                     }
@@ -550,7 +577,12 @@ namespace Holo.Virtual.Users
                             if (Colour != Item.Var)
                                 DB.runQuery("UPDATE furniture SET var = '" + Colour + "' WHERE id = '" + itemID + "' LIMIT 1");
                             Item.Var = Colour;
-                            Room.sendData("AU" + itemID + Convert.ToChar(9) + Sprite + Convert.ToChar(9) + " " + Item.wallPosition + Convert.ToChar(9) + Colour);
+                            Room.sendData(new HabboPacketBuilder("AU")
+                                .Append(itemID).TabSeparator()
+                                .Append(Sprite).TabSeparator()
+                                .Append(" ").Append(Item.wallPosition).TabSeparator()
+                                .Append(Colour)
+                                .Build());
 
                             Message = DB.Stripslash(stringManager.filterSwearwords(Message)).Replace("/r", Convert.ToChar(13).ToString());
                             DB.runQuery("UPDATE furniture_stickies SET text = '" + Message + "' WHERE id = '" + itemID + "' LIMIT 1");

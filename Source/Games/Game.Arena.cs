@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Threading;
 
+using Holo.Protocol;
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms.Pathfinding;
 
@@ -117,7 +118,7 @@ namespace Holo.Virtual.Rooms.Games
                 }
             }
 
-            sendData("Cq" + Encoding.encodeVL64(-1)); // Send players to arena
+            sendData(new HabboPacketBuilder("Cq").AppendVL64(-1).Build()); // Send players to arena
             new Eucalypt.commonDelegate(countDownTicker).BeginInvoke(null, null); // Start countdown bar
         }
         /// <summary>
@@ -134,14 +135,14 @@ namespace Holo.Virtual.Rooms.Games
                 foreach (gamePlayer Player in Teams[i])
                 {
                     Player.User._Tickets -= 2;
-                    Player.User.sendData("A|" + Player.User._Tickets);
+                    Player.User.sendData(new HabboPacketBuilder("A|").Append(Player.User._Tickets).Build());
                     DB.runQuery("UPDATE users SET tickets = '" + Player.User._Tickets + "' WHERE id = '" + Player.User.userID + "' LIMIT 1");
                 }
 
             // Start game
             updateHandler = new Thread(new ThreadStart(updateLoop));
             updateHandler.Start();
-            sendData("Cw" + Encoding.encodeVL64(totalTime));
+            sendData(new HabboPacketBuilder("Cw").AppendVL64(totalTime).Build());
         }
         internal string getMap()
         {
@@ -289,7 +290,7 @@ namespace Holo.Virtual.Rooms.Games
                     for (int i = 0; i < teamAmount; i++)
                         scoreString += Encoding.encodeVL64(teamScores[i]);
 
-                    sendData("Ct" + Encoding.encodeVL64(Amounts[0]) + Players.ToString() + Encoding.encodeVL64(Amounts[1]) + updatedTiles.ToString() + scoreString + "I" + Encoding.encodeVL64(Amounts[2]) + Movements.ToString());
+                    sendData(new HabboPacketBuilder("Ct").AppendVL64(Amounts[0]).Append(Players.ToString()).AppendVL64(Amounts[1]).Append(updatedTiles.ToString()).Append(scoreString).Append("I").AppendVL64(Amounts[2]).Append(Movements.ToString()).Build());
 
                     if (subtrSecond)
                         leftTime--;

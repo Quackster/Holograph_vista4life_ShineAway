@@ -3,6 +3,7 @@ using System.Text;
 using System.Collections;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Users;
 
 namespace Holo.Virtual.Rooms
@@ -54,7 +55,7 @@ namespace Holo.Virtual.Rooms
             checkEmotion(sourceUser, Message);
             if (sourceUser.isTyping)
             {
-                sendData("Ei" + Encoding.encodeVL64(sourceUser.roomUID) + "H");
+                sendData(new HabboPacketBuilder("Ei").AppendVL64(sourceUser.roomUID).Append("H").Build());
                 sourceUser.isTyping = false;
             }
 
@@ -112,7 +113,7 @@ namespace Holo.Virtual.Rooms
             checkEmotion(sourceUser, Message);
             if (sourceUser.isTyping)
             {
-                sendData("Ei" + Encoding.encodeVL64(sourceUser.roomUID) + "H");
+                sendData(new HabboPacketBuilder("Ei").AppendVL64(sourceUser.roomUID).Append("H").Build());
                 sourceUser.isTyping = false;
             }
             //sourceUser.statusManager.handleStatus("talk", "", Message.Length * 190);
@@ -175,7 +176,7 @@ namespace Holo.Virtual.Rooms
         {
             if (sourceUser.isTyping)
             {
-                sendData("Ei" + Encoding.encodeVL64(sourceUser.roomUID) + "H");
+                sendData(new HabboPacketBuilder("Ei").AppendVL64(sourceUser.roomUID).Append("H").Build());
                 sourceUser.isTyping = false;
             }
 

@@ -2,6 +2,7 @@ using System;
 using System.Text;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Rooms;
 
 namespace Holo.Virtual.Users
@@ -24,14 +25,14 @@ namespace Holo.Virtual.Users
                 case "Ct": // Soundmachine - initialize songs in soundmachine
                     {
                         if (_isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
-                            sendData("EB" + soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID));
+                            sendData(new HabboPacketBuilder("EB").Append(soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID)).Build());
                         break;
                     }
 
                 case "Cu": // Soundmachine - enter room initialize playlist
                     {
                         if (Room != null && Room.floorItemManager.soundMachineID > 0)
-                            sendData("EC" + soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID));
+                            sendData(new HabboPacketBuilder("EC").Append(soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID)).Build());
                         break;
                     }
 
@@ -40,7 +41,7 @@ namespace Holo.Virtual.Users
                         if (Room != null && Room.floorItemManager.soundMachineID > 0)
                         {
                             int songID = Encoding.decodeVL64(currentPacket.Substring(2));
-                            sendData("Dl" + soundMachineManager.getSong(songID));
+                            sendData(new HabboPacketBuilder("Dl").Append(soundMachineManager.getSong(songID)).Build());
                         }
                         break;
                     }
@@ -60,7 +61,7 @@ namespace Holo.Virtual.Users
                                     DB.runQuery("INSERT INTO soundmachine_playlists(machineid,songid,pos) VALUES ('" + Room.floorItemManager.soundMachineID + "','" + songID + "','" + i + "')");
                                     currentPacket = currentPacket.Substring(Encoding.encodeVL64(songID).Length);
                                 }
-                                Room.sendData("EC" + soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID)); // Refresh playlist
+                                Room.sendData(new HabboPacketBuilder("EC").Append(soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID)).Build()); // Refresh playlist
                             }
                         }
                         break;
@@ -82,8 +83,8 @@ namespace Holo.Virtual.Users
                                 DB.runQuery("UPDATE users SET credits = credits - 1 WHERE id = '" + userID + "' LIMIT 1");
 
                                 _Credits--;
-                                sendData("@F" + _Credits);
-                                sendData("EB" + soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID));
+                                sendData(new HabboPacketBuilder("@F").Append(_Credits).Build());
+                                sendData(new HabboPacketBuilder("EB").Append(soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID)).Build());
                                 refreshHand("last");
                             }
                             else // Virtual user doesn't has enough credits to burn this song to disk, or this song doesn't exist in his/her soundmachine
@@ -102,7 +103,7 @@ namespace Holo.Virtual.Users
                                 DB.runQuery("UPDATE soundmachine_songs SET machineid = '0' WHERE id = '" + songID + "' AND burnt = '1'"); // If the song is burnt atleast once, then the song is removed from this machine
                                 DB.runQuery("DELETE FROM soundmachine_songs WHERE id = '" + songID + "' AND burnt = '0' LIMIT 1"); // If the song isn't burnt; delete song from database
                                 DB.runQuery("DELETE FROM soundmachine_playlists WHERE machineid = '" + Room.floorItemManager.soundMachineID + "' AND songid = '" + songID + "'"); // Remove song from playlist
-                                Room.sendData("EC" + soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID));
+                                Room.sendData(new HabboPacketBuilder("EC").Append(soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID)).Build());
                             }
                         }
                         break;
@@ -115,8 +116,8 @@ namespace Holo.Virtual.Users
                         {
                             songEditor = new virtualSongEditor(Room.floorItemManager.soundMachineID, userID);
                             songEditor.loadSoundsets();
-                            sendData("Dm" + songEditor.getSoundsets());
-                            sendData("Dn" + soundMachineManager.getHandSoundsets(userID));
+                            sendData(new HabboPacketBuilder("Dm").Append(songEditor.getSoundsets()).Build());
+                            sendData(new HabboPacketBuilder("Dn").Append(soundMachineManager.getHandSoundsets(userID)).Build());
                         }
                         break;
                     }
@@ -130,8 +131,8 @@ namespace Holo.Virtual.Users
                             if (slotID > 0 && slotID < 5 && songEditor.slotFree(slotID))
                             {
                                 songEditor.addSoundset(soundSetID, slotID);
-                                sendData("Dn" + soundMachineManager.getHandSoundsets(userID));
-                                sendData("Dm" + songEditor.getSoundsets());
+                                sendData(new HabboPacketBuilder("Dn").Append(soundMachineManager.getHandSoundsets(userID)).Build());
+                                sendData(new HabboPacketBuilder("Dm").Append(songEditor.getSoundsets()).Build());
                             }
                         }
                         break;
@@ -145,8 +146,8 @@ namespace Holo.Virtual.Users
                             if (songEditor.slotFree(slotID) == false)
                             {
                                 songEditor.removeSoundset(slotID);
-                                sendData("Dm" + songEditor.getSoundsets());
-                                sendData("Dn" + soundMachineManager.getHandSoundsets(userID));
+                                sendData(new HabboPacketBuilder("Dm").Append(songEditor.getSoundsets()).Build());
+                                sendData(new HabboPacketBuilder("Dn").Append(soundMachineManager.getHandSoundsets(userID)).Build());
                             }
                         }
                         break;
@@ -167,8 +168,8 @@ namespace Holo.Virtual.Users
                                 Data = DB.Stripslash(Data);
                                 DB.runQuery("INSERT INTO soundmachine_songs (userid,machineid,title,length,data) VALUES ('" + userID + "','" + Room.floorItemManager.soundMachineID + "','" + Title + "','" + Length + "','" + DB.Stripslash(Data) + "')");
 
-                                sendData("EB" + soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID));
-                                sendData("EK" + Encoding.encodeVL64(Room.floorItemManager.soundMachineID) + Title + Convert.ToChar(2));
+                                sendData(new HabboPacketBuilder("EB").Append(soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID)).Build());
+                                sendData(new HabboPacketBuilder("EK").Append(Encoding.encodeVL64(Room.floorItemManager.soundMachineID)).Append(Title).Separator().Build());
                             }
                         }
                         break;
@@ -179,13 +180,13 @@ namespace Holo.Virtual.Users
                         if (_isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
                         {
                             int songID = Encoding.decodeVL64(currentPacket.Substring(2));
-                            sendData("Dl" + soundMachineManager.getSong(songID));
+                            sendData(new HabboPacketBuilder("Dl").Append(soundMachineManager.getSong(songID)).Build());
 
                             songEditor = new virtualSongEditor(Room.floorItemManager.soundMachineID, userID);
                             songEditor.loadSoundsets();
 
-                            sendData("Dm" + songEditor.getSoundsets());
-                            sendData("Dn" + soundMachineManager.getHandSoundsets(userID));
+                            sendData(new HabboPacketBuilder("Dm").Append(songEditor.getSoundsets()).Build());
+                            sendData(new HabboPacketBuilder("Dn").Append(soundMachineManager.getHandSoundsets(userID)).Build());
                         }
                         break;
                     }
@@ -209,8 +210,8 @@ namespace Holo.Virtual.Users
                                     DB.runQuery("UPDATE soundmachine_songs SET title = '" + Title + "',data = '" + Data + "',length = '" + Length + "' WHERE id = '" + songID + "' LIMIT 1");
 
                                     sendData("ES");
-                                    sendData("EB" + soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID));
-                                    Room.sendData("EC" + soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID));
+                                    sendData(new HabboPacketBuilder("EB").Append(soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID)).Build());
+                                    Room.sendData(new HabboPacketBuilder("EC").Append(soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID)).Build());
                                 }
                             }
                         }

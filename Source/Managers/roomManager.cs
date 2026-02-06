@@ -2,6 +2,7 @@
 using System.Text;
 using System.Collections;
 
+using Holo.Protocol;
 using Holo.Virtual.Rooms;
 
 namespace Holo.Managers
@@ -202,7 +203,7 @@ namespace Holo.Managers
         /// <param name="itemVariable">The variable of the item to refresh.</param>
         public static void refreshWallitem(int roomID, int itemID, string cctName, string wallPosition, string itemVariable)
         {
-            getRoom(roomID).sendData("AU" + itemID + Convert.ToChar(9) + cctName + Convert.ToChar(9) + " " + wallPosition + Convert.ToChar(9) + itemVariable);
+            getRoom(roomID).sendData(new HabboPacketBuilder("AU").Append(itemID).TabSeparator().Append(cctName).TabSeparator().Append(" ").Append(wallPosition).TabSeparator().Append(itemVariable).Build());
         }
 
         /// <summary>

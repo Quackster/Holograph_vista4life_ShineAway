@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Threading;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Rooms;
 using Holo.Virtual.Users.Items;
 using Holo.Virtual.Users.Messenger;
@@ -159,7 +160,7 @@ namespace Holo.Virtual.Users
                 string banReason = userManager.getBanReason(this.connectionRemoteIP);
                 if (banReason != "")
                 {
-                    sendData("@c" + banReason);
+                    sendData(new HabboPacketBuilder("@c").Append(banReason).Build());
                     Disconnect();
                 }
                 else

@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Collections.ObjectModel;
 
+using Holo.Protocol;
 using Holo.Virtual.Users;
 
 namespace Holo.Virtual.Rooms.Games
@@ -37,7 +38,7 @@ namespace Holo.Virtual.Rooms.Games
                     Player.User.gamePlayer = null;
                 }
 
-                sendData("Ci" + this.Sub);
+                sendData(new HabboPacketBuilder("Ci").Append(this.Sub).Build());
             }
             catch { }
         }

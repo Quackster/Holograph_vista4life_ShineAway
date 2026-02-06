@@ -26,8 +26,8 @@ namespace Holo.Virtual.Users
                 #region Login
                 case "@L": // Login - initialize messenger
                     Messenger = new Messenger.virtualMessenger(userID);
-                    sendData(HabboPackets.FRIEND_LIST + Messenger.friendList());
-                    sendData(HabboPackets.FRIEND_REQUESTS + Messenger.friendRequests());
+                    sendData(new HabboPacketBuilder(HabboPackets.FRIEND_LIST).Append(Messenger.friendList()).Build());
+                    sendData(new HabboPacketBuilder(HabboPackets.FRIEND_REQUESTS).Append(Messenger.friendRequests()).Build());
                     break;
 
                 case "@Z": // Login - initialize Club subscription status
@@ -51,11 +51,11 @@ namespace Holo.Virtual.Users
                     break;
 
                 case "C^": // Recycler - receive recycler setup
-                    sendData(HabboPackets.RECYCLER_SETUP + recyclerManager.setupString);
+                    sendData(new HabboPacketBuilder(HabboPackets.RECYCLER_SETUP).Append(recyclerManager.setupString).Build());
                     break;
 
                 case "C_": // Recycler - receive recycler session status
-                    sendData(HabboPackets.RECYCLER_SESSION + recyclerManager.sessionString(userID));
+                    sendData(new HabboPacketBuilder(HabboPackets.RECYCLER_SESSION).Append(recyclerManager.sessionString(userID)).Build());
                     break;
                 #endregion
 
@@ -107,7 +107,7 @@ namespace Holo.Virtual.Users
                         int ReceiverID = DB.runRead("SELECT id FROM users WHERE name = '" + DB.Stripslash(Receiver) + "'", null);
                         if (!(ReceiverID > 0)) // Does the user exist?
                         {
-                            sendData(HabboPackets.USER_NOT_FOUND + Receiver);
+                            sendData(new HabboPacketBuilder(HabboPackets.USER_NOT_FOUND).Append(Receiver).Build());
                             return true;
                         }
 

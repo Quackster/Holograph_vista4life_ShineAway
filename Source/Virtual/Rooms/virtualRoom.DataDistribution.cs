@@ -3,6 +3,7 @@ using System.Text;
 using System.Collections;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Users;
 
 namespace Holo.Virtual.Rooms
@@ -210,7 +211,7 @@ namespace Holo.Virtual.Rooms
         /// <param name="Cast">The cast to emit.</param>
         internal void sendSpecialCast(string Emitter, string Cast)
         {
-            sendData("AG" + Emitter + " " + Cast);
+            sendData(new HabboPacketBuilder("AG").Append(Emitter).Append(" ").Append(Cast).Build());
         }
         /// <summary>
         /// Updates the room votes amount for all users that have voted yet. User's that haven't voted yet are skipped so their vote buttons stay visible.

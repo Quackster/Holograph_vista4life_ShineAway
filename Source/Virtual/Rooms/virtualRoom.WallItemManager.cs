@@ -3,6 +3,7 @@ using System.Text;
 using System.Collections;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Rooms.Items;
 
 namespace Holo.Virtual.Rooms
@@ -49,7 +50,7 @@ namespace Holo.Virtual.Rooms
                     _Items.Add(itemID,Item);
                     if (Place)
                     {
-                        _Room.sendData("AS" + Item.ToString());
+                        _Room.sendData(new HabboPacketBuilder("AS").Append(Item.ToString()).Build());
                         DB.runQuery("UPDATE furniture SET roomid = '" + _Room.roomID + "',wallpos = '" + wallPosition + "' WHERE id = '" + itemID + "' LIMIT 1");
                         if (DB.checkExists("SELECT id FROM furniture_moodlight WHERE id = '" + itemID.ToString() + "'"))
                         {
@@ -67,7 +68,7 @@ namespace Holo.Virtual.Rooms
             {
                 if (_Items.ContainsKey(itemID))
                 {
-                    _Room.sendData("AT" + itemID);
+                    _Room.sendData(new HabboPacketBuilder("AT").Append(itemID).Build());
                     _Items.Remove(itemID);
                     if (ownerID > 0)
                         DB.runQuery("UPDATE furniture SET ownerid = '" + ownerID + "',roomid = '0' WHERE id = '" + itemID + "' LIMIT 1");
@@ -91,7 +92,7 @@ namespace Holo.Virtual.Rooms
                     return;
 
                 Item.Var = toStatus.ToString();
-                _Room.sendData("AU" + itemID + Convert.ToChar(9) + itemSprite + Convert.ToChar(9) + " " + Item.wallPosition + Convert.ToChar(9) + Item.Var);
+                _Room.sendData(new HabboPacketBuilder("AU").Append(itemID).TabSeparator().Append(itemSprite).TabSeparator().Append(" ").Append(Item.wallPosition).TabSeparator().Append(Item.Var).Build());
                 DB.runQuery("UPDATE furniture SET var = '" + toStatus + "' WHERE id = '" + itemID + "' LIMIT 1");
 
             }

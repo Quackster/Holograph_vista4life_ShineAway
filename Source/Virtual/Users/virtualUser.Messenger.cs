@@ -21,7 +21,7 @@ namespace Holo.Virtual.Users
             switch (currentPacket.Substring(0, 2))
             {
                 case "Fs": //search console
-                    sendData(HabboPackets.CONSOLE_SEARCH + "L");
+                    sendData(new HabboPacketBuilder(HabboPackets.CONSOLE_SEARCH).Append("L").Build());
                     break;
 
                 case "@i": // Search in console
@@ -209,7 +209,7 @@ namespace Holo.Virtual.Users
                 case "@O": // Messenger - refresh friendlist
                     {
                         if (Messenger != null)
-                            sendData(HabboPackets.BUDDY_UPDATE + Messenger.getUpdates());
+                            sendData(new HabboPacketBuilder(HabboPackets.BUDDY_UPDATE).Append(Messenger.getUpdates()).Build());
                         break;
                     }
 
@@ -241,7 +241,7 @@ namespace Holo.Virtual.Users
                                 errorID = 0;
 
                             if (errorID != -1) // Error occured
-                                sendData(HabboPackets.FOLLOW_ERROR + Encoding.encodeVL64(errorID));
+                                sendData(new HabboPacketBuilder(HabboPackets.FOLLOW_ERROR).AppendVL64(errorID).Build());
                         }
                         break;
                     }

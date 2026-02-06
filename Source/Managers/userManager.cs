@@ -3,6 +3,7 @@ using System.Text;
 using System.Threading;
 using System.Collections;
 
+using Holo.Protocol;
 using Holo.Virtual.Users;
 
 namespace Holo.Managers
@@ -51,7 +52,7 @@ namespace Holo.Managers
             else
             {
                 User.Disconnect(1000);
-                User.sendData("BK" + "Invalid Session Ticket, please login again!");
+                User.sendData(new HabboPacketBuilder("BK").Append("Invalid Session Ticket, please login again!").Build());
             }
 
             if (_Users.Count > _peakUserCount)
@@ -265,7 +266,7 @@ namespace Holo.Managers
             if (_Users.ContainsKey(userID))
             {
                 virtualUser User = ((virtualUser)_Users[userID]);
-                User.sendData("@c" + Reason);
+                User.sendData(new HabboPacketBuilder("@c").Append(Reason).Build());
                 User.Disconnect(1000);
             }
         }
@@ -307,7 +308,7 @@ namespace Holo.Managers
                 if (_Users.ContainsKey(userIDs[i]))
                 {
                     virtualUser User = ((virtualUser)_Users[userIDs[i]]);
-                    User.sendData("@c" + Reason);
+                    User.sendData(new HabboPacketBuilder("@c").Append(Reason).Build());
                     User.Disconnect(1000);
                 }
             }

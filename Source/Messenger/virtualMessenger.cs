@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual;
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms;
@@ -75,7 +76,7 @@ namespace Holo.Virtual.Users.Messenger
             if (Buddies.ContainsKey(Buddy.userID) == false)
                 Buddies.Add(Buddy.userID, Buddy);
             if(Update)
-                User.sendData("@MHII" + Buddy.ToString(true));
+                User.sendData(new HabboPacketBuilder("@MHII").Append(Buddy.ToString(true)).Build());
         }
         /// <summary>
         /// Deletes a buddy from the friendlist and virtual messenger of this user, but leaves the database row untouched.
@@ -83,7 +84,7 @@ namespace Holo.Virtual.Users.Messenger
         /// <param name="ID">The database ID of the buddy to delete from the friendlist.</param>
         internal void removeBuddy(int ID)
         {
-            User.sendData("@MHI" + "M" + Encoding.encodeVL64(ID));
+            User.sendData(new HabboPacketBuilder("@MHI").Append("M").AppendVL64(ID).Build());
             if (Buddies.Contains(ID))
                 Buddies.Remove(ID);
         }

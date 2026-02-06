@@ -3,6 +3,7 @@ using System.Text;
 using System.Collections;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Rooms.Items;
 
 namespace Holo.Virtual.Rooms
@@ -178,7 +179,7 @@ namespace Holo.Virtual.Rooms
                     if (this.soundMachineID == 0 && stringManager.getStringPart(Template.Sprite, 0, 13) == "sound_machine")
                         soundMachineID = 0;
 
-                    _Room.sendData("A^" + itemID);
+                    _Room.sendData(new HabboPacketBuilder("A^").Append(itemID).Build());
                     _Items.Remove(itemID);
                     if (ownerID > 0) // Return to current owner/new owner
                         DB.runQuery("UPDATE furniture SET x = '0',y = '0',z = '0', h = '0', ownerid = '" + ownerID + "',roomid = '0' WHERE id = '" + itemID + "' LIMIT 1");
@@ -296,7 +297,7 @@ namespace Holo.Virtual.Rooms
                     DB.runQuery("UPDATE furniture SET roomid = '" + _Room.roomID + "',x = '" + X + "',y = '" + Y + "',z = '" + Z + "',h = '" + H.ToString().Replace(',','.') + "' WHERE id = '" + itemID + "' LIMIT 1");
                     floorItem Item = new floorItem(itemID, templateID, X, Y, Z, H, Var);
                     _Items.Add(itemID, Item);
-                    _Room.sendData("A]" + Item.ToString());
+                    _Room.sendData(new HabboPacketBuilder("A]").Append(Item.ToString()).Build());
 
                     if(isSoundMachine)
                         this.soundMachineID = itemID;
@@ -474,7 +475,7 @@ namespace Holo.Virtual.Rooms
                     Item.Y = Y;
                     Item.Z = Z;
                     Item.H = H;
-                    _Room.sendData("A_" + Item.ToString());
+                    _Room.sendData(new HabboPacketBuilder("A_").Append(Item.ToString()).Build());
                     DB.runQuery("UPDATE furniture SET x = '" + X + "',y = '" + Y + "',z = '" + Z + "',h = '" + H.ToString().Replace(',','.') + "' WHERE id = '" + itemID + "' LIMIT 1");
 
                     for (int jX = X; jX < X + Width; jX++)
@@ -560,13 +561,13 @@ namespace Holo.Virtual.Rooms
                             _Room.setSquareState(Item.X, Item.Y, Length, Width, squareState.Open);
                         #endregion
                         Item.Var = toStatus;
-                        _Room.sendData("AX" + itemID + Convert.ToChar(2) + toStatus + Convert.ToChar(2));
+                        _Room.sendData(new HabboPacketBuilder("AX").Append(itemID).Separator().Append(toStatus).Separator().Build());
                         DB.runQuery("UPDATE furniture SET var = '" + toStatus + "' WHERE id = '" + itemID + "' LIMIT 1");
                     }
                     return;
                 }
                 Item.Var = toStatus;
-                _Room.sendData("AX" + itemID + Convert.ToChar(2) + toStatus + Convert.ToChar(2));
+                _Room.sendData(new HabboPacketBuilder("AX").Append(itemID).Separator().Append(toStatus).Separator().Build());
                 DB.runQuery("UPDATE furniture SET var = '" + toStatus + "' WHERE id = '" + itemID + "' LIMIT 1");
             }
             /// <summary>

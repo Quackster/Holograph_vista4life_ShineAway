@@ -76,7 +76,7 @@ namespace Holo.Virtual.Users
                                 string banReason = userManager.getBanReason(myID);
                                 if (banReason != "")
                                 {
-                                    sendData(HabboPackets.BAN_REASON + banReason);
+                                    sendData(new HabboPacketBuilder(HabboPackets.BAN_REASON).Append(banReason).Build());
                                     Disconnect(HabboProtocol.DISCONNECT_DELAY_MS);
                                     return;
                                 }
@@ -91,7 +91,7 @@ namespace Holo.Virtual.Users
                                 userManager.addUser(myID, this);
                                 _isLoggedIn = true;
 
-                                sendData(HabboPackets.USER_RIGHTS + rankManager.fuseRights(_Rank));
+                                sendData(new HabboPacketBuilder(HabboPackets.USER_RIGHTS).Append(rankManager.fuseRights(_Rank)).Build());
                                 sendData(HabboPackets.SECOND_CONNECTION);
                                 sendData(HabboPackets.INIT_COMPLETE);
 
@@ -99,7 +99,7 @@ namespace Holo.Virtual.Users
 
                                 if (isguide == 1)
                                     sendData(HabboPackets.GUIDE_STATUS);
-                                sendData(HabboPackets.FILTER_STATUS + HabboProtocol.BOOL_TRUE);
+                                sendData(new HabboPacketBuilder(HabboPackets.FILTER_STATUS).Append(HabboProtocol.BOOL_TRUE).Build());
                                 sendData(HabboPackets.FRIEND_CHECK);
 
                                 if (Config.enableWelcomeMessage)
@@ -138,7 +138,7 @@ namespace Holo.Virtual.Users
                             return;
 
                         case "@q": // Client - request current date
-                            sendData(HabboPackets.CURRENT_DATE + DateTime.Today.ToShortDateString());
+                            sendData(new HabboPacketBuilder(HabboPackets.CURRENT_DATE).Append(DateTime.Today.ToShortDateString()).Build());
                             return;
                     }
 

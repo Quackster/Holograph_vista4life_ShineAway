@@ -1,6 +1,7 @@
 using System;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Rooms;
 using Holo.Virtual.Rooms.Games;
 
@@ -24,7 +25,7 @@ namespace Holo.Virtual.Users
                 case "B_": // Gamelobby - refresh gamelist
                     {
                         if (Room != null && Room.Lobby != null)
-                            sendData("Ch" + Room.Lobby.gameList());
+                            sendData(new HabboPacketBuilder("Ch").Append(Room.Lobby.gameList()).Build());
                         break;
                     }
 
@@ -37,7 +38,7 @@ namespace Holo.Virtual.Users
                             {
                                 this.gamePlayer = new gamePlayer(this, roomUser.roomUID, (Game)Room.Lobby.Games[gameID]);
                                 gamePlayer.Game.Subviewers.Add(gamePlayer);
-                                sendData("Ci" + gamePlayer.Game.Sub);
+                                sendData(new HabboPacketBuilder("Ci").Append(gamePlayer.Game.Sub).Build());
                             }
                         }
                         break;
@@ -52,15 +53,15 @@ namespace Holo.Virtual.Users
                                 if (Room.Lobby.validGamerank(roomUser.gamePoints))
                                 {
                                     if (Room.Lobby.isBattleBall)
-                                        sendData("Ck" + Room.Lobby.getCreateGameSettings());
+                                        sendData(new HabboPacketBuilder("Ck").Append(Room.Lobby.getCreateGameSettings()).Build());
                                     else
-                                        sendData("Ck" + "RA" + "secondsUntilRestart" + Convert.ToChar(2) + "HIRGIHHfieldType" + Convert.ToChar(2) + "HKIIIISAnumTeams" + Convert.ToChar(2) + "HJJIII" + "PA" + "gameLengthChoice" + Convert.ToChar(2) + "HJIIIIK" + "name" + Convert.ToChar(2) + "IJ" + Convert.ToChar(2) + "H" + "secondsUntilStart" + Convert.ToChar(2) + "HIRBIHH");
+                                        sendData(new HabboPacketBuilder("Ck").Append("RA").Append("secondsUntilRestart").Append(Convert.ToChar(2)).Append("HIRGIHHfieldType").Append(Convert.ToChar(2)).Append("HKIIIISAnumTeams").Append(Convert.ToChar(2)).Append("HJJIII").Append("PA").Append("gameLengthChoice").Append(Convert.ToChar(2)).Append("HJIIIIK").Append("name").Append(Convert.ToChar(2)).Append("IJ").Append(Convert.ToChar(2)).Append("H").Append("secondsUntilStart").Append(Convert.ToChar(2)).Append("HIRBIHH").Build());
                                 }
                                 else
-                                    sendData("Cl" + "K"); // Error [3] = Skillevel not valid in this lobby
+                                    sendData(new HabboPacketBuilder("Cl").Append("K").Build()); // Error [3] = Skillevel not valid in this lobby
                             }
                             else
-                                sendData("Cl" + "J"); // Error [2] = Not enough tickets
+                                sendData(new HabboPacketBuilder("Cl").Append("J").Build()); // Error [2] = Not enough tickets
                         }
                         break;
                     }
@@ -146,10 +147,10 @@ namespace Holo.Virtual.Users
                                     catch { }
                                 }
                                 else
-                                    sendData("Cl" + "K"); // Error [3] = Skillevel not valid in this lobby
+                                    sendData(new HabboPacketBuilder("Cl").Append("K").Build()); // Error [3] = Skillevel not valid in this lobby
                             }
                             else
-                                sendData("Cl" + "J"); // Error [2] = Not enough tickets
+                                sendData(new HabboPacketBuilder("Cl").Append("J").Build()); // Error [2] = Not enough tickets
                         }
                         break;
                     }
@@ -172,13 +173,13 @@ namespace Holo.Virtual.Users
                                         gamePlayer.Game.movePlayer(gamePlayer, gamePlayer.teamID, teamID);
                                     }
                                     else
-                                        sendData("Cl" + "H"); // Error [0] = Team full
+                                        sendData(new HabboPacketBuilder("Cl").Append("H").Build()); // Error [0] = Team full
                                 }
                                 else
-                                    sendData("Cl" + "K"); // Error [3] = Skillevel not valid in this lobby
+                                    sendData(new HabboPacketBuilder("Cl").Append("K").Build()); // Error [3] = Skillevel not valid in this lobby
                             }
                             else
-                                sendData("Cl" + "J"); // Error [2] = Not enough tickets
+                                sendData(new HabboPacketBuilder("Cl").Append("J").Build()); // Error [2] = Not enough tickets
                         }
                         break;
                     }
@@ -200,7 +201,7 @@ namespace Holo.Virtual.Users
                                 {
                                     if (Member.roomUID == roomUID)
                                     {
-                                        Member.sendData("Cl" + "RA"); // Error [6] = kicked from game
+                                        Member.sendData(new HabboPacketBuilder("Cl").Append("RA").Build()); // Error [6] = kicked from game
                                         gamePlayer.Game.movePlayer(Member, i, -1);
                                         return true;
                                     }
@@ -239,8 +240,8 @@ namespace Holo.Virtual.Users
                     {
                         if (gamePlayer != null && gamePlayer.Game.State == Game.gameState.Ended && gamePlayer.teamID != -1)
                         {
-                            //sendData("Ck" + "RA" + "secondsUntilRestart" + Convert.ToChar(2) + "HIRGIHHfieldType" + Convert.ToChar(2) + "HKIIIISAnumTeams" + Convert.ToChar(2) + "HJJIII" + "PA" + "gameLengthChoice" + Convert.ToChar(2) + "HJIIIIK" + "name" + Convert.ToChar(2) + "IJ" + Convert.ToChar(2) + "H" + "secondsUntilStart" + Convert.ToChar(2) + "HIRBIHH");
-                            gamePlayer.Game.sendData("BK" + "" + _Username + " wants to replay!");
+                            //sendData(new HabboPacketBuilder("Ck").Append("RA").Append("secondsUntilRestart").Append(Convert.ToChar(2)).Append("HIRGIHHfieldType").Append(Convert.ToChar(2)).Append("HKIIIISAnumTeams").Append(Convert.ToChar(2)).Append("HJJIII").Append("PA").Append("gameLengthChoice").Append(Convert.ToChar(2)).Append("HJIIIIK").Append("name").Append(Convert.ToChar(2)).Append("IJ").Append(Convert.ToChar(2)).Append("H").Append("secondsUntilStart").Append(Convert.ToChar(2)).Append("HIRBIHH").Build());
+                            gamePlayer.Game.sendData(new HabboPacketBuilder("BK").Append(_Username).Append(" wants to replay!").Build());
                         }
                         break;
                     }

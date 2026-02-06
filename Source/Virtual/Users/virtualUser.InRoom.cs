@@ -2,6 +2,7 @@ using System;
 using System.Text;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Rooms;
 using Microsoft.VisualBasic;
 
@@ -87,7 +88,7 @@ namespace Holo.Virtual.Users
                             {
                                 string Outfit = DB.Stripslash(currentPacket.Substring(2));
                                 roomUser.SwimOutfit = Outfit;
-                                Room.sendData(@"@\" + roomUser.detailsString);
+                                Room.sendData(new HabboPacketBuilder(@"@\").Append(roomUser.detailsString).Build());
                                 Room.sendSpecialCast(Trigger.Object, "open");
                                 roomUser.walkLock = false;
                                 roomUser.goalX = Trigger.goalX;
@@ -128,18 +129,21 @@ namespace Holo.Virtual.Users
 
                             this.refreshBadges();
 
-                            string szNotify = this.userID + Convert.ToChar(2).ToString() + Encoding.encodeVL64(enabledBadgeAmount);
+                            var badgeNotify = new HabboPacketBuilder("Cd")
+                                .Append(this.userID)
+                                .Separator()
+                                .AppendVL64(enabledBadgeAmount);
                             for (int x = 0; x < _Badges.Count; x++)
                             {
                                 if (_badgeSlotIDs[x] > 0) // Badge enabled
                                 {
-                                    szNotify += Encoding.encodeVL64(_badgeSlotIDs[x]);
-                                    szNotify += _Badges[x];
-                                    szNotify += Convert.ToChar(2);
+                                    badgeNotify.AppendVL64(_badgeSlotIDs[x])
+                                        .Append(_Badges[x])
+                                        .Separator();
                                 }
                             }
 
-                            this.Room.sendData("Cd" + szNotify);
+                            this.Room.sendData(badgeNotify.Build());
                         }
                         break;
                     }
@@ -149,10 +153,12 @@ namespace Holo.Virtual.Users
                     {
                         int ownerID = Encoding.decodeVL64(currentPacket.Substring(2));
                         string[] Tags = DB.runReadColumn("SELECT tag FROM cms_tags WHERE ownerid = '" + ownerID + "'", 20);
-                        StringBuilder List = new StringBuilder(Encoding.encodeVL64(ownerID) + Encoding.encodeVL64(Tags.Length));
+                        var tagPacket = new HabboPacketBuilder("E^")
+                            .AppendVL64(ownerID)
+                            .AppendVL64(Tags.Length);
                         for (int i = 0; i < Tags.Length; i++)
-                            List.Append(Tags[i] + Convert.ToChar(2));
-                        sendData("E^" + List.ToString());
+                            tagPacket.Append(Tags[i]).Separator();
+                        sendData(tagPacket.Build());
                         break;
                     }
 
@@ -173,7 +179,13 @@ namespace Holo.Virtual.Users
                                 else
                                     roomID = -1;
 
-                                sendData("Dw" + Encoding.encodeVL64(groupID) + Name + Convert.ToChar(2) + Description + Convert.ToChar(2) + Encoding.encodeVL64(roomID) + roomName + Convert.ToChar(2));
+                                sendData(new HabboPacketBuilder("Dw")
+                                    .AppendVL64(groupID)
+                                    .Append(Name).Separator()
+                                    .Append(Description).Separator()
+                                    .AppendVL64(roomID)
+                                    .Append(roomName).Separator()
+                                    .Build());
                             }
                         }
                         break;
@@ -335,12 +347,12 @@ namespace Holo.Virtual.Users
                                 {
                                     if (roomUser.isTyping)
                                     {
-                                        Room.sendData("FO" + Encoding.encodeVL64(roomUser.roomUID) + "H");
+                                        Room.sendData(new HabboPacketBuilder("FO").AppendVL64(roomUser.roomUID).Append("H").Build());
                                         roomUser.isTyping = false;
                                     }
                                 }
                                 else
-                                    gamePlayer.Game.sendData("FO" + Encoding.encodeVL64(gamePlayer.roomUID) + "H");
+                                    gamePlayer.Game.sendData(new HabboPacketBuilder("FO").AppendVL64(gamePlayer.roomUID).Append("H").Build());
                             }
                             else
                             {
@@ -349,14 +361,30 @@ namespace Holo.Virtual.Users
                                     if (gamePlayer == null)
                                         Room.sendShout(roomUser, Message);
                                     else
-                                        gamePlayer.Game.sendData("Ei" + Encoding.encodeVL64(gamePlayer.roomUID) + "H" + Convert.ToChar(1) + "@Z" + Encoding.encodeVL64(gamePlayer.roomUID) + Message + Convert.ToChar(2));
+                                        gamePlayer.Game.sendData(new HabboPacketBuilder("Ei")
+                                            .AppendVL64(gamePlayer.roomUID)
+                                            .Append("H")
+                                            .Append(Convert.ToChar(1))
+                                            .Append("@Z")
+                                            .AppendVL64(gamePlayer.roomUID)
+                                            .Append(Message)
+                                            .Separator()
+                                            .Build());
                                 }
                                 else
                                 {
                                     if (gamePlayer == null)
                                         Room.sendSaying(roomUser, Message);
                                     else
-                                        gamePlayer.Game.sendData("Ei" + Encoding.encodeVL64(gamePlayer.roomUID) + "H" + Convert.ToChar(1) + "@X" + Encoding.encodeVL64(gamePlayer.roomUID) + Message + Convert.ToChar(2));
+                                        gamePlayer.Game.sendData(new HabboPacketBuilder("Ei")
+                                            .AppendVL64(gamePlayer.roomUID)
+                                            .Append("H")
+                                            .Append(Convert.ToChar(1))
+                                            .Append("@X")
+                                            .AppendVL64(gamePlayer.roomUID)
+                                            .Append(Message)
+                                            .Separator()
+                                            .Build());
                                 }
                             }
                         }
@@ -378,7 +406,7 @@ namespace Holo.Virtual.Users
                             {
                                 if (roomUser.isTyping)
                                 {
-                                    Room.sendData("FO" + Encoding.encodeVL64(roomUser.roomUID) + "H");
+                                    Room.sendData(new HabboPacketBuilder("FO").AppendVL64(roomUser.roomUID).Append("H").Build());
                                     roomUser.isTyping = false;
                                 }
                             }
@@ -397,7 +425,7 @@ namespace Holo.Virtual.Users
                     {
                         if (_isMuted == false && Room != null && roomUser != null)
                         {
-                            Room.sendData("Ei" + Encoding.encodeVL64(roomUser.roomUID) + "I");
+                            Room.sendData(new HabboPacketBuilder("Ei").AppendVL64(roomUser.roomUID).Append("I").Build());
                             roomUser.isTyping = true;
                         }
                         break;
@@ -407,7 +435,7 @@ namespace Holo.Virtual.Users
                     {
                         if (Room != null && roomUser != null)
                         {
-                            Room.sendData("Ei" + Encoding.encodeVL64(roomUser.roomUID) + "H");
+                            Room.sendData(new HabboPacketBuilder("Ei").AppendVL64(roomUser.roomUID).Append("H").Build());
                             roomUser.isTyping = false;
                         }
                         break;
@@ -521,8 +549,8 @@ namespace Holo.Virtual.Users
                             roomUser.hasVoted = true;
                             if (_isOwner == true)
                             Room.sendNewVoteAmount(voteAmount);
-                            sendData("EY" + Encoding.encodeVL64(voteAmount));
-                            sendData("Er" + eventManager.getEvent(_roomID));
+                            sendData(new HabboPacketBuilder("EY").AppendVL64(voteAmount).Build());
+                            sendData(new HabboPacketBuilder("Er").Append(eventManager.getEvent(_roomID)).Build());
                         }
                         break;
                     }

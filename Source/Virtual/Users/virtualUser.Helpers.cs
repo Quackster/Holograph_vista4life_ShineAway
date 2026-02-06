@@ -152,7 +152,7 @@ namespace Holo.Virtual.Users
                     _badgeSlotIDs.Add(0);
             }
 
-            sendData(HabboPackets.BADGE_LIST + sbMessage.Build());
+            sendData(new HabboPacketBuilder(HabboPackets.BADGE_LIST).Append(sbMessage.Build()).Build());
 
             // Achievement tokens packet - static data
             var achievementPacket = new HabboPacketBuilder(HabboPackets.ACHIEVEMENT_TOKENS)
@@ -193,7 +193,11 @@ namespace Holo.Virtual.Users
                 .AppendField("QAQAACH_GamePlayed5");
             sendData(achievementPacket.Build());
 
-            sendData(HabboPackets.ACHIEVEMENT_DISPLAY + "IH" + HabboProtocol.PACKET_TERMINATOR + "FCH");
+            sendData(new HabboPacketBuilder(HabboPackets.ACHIEVEMENT_DISPLAY)
+                .Append("IH")
+                .Append(HabboProtocol.PACKET_TERMINATOR)
+                .Append("FCH")
+                .Build());
         }
 
         /// <summary>
@@ -291,7 +295,10 @@ namespace Holo.Virtual.Users
             }
             catch
             {
-                sendData(HabboPackets.INVENTORY_HAND + HabboProtocol.RECORD_SEPARATOR + "0");
+                sendData(new HabboPacketBuilder(HabboPackets.INVENTORY_HAND)
+                    .RecordSeparator()
+                    .Append("0")
+                    .Build());
             }
         }
 
@@ -376,7 +383,7 @@ namespace Holo.Virtual.Users
                 else
                 {
                     gamePlayer.Game.Subviewers.Remove(gamePlayer);
-                    sendData(HabboPackets.GAME_ENDED + HabboProtocol.BOOL_FALSE);
+                    sendData(new HabboPacketBuilder(HabboPackets.GAME_ENDED).Append(HabboProtocol.BOOL_FALSE).Build());
                     sendData(HabboPackets.GAME_PLAYER_EXIT);
                 }
             }
@@ -392,8 +399,10 @@ namespace Holo.Virtual.Users
             {
                 Rooms.Items.floorItem Teleporter2 = Room.floorItemManager.getItem(idTeleporter2);
                 Thread.Sleep(500);
-                Room.sendData(HabboPackets.TELEPORTER_ENTER + Teleporter1.ID + "/" + _Username + "/" + Sprite);
-                Room.sendData(HabboPackets.TELEPORTER_EXIT + Teleporter2.ID + "/" + _Username + "/" + Sprite);
+                Room.sendData(new HabboPacketBuilder(HabboPackets.TELEPORTER_ENTER)
+                    .Append(Teleporter1.ID).Append("/").Append(_Username).Append("/").Append(Sprite).Build());
+                Room.sendData(new HabboPacketBuilder(HabboPackets.TELEPORTER_EXIT)
+                    .Append(Teleporter2.ID).Append("/").Append(_Username).Append("/").Append(Sprite).Build());
                 roomUser.X = Teleporter2.X;
                 roomUser.Y = Teleporter2.Y;
                 roomUser.H = Teleporter2.H;
@@ -409,7 +418,8 @@ namespace Holo.Virtual.Users
                     .AppendVL64(idTeleporter2)
                     .AppendVL64(roomIDTeleporter2);
                 sendData(packet.Build());
-                Room.sendData(HabboPackets.TELEPORTER_ENTER + Teleporter1.ID + "/" + _Username + "/" + Sprite);
+                Room.sendData(new HabboPacketBuilder(HabboPackets.TELEPORTER_ENTER)
+                    .Append(Teleporter1.ID).Append("/").Append(_Username).Append("/").Append(Sprite).Build());
             }
         }
         #endregion

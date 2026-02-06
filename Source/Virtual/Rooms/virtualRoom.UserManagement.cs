@@ -3,6 +3,7 @@ using System.Text;
 using System.Collections;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms.Bots;
 
@@ -59,13 +60,13 @@ namespace Holo.Virtual.Rooms
             if (this.Lobby != null) // Game lobby here
             {
                 User.roomUser.gamePoints = DB.runReadUnsafe("SELECT " + Lobby.Type + "_totalpoints FROM users WHERE id = '" + User.userID + "'", null);
-                sendData("Cz" + "I" + Encoding.encodeVL64(User.roomUser.roomUID) + User.roomUser.gamePoints + Convert.ToChar(2) + rankManager.getGameRankTitle(Lobby.isBattleBall, User.roomUser.gamePoints) + Convert.ToChar(2));
+                sendData(new HabboPacketBuilder("Cz").Append("I").AppendVL64(User.roomUser.roomUID).Append(User.roomUser.gamePoints).Separator().Append(rankManager.getGameRankTitle(Lobby.isBattleBall, User.roomUser.gamePoints)).Separator().Build());
             }
             sendData(@"@\" + User.roomUser.detailsString);
             if (User._groupID > 0 && _activeGroups.Contains(User._groupID) == false)
             {
                 string groupBadge = DB.runRead("SELECT badge FROM groups_details WHERE id = '" + User._groupID + "'");
-                sendData("Du" + "I" + Encoding.encodeVL64(User._groupID) + groupBadge + Convert.ToChar(2));
+                sendData(new HabboPacketBuilder("Du").Append("I").AppendVL64(User._groupID).Append(groupBadge).Separator().Build());
                 _activeGroups.Add(User._groupID);
             }
             roomManager.updateRoomVisitorCount(this.roomID, this._Users.Count);
@@ -86,7 +87,7 @@ namespace Holo.Virtual.Rooms
             {
                 roomUser.User.sendData("@R");
                 if (moderatorMessage != "")
-                    roomUser.User.sendData("B!" + moderatorMessage + Convert.ToChar(2) + "holo.cast.modkick");
+                    roomUser.User.sendData(new HabboPacketBuilder("B!").Append(moderatorMessage).Separator().Append("holo.cast.modkick").Build());
             }
 
             sqUNIT[roomUser.X, roomUser.Y] = false;
@@ -119,7 +120,7 @@ namespace Holo.Virtual.Rooms
                         _activeGroups.Remove(roomUser.User._groupID);
                 }
 
-                sendData("@]" + roomUID);
+                sendData(new HabboPacketBuilder("@]").Append(roomUID).Build());
                 //men
                 roomManager.updateRoomVisitorCount(this.roomID, _Users.Count);
             }

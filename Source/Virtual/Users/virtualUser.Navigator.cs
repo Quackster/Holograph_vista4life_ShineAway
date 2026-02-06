@@ -36,7 +36,7 @@ namespace Holo.Virtual.Users
                         int Type = DB.runRead("SELECT type FROM room_categories WHERE id = '" + cataID + "'", null);
                         int parentID = DB.runRead("SELECT parent FROM room_categories WHERE id = '" + cataID + "'", null);
 
-                        var navBuilder = new HabboPacketBuilder(HabboPackets.NAVIGATOR_MAIN)
+                        var Navigator = new HabboPacketBuilder(HabboPackets.NAVIGATOR_MAIN)
                             .AppendVL64(hideFull)
                             .AppendVL64(cataID)
                             .AppendVL64(Type)
@@ -44,7 +44,6 @@ namespace Holo.Virtual.Users
                             .AppendVL64(0)
                             .AppendVL64(HabboProtocol.NAVIGATOR_MAX_ROOMS)
                             .AppendVL64(parentID);
-                        StringBuilder Navigator = navBuilder.GetBuilder();
                         string _SQL_ORDER_HELPER = "";
                         if (Type == 0) // Publicrooms
                         {
@@ -63,7 +62,7 @@ namespace Holo.Virtual.Users
 
                         int[] roomIDs = DB.runReadColumn("SELECT id FROM rooms WHERE category = '" + cataID + "' " + _SQL_ORDER_HELPER, 0, null);
                         if (Type == 2) // Guestrooms
-                            Navigator.Append(Encoding.encodeVL64(roomIDs.Length));
+                            Navigator.AppendVL64(roomIDs.Length);
                         if (roomIDs.Length > 0)
                         {
                             bool canSeeHiddenNames = false;
@@ -84,13 +83,29 @@ namespace Holo.Virtual.Users
                             for (int i = 0; i < roomIDs.Length; i++)
                             {
                                 if (Type == 0) // Publicroom
-                                    Navigator.Append(Encoding.encodeVL64(roomIDs[i]) + Encoding.encodeVL64(1) + roomNames[i] + HabboProtocol.FIELD_SEPARATOR + Encoding.encodeVL64(nowVisitors[i]) + Encoding.encodeVL64(maxVisitors[i]) + Encoding.encodeVL64(cataID) + roomDescriptions[i] + HabboProtocol.FIELD_SEPARATOR + Encoding.encodeVL64(roomIDs[i]) + Encoding.encodeVL64(0) + roomCCTs[i] + HabboProtocol.FIELD_SEPARATOR + "HI");
+                                    Navigator.AppendVL64(roomIDs[i])
+                                        .AppendVL64(1)
+                                        .Append(roomNames[i]).Separator()
+                                        .AppendVL64(nowVisitors[i])
+                                        .AppendVL64(maxVisitors[i])
+                                        .AppendVL64(cataID)
+                                        .Append(roomDescriptions[i]).Separator()
+                                        .AppendVL64(roomIDs[i])
+                                        .AppendVL64(0)
+                                        .Append(roomCCTs[i]).Separator()
+                                        .Append("HI");
                                 else // Guestroom
                                 {
                                     if (showNameFlags[i] == 0 && canSeeHiddenNames == false)
                                         continue;
                                     else
-                                        Navigator.Append(Encoding.encodeVL64(roomIDs[i]) + roomNames[i] + HabboProtocol.FIELD_SEPARATOR + roomOwners[i] + HabboProtocol.FIELD_SEPARATOR + roomManager.getRoomState(roomStates[i]) + HabboProtocol.FIELD_SEPARATOR + Encoding.encodeVL64(nowVisitors[i]) + Encoding.encodeVL64(maxVisitors[i]) + roomDescriptions[i] + HabboProtocol.FIELD_SEPARATOR);
+                                        Navigator.AppendVL64(roomIDs[i])
+                                            .Append(roomNames[i]).Separator()
+                                            .Append(roomOwners[i]).Separator()
+                                            .Append(roomManager.getRoomState(roomStates[i])).Separator()
+                                            .AppendVL64(nowVisitors[i])
+                                            .AppendVL64(maxVisitors[i])
+                                            .Append(roomDescriptions[i]).Separator();
                                 }
                             }
                         }
@@ -106,29 +121,36 @@ namespace Holo.Virtual.Users
                                     continue;
 
                                 string subName = DB.runRead("SELECT name FROM room_categories WHERE id = '" + subCataIDs[i] + "'");
-                                Navigator.Append(Encoding.encodeVL64(subCataIDs[i]) + Encoding.encodeVL64(0) + subName + HabboProtocol.FIELD_SEPARATOR + Encoding.encodeVL64(visitorCount) + Encoding.encodeVL64(visitorMax) + Encoding.encodeVL64(cataID));
+                                Navigator.AppendVL64(subCataIDs[i])
+                                    .AppendVL64(0)
+                                    .Append(subName).Separator()
+                                    .AppendVL64(visitorCount)
+                                    .AppendVL64(visitorMax)
+                                    .AppendVL64(cataID);
                             }
                         }
 
-                        sendData(Navigator.ToString());
+                        sendData(Navigator.Build());
                         break;
                     }
 
                 case "BW": // Navigator - request index of categories to place guestroom on
                     {
-                        var catBuilder = new HabboPacketBuilder();
+                        var catBuilder = new HabboPacketBuilder(HabboPackets.NAVIGATOR_CATEGORY_INDEX);
                         int[] cataIDs = DB.runReadColumn("SELECT id FROM room_categories WHERE type = '2' AND parent > 0 AND access_rank_min <= " + _Rank + " ORDER BY id ASC", 0, null);
                         string[] cataNames = DB.runReadColumn("SELECT name FROM room_categories WHERE type = '2' AND parent > 0 AND access_rank_min <= " + _Rank + " ORDER BY id ASC", 0);
+                        catBuilder.AppendVL64(cataIDs.Length);
                         for (int i = 0; i < cataIDs.Length; i++)
                             catBuilder.AppendVL64(cataIDs[i]).Append(cataNames[i]).Separator();
 
-                        sendData(HabboPackets.NAVIGATOR_CATEGORY_INDEX + Encoding.encodeVL64(cataIDs.Length) + catBuilder.Build());
+                        sendData(catBuilder.Build());
                         break;
                     }
 
                 case "DH": // Navigator - refresh recommended rooms (random guestrooms)
                     {
-                        var roomsBuilder = new HabboPacketBuilder();
+                        var roomsBuilder = new HabboPacketBuilder(HabboPackets.NAVIGATOR_RECOMMENDED)
+                            .AppendVL64(3);
                         for (int i = 0; i <= 3; i++)
                         {
                             string[] roomDetails = DB.runReadRow("SELECT id,name,owner,description,state,visitors_now,visitors_max FROM rooms WHERE NOT(owner IS NULL) ORDER BY RAND()");
@@ -143,7 +165,7 @@ namespace Holo.Virtual.Users
                                     .AppendVL64(int.Parse(roomDetails[6]))
                                     .Append(roomDetails[3]).Separator();
                         }
-                        sendData(HabboPackets.NAVIGATOR_RECOMMENDED + Encoding.encodeVL64(3) + roomsBuilder.Build());
+                        sendData(roomsBuilder.Build());
                         break;
                     }
 
@@ -152,7 +174,7 @@ namespace Holo.Virtual.Users
                         string[] roomIDs = DB.runReadColumn("SELECT id FROM rooms WHERE owner = '" + _Username + "' ORDER BY id ASC", 0);
                         if (roomIDs.Length > 0)
                         {
-                            var roomsBuilder = new HabboPacketBuilder();
+                            var roomsBuilder = new HabboPacketBuilder(HabboPackets.NAVIGATOR_CATEGORIES);
                             for (int i = 0; i < roomIDs.Length; i++)
                             {
                                 string[] roomDetails = DB.runReadRow("SELECT name,description,state,showname,visitors_now,visitors_max FROM rooms WHERE id = '" + roomIDs[i] + "'");
@@ -168,10 +190,10 @@ namespace Holo.Virtual.Users
                                     .Append(roomDetails[1]).TabSeparator()
                                     .RecordSeparator();
                             }
-                            sendData(HabboPackets.NAVIGATOR_CATEGORIES + roomsBuilder.Build());
+                            sendData(roomsBuilder.Build());
                         }
                         else
-                            sendData(HabboPackets.NAVIGATOR_NO_OWNED + _Username);
+                            sendData(new HabboPacketBuilder(HabboPackets.NAVIGATOR_NO_OWNED).Append(_Username).Build());
                         break;
                     }
 
@@ -182,7 +204,7 @@ namespace Holo.Virtual.Users
                         string[] roomIDs = DB.runReadColumn("SELECT id FROM rooms WHERE NOT(owner IS NULL) AND (owner = '" + _SEARCH + "' OR name LIKE '%" + _SEARCH + "%') ORDER BY id ASC", Config.Navigator_roomSearch_maxResults);
                         if (roomIDs.Length > 0)
                         {
-                            var roomsBuilder = new HabboPacketBuilder();
+                            var roomsBuilder = new HabboPacketBuilder(HabboPackets.NAVIGATOR_SEARCH);
                             for (int i = 0; i < roomIDs.Length; i++)
                             {
                                 string[] roomDetails = DB.runReadRow("SELECT name,owner,description,state,showname,visitors_now,visitors_max FROM rooms WHERE id = '" + roomIDs[i] + "'");
@@ -199,7 +221,7 @@ namespace Holo.Virtual.Users
                                     .Append(roomDetails[2]).TabSeparator()
                                     .RecordSeparator();
                             }
-                            sendData(HabboPackets.NAVIGATOR_SEARCH + roomsBuilder.Build());
+                            sendData(roomsBuilder.Build());
                         }
                         else
                             sendData(HabboPackets.NAVIGATOR_NO_RESULTS);
@@ -235,7 +257,7 @@ namespace Holo.Virtual.Users
                                 detailsBuilder.Append(HabboProtocol.BOOL_FALSE); // Disallow trading
 
                             detailsBuilder.AppendVL64(int.Parse(roomDetails[8])).AppendVL64(int.Parse(roomDetails[9]));
-                            sendData(HabboPackets.ROOM_DETAILS + detailsBuilder.Build());
+                            sendData(new HabboPacketBuilder(HabboPackets.ROOM_DETAILS).Append(detailsBuilder.Build()).Build());
                         }
                         break;
                     }
@@ -311,7 +333,7 @@ namespace Holo.Virtual.Users
                             if (DB.runReadUnsafe("SELECT COUNT(userid) FROM users_favouriterooms WHERE userid = '" + userID + "'", null) < Config.Navigator_Favourites_maxRooms)
                                 DB.runQuery("INSERT INTO users_favouriterooms(userid,roomid) VALUES ('" + userID + "','" + roomID + "')");
                             else
-                                sendData(HabboPackets.ROOM_PASSWORD_REQUIRED + "nav_error_toomanyfavrooms");
+                                sendData(new HabboPacketBuilder(HabboPackets.ROOM_PASSWORD_REQUIRED).Append("nav_error_toomanyfavrooms").Build());
                         }
                         break;
                     }
@@ -326,21 +348,21 @@ namespace Holo.Virtual.Users
 
                 #region Room event actions
                 case "EA": // Events - get setup
-                    sendData(HabboPackets.EVENT_SETUP + Encoding.encodeVL64(eventManager.categoryAmount));
+                    sendData(new HabboPacketBuilder(HabboPackets.EVENT_SETUP).AppendVL64(eventManager.categoryAmount).Build());
                     break;
 
                 case "EY": // Events - show/hide 'Host event' button
                     if (_inPublicroom || roomUser == null || _hostsEvent) // In publicroom, not in room at all or already hosting event
-                        sendData(HabboPackets.EVENT_BUTTON + HabboProtocol.BOOL_FALSE); // Hide
+                        sendData(new HabboPacketBuilder(HabboPackets.EVENT_BUTTON).Append(HabboProtocol.BOOL_FALSE).Build()); // Hide
                     else
-                        sendData(HabboPackets.EVENT_BUTTON + HabboProtocol.BOOL_TRUE); // Show
+                        sendData(new HabboPacketBuilder(HabboPackets.EVENT_BUTTON).Append(HabboProtocol.BOOL_TRUE).Build()); // Show
                     break;
 
                 case "D{": // Events - check if event category is OK
                     {
                         int categoryID = Encoding.decodeVL64(currentPacket.Substring(2));
                         if (eventManager.categoryOK(categoryID))
-                            sendData(HabboPackets.EVENT_CATEGORY_OK + Encoding.encodeVL64(categoryID));
+                            sendData(new HabboPacketBuilder(HabboPackets.EVENT_CATEGORY_OK).AppendVL64(categoryID).Build());
                         break;
                     }
 
@@ -348,7 +370,7 @@ namespace Holo.Virtual.Users
                     {
                         int categoryID = Encoding.decodeVL64(currentPacket.Substring(2));
                         if (categoryID >= 1 && categoryID <= 11)
-                            sendData(HabboPackets.EVENT_CATEGORY + Encoding.encodeVL64(categoryID) + eventManager.getEvents(categoryID));
+                            sendData(new HabboPacketBuilder(HabboPackets.EVENT_CATEGORY).AppendVL64(categoryID).Append(eventManager.getEvents(categoryID)).Build());
                         break;
                     }
 
@@ -366,7 +388,7 @@ namespace Holo.Virtual.Users
 
                                 _hostsEvent = true;
                                 eventManager.createEvent(categoryID, userID, _roomID, Name, Description);
-                                Room.sendData("Er" + eventManager.getEvent(_roomID));
+                                Room.sendData(new HabboPacketBuilder(HabboPackets.EVENT_INFO).Append(eventManager.getEvent(_roomID)).Build());
                             }
                         }
                         break;
@@ -385,7 +407,7 @@ namespace Holo.Virtual.Users
                                 string Description = currentPacket.Substring(categoryLength + nameLength + 6);
 
                                 eventManager.editEvent(categoryID, _roomID, Name, Description);
-                                Room.sendData("Er" + eventManager.getEvent(_roomID));
+                                Room.sendData(new HabboPacketBuilder(HabboPackets.EVENT_INFO).Append(eventManager.getEvent(_roomID)).Build());
                             }
                         }
                         break;
@@ -397,7 +419,7 @@ namespace Holo.Virtual.Users
                         {
                             _hostsEvent = false;
                             eventManager.removeEvent(_roomID);
-                            Room.sendData("Er" + "-1");
+                            Room.sendData(new HabboPacketBuilder(HabboPackets.EVENT_INFO).Append("-1").Build());
                         }
                         break;
                     }
@@ -418,10 +440,10 @@ namespace Holo.Virtual.Users
 
                             DB.runQuery("INSERT INTO rooms (name,owner,model,state,showname) VALUES ('" + DB.Stripslash(roomSettings[2]) + "','" + _Username + "','" + roomSettings[3] + "','" + roomSettings[4] + "','" + roomSettings[5] + "')");
                             string roomID = DB.runRead("SELECT MAX(id) FROM rooms WHERE owner = '" + _Username + "'");
-                            sendData(HabboPackets.ROOM_CREATED + roomID + HabboProtocol.RECORD_SEPARATOR + roomSettings[2]);
+                            sendData(new HabboPacketBuilder(HabboPackets.ROOM_CREATED).Append(roomID).RecordSeparator().Append(roomSettings[2]).Build());
                         }
                         else
-                            sendData(HabboPackets.ROOM_PASSWORD_REQUIRED + "Error creating a private room");
+                            sendData(new HabboPacketBuilder(HabboPackets.ROOM_PASSWORD_REQUIRED).Append("Error creating a private room").Build());
                         break;
                     }
 
@@ -533,7 +555,7 @@ namespace Holo.Virtual.Users
                     {
                         int roomID = Encoding.decodeVL64(currentPacket.Substring(2));
                         if (roomManager.containsRoom(roomID))
-                            sendData(HabboPackets.ROOM_USERLIST + roomManager.getRoom(roomID).Userlist);
+                            sendData(new HabboPacketBuilder(HabboPackets.ROOM_USERLIST).Append(roomManager.getRoom(roomID).Userlist).Build());
                         else
                             sendData(HabboPackets.ROOM_USERLIST);
                         break;

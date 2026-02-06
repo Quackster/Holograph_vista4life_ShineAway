@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Threading;
 
 using Holo.Managers;
+using Holo.Protocol;
 using Holo.Virtual.Rooms;
 using Holo.Virtual.Users.Items;
 using Holo.Virtual.Users.Messenger;
@@ -55,8 +56,8 @@ namespace Holo.Virtual.Users
                                 virtualUser Target = userManager.getUser(DB.Stripslash(args[1]));
                                 string Message = stringManager.wrapParameters(args, 2);
 
-                                Target.sendData("B!" + Message + Convert.ToChar(2));
-                                sendData("BK" + stringManager.getString("scommand_success"));
+                                Target.sendData(new HabboPacketBuilder("B!").Append(Message).Separator().Build());
+                                sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_success")).Build());
                                 staffManager.addStaffMessage("alert", userID, Target.userID, args[2], "");
                             }
                             break;
@@ -69,7 +70,7 @@ namespace Holo.Virtual.Users
                             else
                             {
                                 string Message = Text.Substring(10);
-                                Room.sendData("B!" + Message + Convert.ToChar(2));
+                                Room.sendData(new HabboPacketBuilder("B!").Append(Message).Separator().Build());
                                 staffManager.addStaffMessage("ralert", userID, Room.roomID, Message, "");
                             }
                             break;
@@ -89,11 +90,11 @@ namespace Holo.Virtual.Users
                                         Message = stringManager.wrapParameters(args, 2);
 
                                     Target.Room.removeUser(Target.roomUser.roomUID, true, Message);
-                                    sendData("BK" + stringManager.getString("scommand_success"));
+                                    sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_success")).Build());
                                     staffManager.addStaffMessage("kick", userID, Target.userID, Message, "");
                                 }
                                 else
-                                    sendData("BK" + stringManager.getString("scommand_failed"));
+                                    sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_failed")).Build());
                             }
                             break;
                         }
@@ -106,7 +107,7 @@ namespace Holo.Virtual.Users
                             {
                                 string Message = stringManager.wrapParameters(args, 1);
                                 Room.kickUsers(_Rank, Message);
-                                sendData("BK" + stringManager.getString("scommand_success"));
+                                sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_success")).Build());
                                 staffManager.addStaffMessage("rkick", userID, Room.roomID, Message, "");
                             }
                             break;
@@ -123,12 +124,12 @@ namespace Holo.Virtual.Users
                                 {
                                     string Message = stringManager.wrapParameters(args, 2);
                                     Target._isMuted = true;
-                                    Target.sendData("BK" + stringManager.getString("scommand_muted") + "\r" + Message);
-                                    sendData("BK" + stringManager.getString("scommand_success"));
+                                    Target.sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_muted")).Append("\r").Append(Message).Build());
+                                    sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_success")).Build());
                                     staffManager.addStaffMessage("mute", userID, Target.userID, Message, "");
                                 }
                                 else
-                                    sendData("BK" + stringManager.getString("scommand_failed"));
+                                    sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_failed")).Build());
                             }
                             break;
                         }
@@ -143,12 +144,12 @@ namespace Holo.Virtual.Users
                                 if (Target._Rank < _Rank && Target._isMuted)
                                 {
                                     Target._isMuted = false;
-                                    Target.sendData("BK" + stringManager.getString("scommand_unmuted"));
-                                    sendData("BK" + stringManager.getString("scommand_success"));
+                                    Target.sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_unmuted")).Build());
+                                    sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_success")).Build());
                                     staffManager.addStaffMessage("unmute", userID, Target.userID, "", "");
                                 }
                                 else
-                                    sendData("BK" + stringManager.getString("scommand_failed"));
+                                    sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_failed")).Build());
                             }
                             break;
                         }
@@ -161,7 +162,7 @@ namespace Holo.Virtual.Users
                             {
                                 string Message = stringManager.wrapParameters(args, 1);
                                 Room.muteUsers(_Rank, Message);
-                                sendData("BK" + stringManager.getString("scommand_success"));
+                                sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_success")).Build());
                                 staffManager.addStaffMessage("rmute", userID, Room.roomID, Message, "");
                             }
                             break;
@@ -174,7 +175,7 @@ namespace Holo.Virtual.Users
                             else
                             {
                                 Room.unmuteUsers(_Rank);
-                                sendData("BK" + stringManager.getString("scommand_success"));
+                                sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_success")).Build());
                                 staffManager.addStaffMessage("runmute", userID, Room.roomID, "", "");
                             }
                             break;
@@ -188,20 +189,20 @@ namespace Holo.Virtual.Users
                             {
                                 int[] userDetails = DB.runReadRow("SELECT id,rank FROM users WHERE name = '" + DB.Stripslash(args[1]) + "'", null);
                                 if (userDetails.Length == 0)
-                                    sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_usernotfound"));
+                                    sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfailed")).Append("\r").Append(stringManager.getString("modtool_usernotfound")).Build());
                                 else if ((byte)userDetails[1] > _Rank)
-                                    sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_rankerror"));
+                                    sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfailed")).Append("\r").Append(stringManager.getString("modtool_rankerror")).Build());
                                 else
                                 {
                                     int banHours = int.Parse(args[2]);
                                     string Reason = stringManager.wrapParameters(args, 3);
                                     if (banHours == 0 || Reason == "")
-                                        sendData("BK" + stringManager.getString("scommand_failed"));
+                                        sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_failed")).Build());
                                     else
                                     {
                                         staffManager.addStaffMessage("ban", userID, userDetails[0], Reason, "");
                                         userManager.setBan(userDetails[0], banHours, Reason);
-                                        sendData("BK" + userManager.generateBanReport(userDetails[0]));
+                                        sendData(new HabboPacketBuilder("BK").Append(userManager.generateBanReport(userDetails[0])).Build());
                                     }
                                 }
                             }
@@ -216,21 +217,21 @@ namespace Holo.Virtual.Users
                             {
                                 int[] userDetails = DB.runReadRow("SELECT id,rank FROM users WHERE name = '" + DB.Stripslash(args[1]) + "'", null);
                                 if (userDetails.Length == 0)
-                                    sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_usernotfound"));
+                                    sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfailed")).Append("\r").Append(stringManager.getString("modtool_usernotfound")).Build());
                                 else if ((byte)userDetails[1] > _Rank)
-                                    sendData("BK" + stringManager.getString("modtool_actionfailed") + "\r" + stringManager.getString("modtool_rankerror"));
+                                    sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("modtool_actionfailed")).Append("\r").Append(stringManager.getString("modtool_rankerror")).Build());
                                 else
                                 {
                                     int banHours = int.Parse(args[2]);
                                     string Reason = stringManager.wrapParameters(args, 3);
                                     if (banHours == 0 || Reason == "")
-                                        sendData("BK" + stringManager.getString("scommand_failed"));
+                                        sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_failed")).Build());
                                     else
                                     {
                                         string IP = DB.runRead("SELECT ipaddress_last FROM users WHERE id = '" + userDetails[0] + "'");
                                         staffManager.addStaffMessage("ban", userID, userDetails[0], Reason, "");
                                         userManager.setBan(IP, banHours, Reason);
-                                        sendData("BK" + userManager.generateBanReport(IP));
+                                        sendData(new HabboPacketBuilder("BK").Append(userManager.generateBanReport(IP)).Build());
                                     }
                                 }
                             }
@@ -242,7 +243,7 @@ namespace Holo.Virtual.Users
                             if (rankManager.containsRight(_Rank, "fuse_moderator_access") == false)
                                 return false;
                             else
-                                sendData("BK" + userManager.generateUserInfo(userManager.getUserID(DB.Stripslash(args[1])), _Rank));
+                                sendData(new HabboPacketBuilder("BK").Append(userManager.generateUserInfo(userManager.getUserID(DB.Stripslash(args[1])), _Rank)).Build());
                             break;
                         }
 
@@ -259,15 +260,15 @@ namespace Holo.Virtual.Users
 
                                 if (Target.Room != null && Target._inPublicroom)
                                 {
-                                    sendData("D^" + "I" + Encoding.encodeVL64(Target._roomID));
+                                    sendData(new HabboPacketBuilder("D^").Append("I").AppendVL64(Target._roomID).Build());
                                 }
                                 else if (Target.Room != null)
                                 {
-                                    sendData("D^" + "H" + Encoding.encodeVL64(Target._roomID));
+                                    sendData(new HabboPacketBuilder("D^").Append("H").AppendVL64(Target._roomID).Build());
                                 }
                                 else
                                 {
-                                    sendData("BK" + "Unable to teleport, " + Target._Username + " is not in a room.");
+                                    sendData(new HabboPacketBuilder("BK").Append("Unable to teleport, ").Append(Target._Username).Append(" is not in a room.").Build());
                                 }
 
                             }
@@ -284,14 +285,14 @@ namespace Holo.Virtual.Users
                             {
 
                                 virtualUser Target = userManager.getUser(DB.Stripslash(args[1]));
-                                Target.sendData("BK" + "You are being teleported to where " + _Username + " is.");
+                                Target.sendData(new HabboPacketBuilder("BK").Append("You are being teleported to where ").Append(_Username).Append(" is.").Build());
                                 if (_inPublicroom)
                                 {
-                                    Target.sendData("D^" + "I" + Encoding.encodeVL64(_roomID));
+                                    Target.sendData(new HabboPacketBuilder("D^").Append("I").AppendVL64(_roomID).Build());
                                 }
                                 else
                                 {
-                                    Target.sendData("D^" + "H" + Encoding.encodeVL64(_roomID));
+                                    Target.sendData(new HabboPacketBuilder("D^").Append("H").AppendVL64(_roomID).Build());
                                 }
 
                             }
@@ -305,7 +306,7 @@ namespace Holo.Virtual.Users
                             else
                             {
                                 int Minutes = int.Parse(args[1]);
-                                userManager.sendData("Dc" + Encoding.encodeVL64(Minutes));
+                                userManager.sendData(new HabboPacketBuilder("Dc").AppendVL64(Minutes).Build());
                                 staffManager.addStaffMessage("offline", userID, 0, "mm=" + Minutes, "");
                             }
                             break;
@@ -316,7 +317,7 @@ namespace Holo.Virtual.Users
                             if (rankManager.containsRight(_Rank, "fuse_administrator_access") == false)
                                 return false;
                             else
-                                sendData("BK" + "X: " + roomUser.X + "\r" + "Y: " + roomUser.Y + "\r" + "Z: " + roomUser.Z1 + "\r" + "Height: " + roomUser.H);
+                                sendData(new HabboPacketBuilder("BK").Append("X: ").Append(roomUser.X.ToString()).Append("\r").Append("Y: ").Append(roomUser.Y.ToString()).Append("\r").Append("Z: ").Append(roomUser.Z1.ToString()).Append("\r").Append("Height: ").Append(roomUser.H.ToString()).Build());
                             break;
                         }
 
@@ -331,7 +332,7 @@ namespace Holo.Virtual.Users
                             else
                             {
                                 string Message = Text.Substring(3);
-                                userManager.sendData("BK" + stringManager.getString("scommand_hotelalert") + "\r" + Message);
+                                userManager.sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_hotelalert")).Append("\r").Append(Message).Build());
                                 staffManager.addStaffMessage("halert", userID, 0, Message, "");
                             }
                         }
@@ -344,7 +345,7 @@ namespace Holo.Virtual.Users
                             else
                             {
                                 string Message = Text.Substring(3);
-                                userManager.sendToRank(_Rank, false, "BK" + stringManager.getString("scommand_rankalert") + "\r" + Message);
+                                userManager.sendToRank(_Rank, false, new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_rankalert")).Append("\r").Append(Message).Build());
                                 staffManager.addStaffMessage("rankalert", userID, _Rank, Message, "");
                             }
                             break;
@@ -359,7 +360,7 @@ namespace Holo.Virtual.Users
                             else
                             {
                                 string Message = Text.Substring(3);
-                                userManager.sendData("DBO" + "\r");
+                                userManager.sendData(new HabboPacketBuilder("DBO").Append("\r").Build());
                             }
                             break;
                         }
@@ -371,7 +372,7 @@ namespace Holo.Virtual.Users
                             else
                             {
                                 string Message = Text.Substring(3);
-                                userManager.sendData("DBO" + "\r");
+                                userManager.sendData(new HabboPacketBuilder("DBO").Append("\r").Build());
                             }
                             break;
                         }
@@ -388,12 +389,12 @@ namespace Holo.Virtual.Users
                             virtualUser Target = userManager.getUser(DB.Stripslash(args[1]));
                             int Credits = int.Parse(args[2]);
                             if (rankManager.containsRight(_Rank, "fuse_administrator_access") == false)
-                                sendData("BK" + "You don't have the rights to give coins to someone!");
+                                sendData(new HabboPacketBuilder("BK").Append("You don't have the rights to give coins to someone!").Build());
                             else
                             {
                                 DB.runQuery("UPDATE users SET credits = " + Target._Credits + " + " + Credits + " WHERE id = " + Target.userID + "");
-                                Target.sendData("BK" + "You have recieved " + Credits + " credits from a staff member!");
-                                sendData("BK" + "You've succesfully sent " + Credits + " coins to " + Target._Username + ".");
+                                Target.sendData(new HabboPacketBuilder("BK").Append("You have recieved ").Append(Credits.ToString()).Append(" credits from a staff member!").Build());
+                                sendData(new HabboPacketBuilder("BK").Append("You've succesfully sent ").Append(Credits.ToString()).Append(" coins to ").Append(Target._Username).Append(".").Build());
                                 Room.Refresh(roomUser);
                                 Target.refreshAppearance(true, true, true);
                                 Target.refreshValueables(true, false);
@@ -407,27 +408,28 @@ namespace Holo.Virtual.Users
                             {
                                 return false;
                             }
-                            sendData("BK" +
-                            ":alert <user> <message>\r" +
-                            ":roomalert <message>\r" +
-                            ":kick <user> <message>\r" +
-                            ":roomkick <message>\r" +
-                            ":shutup <user> <message>\r" +
-                            ":unmute <user>\r" +
-                            ":roomshutup <message>\r" +
-                            ":roomunmute\r" +
-                            ":ban <user> <hours> <message>\r" +
-                            ":superban <user> <hours> <message>\r" +
-                            ":ha <message>\r" +
-                            ":ra <message>\r" +
-                            ":teleport\r" +
-                            ":warp X Y\r" +
-                            ":position \r" +
-                            ":transfer \r" +
-                            ":refresh  \r" +
-                            ":coins <howmuch> \r" +
+                            sendData(new HabboPacketBuilder("BK")
+                                .Append(":alert <user> <message>\r")
+                                .Append(":roomalert <message>\r")
+                                .Append(":kick <user> <message>\r")
+                                .Append(":roomkick <message>\r")
+                                .Append(":shutup <user> <message>\r")
+                                .Append(":unmute <user>\r")
+                                .Append(":roomshutup <message>\r")
+                                .Append(":roomunmute\r")
+                                .Append(":ban <user> <hours> <message>\r")
+                                .Append(":superban <user> <hours> <message>\r")
+                                .Append(":ha <message>\r")
+                                .Append(":ra <message>\r")
+                                .Append(":teleport\r")
+                                .Append(":warp X Y\r")
+                                .Append(":position \r")
+                                .Append(":transfer \r")
+                                .Append(":refresh  \r")
+                                .Append(":coins <howmuch> \r")
                                 //":masscredits <howmuch> \r" +
-                            ":info <username>\r");
+                                .Append(":info <username>\r")
+                                .Build());
                             break;
                         }
 
@@ -453,7 +455,7 @@ namespace Holo.Virtual.Users
                         return false;
                 }
             }
-            catch { sendData("BK" + stringManager.getString("scommand_failed")); }
+            catch { sendData(new HabboPacketBuilder("BK").Append(stringManager.getString("scommand_failed")).Build()); }
             return true;
         }
         #endregion
