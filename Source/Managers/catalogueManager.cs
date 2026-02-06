@@ -1,16 +1,14 @@
-﻿using System;
 using System.Text;
-using System.Collections;
 
-namespace Holo.Managers
+namespace Holo.Managers;
+
+/// <summary>
+/// Manager for catalogue page caching, catalogue item templates, catalogue purchase handling and few other catalogue related tasks.
+/// </summary>
+public static class catalogueManager
 {
-    /// <summary>
-    /// Manager for catalogue page caching, catalogue item templates, catalogue purchase handling and few other catalogue related tasks.
-    /// </summary>
-    public static class catalogueManager
-    {
-        private static Hashtable cataloguePages;
-        private static Hashtable itemCache;
+    private static Dictionary<string, cataloguePage> cataloguePages = new();
+    private static Dictionary<int, itemTemplate> itemCache = new();
 
         /// <summary>
         /// Initializes the catalogue manager, (re)caching all the pages and item templates.
@@ -20,8 +18,8 @@ namespace Holo.Managers
             Out.WriteLine("Starting caching of catalogue + items...");
 
             int[] pageIDs = DB.runReadColumn("SELECT indexid FROM catalogue_pages ORDER BY indexid", 0, null);
-            cataloguePages = new Hashtable();
-            itemCache = new Hashtable();
+            cataloguePages = new Dictionary<string, cataloguePage>();
+            itemCache = new Dictionary<int, itemTemplate>();
 
             for (int i = 0; i < pageIDs.Length; i++)
             {
@@ -149,7 +147,7 @@ namespace Holo.Managers
         /// <param name="pageName">The name of the catalogue page to check.</param>
         public static bool getPageExists(string pageName)
         {
-            return cataloguePages.ContainsKey(cataloguePages.ContainsKey(pageName));
+            return cataloguePages.ContainsKey(pageName);
         }
         /// <summary>
         /// Returns the index of catalogue pages for a certain user rank.
@@ -164,8 +162,8 @@ namespace Holo.Managers
 
                 for (int i = 0; i < pageNames.Length; i++)
                 {
-                    if (cataloguePages.ContainsKey(pageNames[i]))
-                        listBuilder.Append(pageNames[i] + Convert.ToChar(9) + ((cataloguePage)cataloguePages[pageNames[i]]).displayName + Convert.ToChar(13));
+                    if (cataloguePages.TryGetValue(pageNames[i], out var page))
+                        listBuilder.Append(pageNames[i] + Convert.ToChar(9) + page.displayName + Convert.ToChar(13));
                 }
 
                 return listBuilder.ToString();
@@ -184,19 +182,15 @@ namespace Holo.Managers
         /// <returns></returns>
         public static string getPage(string pageName, byte userRank)
         {
-            try
+            if (cataloguePages.TryGetValue(pageName, out var objPage))
             {
-                cataloguePage objPage = ((cataloguePage)cataloguePages[pageName]);
                 if (userRank < objPage.minRank)
                     return "holo.cast.catalogue.access_denied";
 
                 return objPage.pageData;
             }
 
-            catch
-            {
-                return "cast_catalogue.access_denied";
-            }
+            return "cast_catalogue.access_denied";
         }
         /// <summary>
         /// Handles special actions at purchase in the catalogue, such as decoration variables for items and items who are sold in pairs.
@@ -452,8 +446,7 @@ namespace Holo.Managers
         /// <param name="templateID">The template ID to return the item template of.</param>
         public static itemTemplate getTemplate(int templateID)
         {
-            try { return (itemTemplate)itemCache[templateID]; }
-            catch { return new itemTemplate(); }
+            return itemCache.TryGetValue(templateID, out var template) ? template : new itemTemplate();
         }
 
         internal static void handlePurchase(int rewardTemplateID, int userID, int p, int p_4, int p_5)
@@ -461,4 +454,3 @@ namespace Holo.Managers
             throw new NotImplementedException();
         }
     }
-}

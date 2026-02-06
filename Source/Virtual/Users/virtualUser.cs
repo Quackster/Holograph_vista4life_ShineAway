@@ -1,21 +1,15 @@
-using System;
-using System.Text;
-using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Rooms;
-using Holo.Virtual.Users.Items;
 using Holo.Virtual.Users.Messenger;
+using Holo.Virtual.Users.Items;
 using Holo.Virtual.Rooms.Games;
-using Holo.Virtual;
-using Microsoft.VisualBasic;
-using System.Collections.Generic;
 
-namespace Holo.Virtual.Users
-{
+namespace Holo.Virtual.Users;
+
+
     /// <summary>
     /// Represents a virtual user, with connection and packet handling, access management etc etc. The details about the user are kept separate in a different class.
     /// </summary>
@@ -295,4 +289,3 @@ namespace Holo.Virtual.Users
             roomUser.Refresh();
         }
     }
-}

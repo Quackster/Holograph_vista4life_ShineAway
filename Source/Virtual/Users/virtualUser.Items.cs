@@ -46,7 +46,7 @@ namespace Holo.Virtual.Users
                         int pageID = DB.runRead("SELECT indexid FROM catalogue_pages WHERE indexname = '" + DB.Stripslash(Page) + "' AND minrank <= " + _Rank, null);
                         int templateID = DB.runRead("SELECT tid FROM catalogue_items WHERE name_cct = '" + DB.Stripslash(Item) + "'", null);
                         int Cost = DB.runRead("SELECT catalogue_cost FROM catalogue_items WHERE catalogue_id_page = '" + pageID + "' AND tid = '" + templateID + "'", null);
-                        if (Cost == 0 || Cost > _Credits) { sendData("AD"); return; }
+                        if (Cost == 0 || Cost > _Credits) { sendData("AD"); return true; }
 
                         int receiverID = userID;
                         int presentBoxID = 0;
@@ -63,7 +63,7 @@ namespace Holo.Virtual.Users
                                 else
                                 {
                                     sendData(new HabboPacketBuilder("AL").Append(receiverName).Build());
-                                    return;
+                                    return true;
                                 }
                             }
 
@@ -134,7 +134,7 @@ namespace Holo.Virtual.Users
                 case "Ca": // Recycler - proceed input items
                     {
                         if (Config.enableRecycler == false || Room == null || recyclerManager.sessionExists(userID))
-                            return;
+                            return true;
 
                         int itemCount = Encoding.decodeVL64(currentPacket.Substring(2));
                         if (recyclerManager.rewardExists(itemCount))
@@ -153,7 +153,7 @@ namespace Holo.Virtual.Users
                                 {
                                     recyclerManager.dropSession(userID, true);
                                     sendData("DpH");
-                                    return;
+                                    return true;
                                 }
 
                             }
@@ -188,7 +188,7 @@ namespace Holo.Virtual.Users
                 case "AA": // Hand
                     {
                         if (Room == null || roomUser == null)
-                            return;
+                            return true;
 
                         string Mode = currentPacket.Substring(2);
                         refreshHand(Mode);
@@ -198,7 +198,7 @@ namespace Holo.Virtual.Users
                 case "LB": // Hand
                     {
                         if (Room == null || roomUser == null)
-                            return;
+                            return true;
 
                         string Mode = currentPacket.Substring(2);
                         refreshHand(Mode);
@@ -208,16 +208,16 @@ namespace Holo.Virtual.Users
                 case "AB": // Item handling - apply wallpaper/floor/landscape to room
                     {
                         if (_hasRights == false || _inPublicroom || Room == null || roomUser == null)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Split('/')[1]);
                         string decorType = currentPacket.Substring(2).Split('/')[0];
                         if (decorType != "wallpaper" && decorType != "floor" && decorType != "landscape")
-                            return;
+                            return true;
 
                         int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemID + "' AND ownerid = '" + userID + "' AND roomid = '0'", null);
                         if (catalogueManager.getTemplate(templateID).Sprite != decorType)
-                            return;
+                            return true;
 
                         string decorVal = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
                         DB.runQuery("UPDATE rooms SET " + decorType + " = '" + decorVal + "' WHERE id = '" + _roomID + "' LIMIT 1");
@@ -230,19 +230,19 @@ namespace Holo.Virtual.Users
                 case "AZ": // Item handling - place item down
                     {
                         if (_hasRights == false || _inPublicroom || Room == null || roomUser == null)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Split(' ')[0].Substring(2));
                         int templateID = DB.runRead("SELECT tid FROM furniture WHERE id = '" + itemID + "' AND ownerid = '" + userID + "' AND roomid = '0'", null);
                         if (templateID == 0)
-                            return;
+                            return true;
 
                         if (catalogueManager.getTemplate(templateID).typeID == 0)
                         {
                             string _INPUTPOS = currentPacket.Substring(itemID.ToString().Length + 3);
                             string _CHECKEDPOS = catalogueManager.wallPositionOK(_INPUTPOS);
                             if (_CHECKEDPOS != _INPUTPOS)
-                                return;
+                                return true;
 
                             string Var = DB.runRead("SELECT var FROM furniture WHERE id = '" + itemID + "'");
                             if (stringManager.getStringPart(catalogueManager.getTemplate(templateID).Sprite, 0, 7) == "post.it")
@@ -274,7 +274,7 @@ namespace Holo.Virtual.Users
                 case "AC": // Item handling - pickup item
                     {
                         if (_isOwner == false || _inPublicroom || Room == null || roomUser == null)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Split(' ')[2]);
                         if (Room.floorItemManager.containsItem(itemID))
@@ -282,7 +282,7 @@ namespace Holo.Virtual.Users
                         else if (Room.wallItemManager.containsItem(itemID) && stringManager.getStringPart(Room.wallItemManager.getItem(itemID).Sprite, 0, 7) != "post.it") // Can't pickup stickies from room
                             Room.wallItemManager.removeItem(itemID, userID);
                         else
-                            return;
+                            return true;
 
                         refreshHand("update");
                         break;
@@ -291,7 +291,7 @@ namespace Holo.Virtual.Users
                 case "AI": // Item handling - move/rotate item
                     {
                         if (_hasRights == false || _inPublicroom || Room == null || roomUser == null)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Split(' ')[0].Substring(2));
                         if (Room.floorItemManager.containsItem(itemID))
@@ -309,7 +309,7 @@ namespace Holo.Virtual.Users
                 case "CV": // Item handling - toggle wallitem status
                     {
                         if (_inPublicroom || Room == null || roomUser == null)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Substring(4, Encoding.decodeB64(currentPacket.Substring(2, 2))));
                         int toStatus = Encoding.decodeVL64(currentPacket.Substring(itemID.ToString().Length + 4));
@@ -332,11 +332,11 @@ namespace Holo.Virtual.Users
                 case "AN": // Item handling - open presentbox
                     {
                         if (_isOwner == false || _inPublicroom || Room == null || roomUser == null)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Substring(2));
                         if (Room.floorItemManager.containsItem(itemID) == false)
-                            return;
+                            return true;
 
                         int[] itemIDs = DB.runReadColumn("SELECT itemid FROM furniture_presents WHERE id = '" + itemID + "'", 0, null);
                         if (itemIDs.Length > 0)
@@ -371,17 +371,17 @@ namespace Holo.Virtual.Users
                 case "Bw": // Item handling - redeem credit item
                     {
                         if (_isOwner == false || _inPublicroom || Room == null || roomUser == null)
-                            return;
+                            return true;
 
                         int itemID = Encoding.decodeVL64(currentPacket.Substring(2));
                         if (Room.floorItemManager.containsItem(itemID))
                         {
                             string Sprite = Room.floorItemManager.getItem(itemID).Sprite;
                             if (Sprite.Substring(0, 3).ToLower() != "cf_" && Sprite.Substring(0, 4).ToLower() != "cfc_")
-                                return;
+                                return true;
                             int redeemValue = 0;
                             try { redeemValue = int.Parse(Sprite.Split('_')[1]); }
-                            catch { return; }
+                            catch { return true; }
 
                             Room.floorItemManager.removeItem(itemID, 0);
 
@@ -395,7 +395,7 @@ namespace Holo.Virtual.Users
                 case "AQ": // Item handling - teleporters - enter teleporter
                     {
                         if (_inPublicroom || Room == null || roomUser == null)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Substring(2));
                         if (Room.floorItemManager.containsItem(itemID))
@@ -403,9 +403,9 @@ namespace Holo.Virtual.Users
                             Rooms.Items.floorItem Teleporter = Room.floorItemManager.getItem(itemID);
                             // Prevent clientside 'jumps' to teleporter, check if user is removed one coord from teleporter entrance
                             if (Teleporter.Z == 2 && roomUser.X != Teleporter.X + 1 && roomUser.Y != Teleporter.Y)
-                                return;
+                                return true;
                             else if (Teleporter.Z == 4 && roomUser.X != Teleporter.X && roomUser.Y != Teleporter.Y + 1)
-                                return;
+                                return true;
                             roomUser.goalX = -1;
                             Room.moveUser(this.roomUser, Teleporter.X, Teleporter.Y, true);
                         }
@@ -415,14 +415,14 @@ namespace Holo.Virtual.Users
                 case @"@\": // Item handling - teleporters - flash teleporter
                     {
                         if (_inPublicroom || Room == null || roomUser == null)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Substring(2));
                         if (Room.floorItemManager.containsItem(itemID))
                         {
                             Rooms.Items.floorItem Teleporter1 = Room.floorItemManager.getItem(itemID);
                             if (roomUser.X != Teleporter1.X && roomUser.Y != Teleporter1.Y)
-                                return;
+                                return true;
 
                             int idTeleporter2 = DB.runRead("SELECT teleportid FROM furniture WHERE id = '" + itemID + "'", null);
                             int roomIDTeleporter2 = DB.runRead("SELECT roomid FROM furniture WHERE id = '" + idTeleporter2 + "'", null);
@@ -435,7 +435,7 @@ namespace Holo.Virtual.Users
                 case "AM": // Item handling - dices - close dice
                     {
                         if (Room == null || roomUser == null || _inPublicroom)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Substring(2));
                         if (Room.floorItemManager.containsItem(itemID))
@@ -443,7 +443,7 @@ namespace Holo.Virtual.Users
                             Rooms.Items.floorItem Item = Room.floorItemManager.getItem(itemID);
                             string Sprite = Item.Sprite;
                             if (Sprite != "edice" && Sprite != "edicehc") // Not a dice item
-                                return;
+                                return true;
 
                             if (!(Math.Abs(roomUser.X - Item.X) > 1 || Math.Abs(roomUser.Y - Item.Y) > 1)) // User is not more than one square removed from dice
                             {
@@ -458,7 +458,7 @@ namespace Holo.Virtual.Users
                 case "AL": // Item handling - dices - spin dice
                     {
                         if (Room == null || roomUser == null || _inPublicroom)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Substring(2));
                         if (Room.floorItemManager.containsItem(itemID))
@@ -466,7 +466,7 @@ namespace Holo.Virtual.Users
                             Rooms.Items.floorItem Item = Room.floorItemManager.getItem(itemID);
                             string Sprite = Item.Sprite;
                             if (Sprite != "edice" && Sprite != "edicehc") // Not a dice item
-                                return;
+                                return true;
 
                             if (!(Math.Abs(roomUser.X - Item.X) > 1 || Math.Abs(roomUser.Y - Item.Y) > 1)) // User is not more than one square removed from dice
                             {
@@ -484,7 +484,7 @@ namespace Holo.Virtual.Users
                 case "Cw": // Item handling - spin Wheel of fortune
                     {
                         if (_hasRights == false || Room == null || roomUser == null || _inPublicroom)
-                            return;
+                            return true;
 
                         int itemID = Encoding.decodeVL64(currentPacket.Substring(2));
                         if (Room.wallItemManager.containsItem(itemID))
@@ -513,7 +513,7 @@ namespace Holo.Virtual.Users
                     {
                         string Message = currentPacket.Substring(4);
                         if (Room == null || roomUser == null || _inPublicroom)
-                            return;
+                            return true;
 
                         int itemID = Encoding.decodeVL64(currentPacket.Substring(2));
                         if (Room.floorItemManager.containsItem(itemID) && Room.floorItemManager.getItem(itemID).Sprite == "val_randomizer")
@@ -536,7 +536,7 @@ namespace Holo.Virtual.Users
                     {
                         string Message = currentPacket.Substring(4);
                         if (Room == null || roomUser == null || _inPublicroom)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Substring(2));
                         if (Room.wallItemManager.containsItem(itemID))
@@ -554,7 +554,7 @@ namespace Holo.Virtual.Users
                 case "AT": // Item handling - stickies - edit stickie colour/message
                     {
                         if (_hasRights == false || Room == null || roomUser == null || _inPublicroom)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Substring(2, currentPacket.IndexOf("/") - 2));
                         if (Room.wallItemManager.containsItem(itemID))
@@ -562,18 +562,18 @@ namespace Holo.Virtual.Users
                             Rooms.Items.wallItem Item = Room.wallItemManager.getItem(itemID);
                             string Sprite = Item.Sprite;
                             if (Sprite != "post.it" && Sprite != "post.it.vd")
-                                return;
+                                return true;
                             string Colour = "FFFFFF"; // Valentine stickie default colour
                             if (Sprite == "post.it") // Normal stickie
                             {
                                 Colour = currentPacket.Substring(2 + itemID.ToString().Length + 1, 6);
                                 if (Colour != "FFFF33" && Colour != "FF9CFF" && Colour != "9CFF9C" && Colour != "9CCEFF")
-                                    return;
+                                    return true;
                             }
 
                             string Message = currentPacket.Substring(2 + itemID.ToString().Length + 7);
                             if (Message.Length > 684)
-                                return;
+                                return true;
                             if (Colour != Item.Var)
                                 DB.runQuery("UPDATE furniture SET var = '" + Colour + "' WHERE id = '" + itemID + "' LIMIT 1");
                             Item.Var = Colour;
@@ -593,7 +593,7 @@ namespace Holo.Virtual.Users
                 case "AU": // Item handling - stickies/photo - delete stickie/photo
                     {
                         if (_isOwner == false || Room == null || roomUser == null || _inPublicroom)
-                            return;
+                            return true;
 
                         int itemID = int.Parse(currentPacket.Substring(2));
                         if (Room.wallItemManager.containsItem(itemID) && stringManager.getStringPart(Room.wallItemManager.getItem(itemID).Sprite, 0, 7) == "post.it")

@@ -33,7 +33,7 @@ namespace Holo.Virtual.Users
                             if (gamePlayer != null)
                                 leaveGame();
                         }
-                        break;
+                        return true;
                     }
 
                 case "Bv": // Enter room - loading screen advertisement
@@ -44,7 +44,7 @@ namespace Holo.Virtual.Users
                         else
                             sendData(new HabboPacketBuilder(HabboPackets.ROOM_ADVERTISEMENT).Append(Config.Rooms_LoadAvertisement_img).TabSeparator().Append(Config.Rooms_LoadAvertisement_uri).Build());
                     }
-                    break;
+                    return true;
 
                 case "@B": // Enter room - determine room and check state + max visitors override
                     {
@@ -112,13 +112,13 @@ namespace Holo.Virtual.Users
                                 _ROOMACCESS_SECONDARY_OK = true;
                             }
                         }
-                        break;
+                        return true;
                     }
 
                 case "@v": // Enter room - guestroom - enter room by using a teleporter
                     {
                         sendData("@S");
-                        break;
+                        return true;
                     }
 
                 case "@y": // Enter room - guestroom - check roomban/password/doorbell
@@ -177,7 +177,7 @@ namespace Holo.Virtual.Users
                             _ROOMACCESS_SECONDARY_OK = true;
                             sendData(HabboPackets.ROOM_CLOSED);
                         }
-                        break;
+                        return true;
                     }
 
                 case "Ab": // Answer guestroom doorbell
@@ -213,7 +213,7 @@ namespace Holo.Virtual.Users
                             ringerData.roomUser = null;
                             //ringerData.Room.removeUser(ringerData.roomUser.roomUID, true, "");
                         }
-                        break;
+                        return true;
                     }
 
                 case "@{": // Enter room - guestroom - guestroom only data: model, wallpaper, floor, landscape, rights, room votes // Updated by Su-la-ke
@@ -255,7 +255,7 @@ namespace Holo.Virtual.Users
                             sendData(new HabboPacketBuilder(HabboPackets.VOTE_UPDATE).AppendVL64(voteAmount).Build());
                             sendData(new HabboPacketBuilder(HabboPackets.EVENT_INFO).Append(eventManager.getEvent(_roomID)).Build());
                         }
-                        break;
+                        return true;
                     }
 
                 case "A~": // Enter room - get room advertisement
@@ -268,7 +268,7 @@ namespace Holo.Virtual.Users
                         }
                         else
                             sendData(new HabboPacketBuilder(HabboPackets.ROOM_INTERSTITIAL).Append("0").Build());
-                        break;
+                        return true;
                     }
 
                 case "@|": // Enter room - get roomclass + get heightmap
@@ -296,7 +296,7 @@ namespace Holo.Virtual.Users
                             }
                             gamePlayer.enteringGame = false;
                         }
-                        break;
+                        return true;
                     }
 
                 case "@}": // Enter room - get items
@@ -306,7 +306,7 @@ namespace Holo.Virtual.Users
                             sendData(new HabboPacketBuilder(HabboPackets.ROOM_FLOOR_ITEMS).Append(Room.PublicroomItems).Build());
                             sendData(new HabboPacketBuilder(HabboPackets.ROOM_WALL_ITEMS).Append(Room.Flooritems).Build());
                         }
-                        break;
+                        return true;
                     }
 
                 case "@~": // Enter room - get group badges, optional skill levels in game lobbies and sprite index
@@ -332,7 +332,7 @@ namespace Holo.Virtual.Users
                                     _receivedSpriteIndex = true;
                                 }
                             }
-                            break;
+                            return true;
                         }
                     }
 
@@ -340,7 +340,7 @@ namespace Holo.Virtual.Users
                     {
                         if (_ROOMACCESS_SECONDARY_OK && Room != null)
                             sendData(new HabboPacketBuilder("@m").Append(Room.Wallitems).Build());
-                        break;
+                        return true;
                     }
 
                 case "A@": // Enter room - add this user to room
@@ -350,7 +350,7 @@ namespace Holo.Virtual.Users
                             sendData(new HabboPacketBuilder("@b").Append(Room.dynamicStatuses).Build());
                             Room.addUser(this);
                         }
-                        break;
+                        return true;
                     }
 
                 #endregion

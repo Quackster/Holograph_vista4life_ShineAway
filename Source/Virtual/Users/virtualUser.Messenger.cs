@@ -118,7 +118,7 @@ namespace Holo.Virtual.Users
                                 int requestID = Encoding.decodeVL64(currentPacket);
                                 int fromUserID = DB.runRead("SELECT userid_from FROM messenger_friendrequests WHERE userid_to = '" + this.userID + "' AND requestid = '" + requestID + "'", null);
                                 if (fromUserID == 0) // Corrupt data
-                                    return;
+                                    return true;
 
                                 virtualBuddy Buddy = new virtualBuddy(fromUserID);
                                 Updates.Append(Buddy.ToString(false));

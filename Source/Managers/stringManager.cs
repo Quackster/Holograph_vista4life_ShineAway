@@ -1,19 +1,16 @@
-﻿using System;
 using System.Text;
-using System.Collections;
-using Microsoft.VisualBasic;
 
-namespace Holo.Managers
+namespace Holo.Managers;
+
+/// <summary>
+/// Provides functions for management and manipulation of string objects.
+/// </summary>
+public static class stringManager
 {
     /// <summary>
-    /// Provides functions for management and manipulation of string objects.
+    /// Contains the strings loaded from system_strings.
     /// </summary>
-    public static class stringManager
-    {
-        /// <summary>
-        /// Contains the strings loaded from system_strings.
-        /// </summary>
-        private static Hashtable langStrings;
+    private static Dictionary<string, string> langStrings = new();
         /// <summary>
         /// Contains the array of swearwords to be filtered from chat etc, loaded from system_wordfilter.
         /// </summary>
@@ -33,7 +30,7 @@ namespace Holo.Managers
         public static void Init(string langExtension)
         {
             langExt = langExtension;
-            langStrings = new Hashtable();
+            langStrings = new Dictionary<string, string>();
 
             Out.WriteLine("Initializing strings from system_strings table for language '" + langExtension + "' ...");
 
@@ -96,8 +93,7 @@ namespace Holo.Managers
         /// <param name="stringID">The key of the string to retrieve.</param>
         public static string getString(string stringID)
         {
-            try { return langStrings[stringID].ToString(); }
-            catch { return stringID; }
+            return langStrings.TryGetValue(stringID, out var value) ? value : stringID;
         }
         /// <summary>
         /// Filters the swearwords in an input string and replaces them by the set censor.
@@ -108,7 +104,7 @@ namespace Holo.Managers
             if (Config.enableWordFilter)
             {
                 for (int i = 0; i < swearWords.Length; i++)
-                    Text = Strings.Replace(Text, swearWords[i], filterCensor, 1, -1, Constants.vbTextCompare);
+                    Text = Text.Replace(swearWords[i], filterCensor, StringComparison.OrdinalIgnoreCase);
             }
             return Text;
         }
@@ -141,4 +137,3 @@ namespace Holo.Managers
             //catch { return ""; }
         }
     }
-}

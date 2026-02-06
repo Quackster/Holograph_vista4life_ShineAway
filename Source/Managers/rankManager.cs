@@ -1,15 +1,13 @@
-﻿using System;
 using System.Text;
-using System.Collections;
 
-namespace Holo.Managers
+namespace Holo.Managers;
+
+/// <summary>
+/// Provides information about the various user ranks/levels, aswell as ranks for games such as 'BattleBall' and 'SnowStorm'.
+/// </summary>
+public static class rankManager
 {
-    /// <summary>
-    /// Provides information about the various user ranks/levels, aswell as ranks for games such as 'BattleBall' and 'SnowStorm'.
-    /// </summary>
-    public static class rankManager
-    {
-        private static Hashtable userRanks;
+    private static Dictionary<byte, userRank> userRanks = new();
         private static gameRank[] gameRanksBB;
         private static gameRank[] gameRanksSS;
 
@@ -19,7 +17,7 @@ namespace Holo.Managers
         public static void Init()
         {
             Out.WriteLine("Intializing user rank fuserights...");
-            userRanks = new Hashtable();
+            userRanks = new Dictionary<byte, userRank>();
 
             for (byte i = 1; i <= 7; i++)
                 userRanks.Add(i, new userRank(i));
@@ -58,11 +56,12 @@ namespace Holo.Managers
         /// <param name="rankID">The ID of the user rank.</param>
         public static string fuseRights(byte rankID)
         {
-            string[] fuseRights = ((userRank)userRanks[rankID]).fuseRights;
-            StringBuilder strBuilder = new StringBuilder();
+            if (!userRanks.TryGetValue(rankID, out var rank))
+                return "";
 
-            for (int i = 0; i < fuseRights.Length; i++)
-                strBuilder.Append(fuseRights[i] + Convert.ToChar(2));
+            StringBuilder strBuilder = new StringBuilder();
+            for (int i = 0; i < rank.fuseRights.Length; i++)
+                strBuilder.Append(rank.fuseRights[i] + Convert.ToChar(2));
 
             return strBuilder.ToString();
         }
@@ -74,7 +73,9 @@ namespace Holo.Managers
         /// <returns></returns>
         public static bool containsRight(byte rankID, string fuseRight)
         {
-            userRank objRank = ((userRank)userRanks[rankID]);
+            if (!userRanks.TryGetValue(rankID, out var objRank))
+                return false;
+
             for (int i = 0; i < objRank.fuseRights.Length; i++)
                 if (objRank.fuseRights[i] == fuseRight)
                     return true;
@@ -160,4 +161,3 @@ namespace Holo.Managers
             }
         }
     }
-}

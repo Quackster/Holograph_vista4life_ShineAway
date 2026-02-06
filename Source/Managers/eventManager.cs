@@ -1,21 +1,19 @@
-﻿using System;
 using System.Text;
-using System.Threading;
-using System.Collections;
 
 using Holo.Virtual.Users;
-namespace Holo.Managers
+
+namespace Holo.Managers;
+
+/// <summary>
+/// Provides management for events hosted by virtual users in their virtual rooms.
+/// </summary>
+public static class eventManager
 {
+    #region Declares
     /// <summary>
-    /// Provides management for events hosted by virtual users in their virtual rooms.
+    /// Array of dictionaries that keeps the virtualEvent structs.
     /// </summary>
-    public static class eventManager
-    {
-        #region Declares
-        /// <summary>
-        /// Array of hashtables that keeps the virtualEvent structs.
-        /// </summary>
-        private static Hashtable[] Events;
+    private static Dictionary<int, virtualEvent>[] Events = Array.Empty<Dictionary<int, virtualEvent>>();
         /// <summary>
         /// The thread that removes the 'dead events' (virtual events where the hoster has left the virtual room where the event is hosted) from the manager every xx seconds. (configureable in system_config)
         /// </summary>
@@ -40,9 +38,9 @@ namespace Holo.Managers
             catch { }
 
             categoryAmount = int.Parse(Config.getTableEntry("events_categorycount"));
-            Events = new Hashtable[categoryAmount];
+            Events = new Dictionary<int, virtualEvent>[categoryAmount];
             for (int i = 0; i < categoryAmount; i++)
-                Events[i] = new Hashtable();
+                Events[i] = new Dictionary<int, virtualEvent>();
 
             deadEventDropInterval = int.Parse(Config.getTableEntry("events_deadevents_removeinterval")) * 1000;
             deadEventDropper = new Thread(new ThreadStart(dropDeadEvents));
@@ -58,17 +56,17 @@ namespace Holo.Managers
             {
                 for (int i = 0; i < categoryAmount; i++)
                 {
-                    foreach (virtualEvent Event in ((Hashtable)Events[i].Clone()).Values)
+                    foreach (var Event in Events[i].Values.ToArray())
                     {
-                        if (userManager.containsUser(Event.userID) == false)
+                        if (!userManager.containsUser(Event.userID))
                         {
                             DB.runQuery("DELETE FROM events WHERE roomid = '" + Event.roomID + "'");
                             Events[i].Remove(Event.roomID);
                         }
                         else
                         {
-                            virtualUser Hoster = userManager.getUser(Event.userID);
-                            if (Hoster._roomID != Event.roomID)
+                            var Hoster = userManager.getUser(Event.userID);
+                            if (Hoster != null && Hoster._roomID != Event.roomID)
                             {
                                 DB.runQuery("DELETE FROM events WHERE roomid = '" + Event.roomID + "'");
                                 Events[i].Remove(Event.roomID);
@@ -77,8 +75,7 @@ namespace Holo.Managers
                         }
                     }
                 }
-                Thread.Sleep(deadEventDropInterval); // Sleep the configured amount of time before repeating
-                //Out.WriteLine("Drop dead event loop");
+                Thread.Sleep(deadEventDropInterval);
             }
         }
         #endregion
@@ -94,7 +91,7 @@ namespace Holo.Managers
         /// <param name="Description">The description of the new virtual event.</param>
         public static void createEvent(int categoryID, int userID, int roomID, string Name, string Description)
         {
-            if (Events[categoryID - 1].Contains(roomID) == false)
+            if (!Events[categoryID - 1].ContainsKey(roomID))
             {
                 virtualEvent Event = new virtualEvent(roomID, userID, Name, Description);
                 DB.runQuery("INSERT INTO events (name,description,userid,roomid,category,date) VALUES ('" + DB.Stripslash(Name) + "','" + DB.Stripslash(Description) + "','" + userID + "','" + roomID + "','" + categoryID + "','" + DateTime.Now.TimeOfDay.ToString() + "')");
@@ -126,14 +123,12 @@ namespace Holo.Managers
         /// <param name="Description">The (new) description of the virtual event.</param>
         public static void editEvent(int categoryID, int roomID, string Name, string Description)
         {
-            if (Events[categoryID - 1].Contains(roomID))
+            if (Events[categoryID - 1].TryGetValue(roomID, out var Event))
             {
-                virtualEvent Event = (virtualEvent)Events[categoryID - 1][roomID];
                 Event.Name = Name;
                 Event.Description = Description;
                 DB.runQuery("UPDATE events SET name = '" + Name + "',description = '" + Description + "',category = '" + categoryID + "',date = '" + DateTime.Now.TimeOfDay.ToString() + "' WHERE roomid = '" + roomID + "'");
-                Events[categoryID - 1].Remove(roomID);
-                Events[categoryID - 1].Add(roomID, Event); // Swap (because the object is a struct)
+                Events[categoryID - 1][roomID] = Event; // Update (because the object is a struct)
             }
         }
         /// <summary>
@@ -155,11 +150,12 @@ namespace Holo.Managers
                 int Count = 0;
                 StringBuilder List = new StringBuilder();
 
-                foreach (virtualEvent Event in Events[categoryID - 1].Values)
+                foreach (var Event in Events[categoryID - 1].Values)
                 {
-                    if (userManager.containsUser(Event.userID)) // Hoster is online
+                    var user = userManager.getUser(Event.userID);
+                    if (user != null) // Hoster is online
                     {
-                        List.Append(Event.roomID + Convert.ToChar(2).ToString() + userManager.getUser(Event.userID)._Username + Convert.ToChar(2) + Event.Name + Convert.ToChar(2) + Event.Description + Convert.ToChar(2) + Event.Started + Convert.ToChar(2));
+                        List.Append(Event.roomID + Convert.ToChar(2).ToString() + user._Username + Convert.ToChar(2) + Event.Name + Convert.ToChar(2) + Event.Description + Convert.ToChar(2) + Event.Started + Convert.ToChar(2));
                         Count++;
                     }
                 }
@@ -177,10 +173,11 @@ namespace Holo.Managers
             {
                 for (int i = 0; i < categoryAmount; i++)
                 {
-                    if (Events[i].ContainsKey(roomID))
+                    if (Events[i].TryGetValue(roomID, out var Event))
                     {
-                        virtualEvent Event = (virtualEvent)Events[i][roomID];
-                        return Event.userID + Convert.ToChar(2).ToString() + userManager.getUser(Event.userID)._Username + Convert.ToChar(2).ToString() + Event.roomID + Convert.ToChar(2).ToString() + Encoding.encodeVL64(i + 1) + Event.Name + Convert.ToChar(2).ToString() + Event.Description + Convert.ToChar(2).ToString() + Event.Started + Convert.ToChar(2).ToString();
+                        var user = userManager.getUser(Event.userID);
+                        if (user == null) return "-1";
+                        return Event.userID + Convert.ToChar(2).ToString() + user._Username + Convert.ToChar(2).ToString() + Event.roomID + Convert.ToChar(2).ToString() + Encoding.encodeVL64(i + 1) + Event.Name + Convert.ToChar(2).ToString() + Event.Description + Convert.ToChar(2).ToString() + Event.Started + Convert.ToChar(2).ToString();
                     }
                 }
                 return "-1";
@@ -234,4 +231,3 @@ namespace Holo.Managers
         }
         #endregion
     }
-}

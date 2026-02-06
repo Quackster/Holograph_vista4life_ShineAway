@@ -1,22 +1,20 @@
-﻿using System;
 using System.Text;
-using System.Collections;
 
 using Holo.Protocol;
 using Holo.Virtual.Rooms;
 
-namespace Holo.Managers
+namespace Holo.Managers;
+
+/// <summary>
+/// Provides management for virtual rooms, aswell as some misc tasks for rooms.
+/// </summary>
+public static class roomManager
 {
+    #region Declares
     /// <summary>
-    /// Provides management for virtual rooms, aswell as some misc tasks for rooms.
+    /// Contains the hooked virtual room objects.
     /// </summary>
-    public static class roomManager
-    {
-        #region Declares
-        /// <summary>
-        /// Contains the hooked virtual room objects.
-        /// </summary>
-        private static Hashtable _Rooms = new Hashtable();
+    private static Dictionary<int, virtualRoom> _Rooms = new();
         /// <summary>
         /// The peak amount of rooms that has been in the room manager since start of the emulator.
         /// </summary>
@@ -31,14 +29,13 @@ namespace Holo.Managers
         /// <param name="Room">The virtualRoom class of this room.</param>
         public static void addRoom(int roomID, virtualRoom Room)
         {
-            if (_Rooms.ContainsKey(roomID) == false)
+            if (!_Rooms.ContainsKey(roomID))
             {
                 _Rooms.Add(roomID, Room);
                 Out.WriteLine("Room [" + roomID + ", publicroom: " + Room.isPublicroom.ToString().ToLower() + "] loaded.", Out.logFlags.StandardAction);
                 if (_Rooms.Count > _peakRoomCount)
                     _peakRoomCount = _Rooms.Count;
             }
-
         }
         /// <summary>
         /// Removes a room from the roomManager. [if it exists]
@@ -46,9 +43,9 @@ namespace Holo.Managers
         /// <param name="roomID">The ID of the room to remove.</param>
         public static void removeRoom(int roomID)
         {
-            if (_Rooms.ContainsKey(roomID))
+            if (_Rooms.TryGetValue(roomID, out var room))
             {
-                bool boolPublicroom = ((virtualRoom)_Rooms[roomID]).isPublicroom;
+                bool boolPublicroom = room.isPublicroom;
                 _Rooms.Remove(roomID);
                 updateRoomVisitorCount(roomID, 0);
                 Out.WriteLine("Room [" + roomID + ", publicroom: " + boolPublicroom.ToString().ToLower() + "] destroyed.", Out.logFlags.StandardAction);
@@ -91,7 +88,7 @@ namespace Holo.Managers
         /// <param name="roomID">The ID of the room.</param>
         public static virtualRoom getRoom(int roomID)
         {
-            return (virtualRoom)_Rooms[roomID];
+            return _Rooms[roomID];
         }
         /// <summary>
         /// Returns a the poll packet for a certain room.
@@ -273,4 +270,3 @@ namespace Holo.Managers
         }
         #endregion
     }
-}

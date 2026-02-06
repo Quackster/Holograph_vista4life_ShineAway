@@ -1,8 +1,4 @@
-using System;
 using System.Text;
-using System.Threading;
-using System.Collections;
-using System.Collections.Generic;
 
 using Holo.Managers;
 using Holo.Virtual.Users;
@@ -10,8 +6,9 @@ using Holo.Virtual.Rooms.Bots;
 using Holo.Virtual.Rooms.Items;
 using Holo.Virtual.Rooms.Games;
 
-namespace Holo.Virtual.Rooms
-{
+namespace Holo.Virtual.Rooms;
+
+
     /// <summary>
     /// Represents a virtual publicroom or guestroom, with management for users, items and the map. Threaded.
     /// </summary>
@@ -76,11 +73,11 @@ namespace Holo.Virtual.Rooms
         /// <summary>
         /// The collection that contains the virtualRoomUser objects for the virtual users in this room.
         /// </summary>
-        private Hashtable _Users;
+        private Dictionary<int, virtualRoomUser> _Users = new();
         /// <summary>
         /// The collection that contains the virtualBot objects for the bots in this room.
         /// </summary>
-        private Hashtable _Bots;
+        private Dictionary<int, virtualBot> _Bots = new();
         /// <summary>
         /// The collection that contains the IDs of the virtual user groups that are active in this room.
         /// </summary>
@@ -244,8 +241,8 @@ namespace Holo.Virtual.Rooms
                     }
                 }
             }
-            _Users = new Hashtable();
-            _Bots = new Hashtable();
+            _Users = new Dictionary<int, virtualRoomUser>();
+            _Bots = new Dictionary<int, virtualBot>();
             loadBots();
 
             _activeGroups = new HashSet<int>();
@@ -317,4 +314,3 @@ namespace Holo.Virtual.Rooms
         }
         #endregion
     }
-}

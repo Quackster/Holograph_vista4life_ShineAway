@@ -1,14 +1,14 @@
-using System;
 using System.Text;
-using System.Collections;
 
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Users;
 using Holo.Virtual.Rooms.Bots;
+using Holo.Virtual.Rooms.Items;
 
-namespace Holo.Virtual.Rooms
-{
+namespace Holo.Virtual.Rooms;
+
+
     /// <summary>
     /// Partial class for virtualRoom containing user and bot management methods.
     /// </summary>
@@ -79,10 +79,9 @@ namespace Holo.Virtual.Rooms
         /// <param name="moderatorMessage">Specifies a moderator message [B!] packet to be used at kick.</param>
         internal void removeUser(int roomUID, bool sendKick, string moderatorMessage)
         {
-            if (_Users.Contains(roomUID) == false)
+            if (!_Users.TryGetValue(roomUID, out var roomUser))
                 return;
 
-            virtualRoomUser roomUser = (virtualRoomUser)_Users[roomUID];
             if (sendKick)
             {
                 roomUser.User.sendData("@R");
@@ -150,9 +149,9 @@ namespace Holo.Virtual.Rooms
             return _Users.ContainsKey(roomUID);
         }
         /// <summary>
-        /// The values of the _Users Hashtable as an ICollection object.
+        /// The values of the _Users Dictionary as a collection.
         /// </summary>
-        internal ICollection Users
+        internal IEnumerable<virtualRoomUser> Users
         {
             get
             {
@@ -160,5 +159,5 @@ namespace Holo.Virtual.Rooms
             }
         }
         #endregion
+        #endregion
     }
-}

@@ -4,6 +4,7 @@ using System.Text;
 using Holo.Managers;
 using Holo.Protocol;
 using Holo.Virtual.Rooms;
+using Holo.Virtual.Users.Items;
 
 namespace Holo.Virtual.Users
 {
@@ -26,14 +27,14 @@ namespace Holo.Virtual.Users
                     {
                         if (_isOwner && Room != null && _isOwner == true && Room.floorItemManager.soundMachineID > 0)
                             sendData(new HabboPacketBuilder("EB").Append(soundMachineManager.getMachineSongList(Room.floorItemManager.soundMachineID)).Build());
-                        break;
+                        return true;
                     }
 
                 case "Cu": // Soundmachine - enter room initialize playlist
                     {
                         if (Room != null && Room.floorItemManager.soundMachineID > 0)
                             sendData(new HabboPacketBuilder("EC").Append(soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID)).Build());
-                        break;
+                        return true;
                     }
 
                 case "C]": // Soundmachine - get song title and data of certain song
@@ -43,7 +44,7 @@ namespace Holo.Virtual.Users
                             int songID = Encoding.decodeVL64(currentPacket.Substring(2));
                             sendData(new HabboPacketBuilder("Dl").Append(soundMachineManager.getSong(songID)).Build());
                         }
-                        break;
+                        return true;
                     }
 
                 case "Cs": // Soundmachine - save playlist
@@ -64,7 +65,7 @@ namespace Holo.Virtual.Users
                                 Room.sendData(new HabboPacketBuilder("EC").Append(soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID)).Build()); // Refresh playlist
                             }
                         }
-                        break;
+                        return true;
                     }
 
                 case "C~": // Sound machine - burn song to disk
@@ -90,7 +91,7 @@ namespace Holo.Virtual.Users
                             else // Virtual user doesn't has enough credits to burn this song to disk, or this song doesn't exist in his/her soundmachine
                                 sendData("AD");
                         }
-                        break;
+                        return true;
                     }
 
                 case "Cx": // Sound machine - delete song
@@ -106,7 +107,7 @@ namespace Holo.Virtual.Users
                                 Room.sendData(new HabboPacketBuilder("EC").Append(soundMachineManager.getMachinePlaylist(Room.floorItemManager.soundMachineID)).Build());
                             }
                         }
-                        break;
+                        return true;
                     }
 
                 #region Song editor
@@ -119,7 +120,7 @@ namespace Holo.Virtual.Users
                             sendData(new HabboPacketBuilder("Dm").Append(songEditor.getSoundsets()).Build());
                             sendData(new HabboPacketBuilder("Dn").Append(soundMachineManager.getHandSoundsets(userID)).Build());
                         }
-                        break;
+                        return true;
                     }
 
                 case "C[": // Soundmachine - song editor - add soundset
@@ -135,7 +136,7 @@ namespace Holo.Virtual.Users
                                 sendData(new HabboPacketBuilder("Dm").Append(songEditor.getSoundsets()).Build());
                             }
                         }
-                        break;
+                        return true;
                     }
 
                 case @"C\": // Soundmachine - song editor - remove soundset
@@ -150,7 +151,7 @@ namespace Holo.Virtual.Users
                                 sendData(new HabboPacketBuilder("Dn").Append(soundMachineManager.getHandSoundsets(userID)).Build());
                             }
                         }
-                        break;
+                        return true;
                     }
 
                 case "Cp": // Soundmachine - song editor - save new song
@@ -172,7 +173,7 @@ namespace Holo.Virtual.Users
                                 sendData(new HabboPacketBuilder("EK").Append(Encoding.encodeVL64(Room.floorItemManager.soundMachineID)).Append(Title).Separator().Build());
                             }
                         }
-                        break;
+                        return true;
                     }
 
                 case "Cq": // Soundmachine - song editor - request edit of existing song
@@ -188,7 +189,7 @@ namespace Holo.Virtual.Users
                             sendData(new HabboPacketBuilder("Dm").Append(songEditor.getSoundsets()).Build());
                             sendData(new HabboPacketBuilder("Dn").Append(soundMachineManager.getHandSoundsets(userID)).Build());
                         }
-                        break;
+                        return true;
                     }
 
                 case "Cr": // Soundmachine - song editor - save edited existing song
@@ -215,7 +216,7 @@ namespace Holo.Virtual.Users
                                 }
                             }
                         }
-                        break;
+                        return true;
                     }
                 #endregion Song editor
                 #endregion

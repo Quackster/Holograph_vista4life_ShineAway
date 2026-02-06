@@ -1,17 +1,14 @@
-﻿using System;
-using System.Collections;
+namespace Holo.Managers;
 
-namespace Holo.Managers
+/// <summary>
+/// Provides functions and tasks for the item Recycler, which allows users to trade in their items for special items.
+/// </summary>
+public static class recyclerManager
 {
-    /// <summary>
-    /// Provides functions and tasks for the item Recycler, which allows users to trade in their items for special items.
-    /// </summary>
-    public static class recyclerManager
-    {
-        private static int sessionLength;
-        private static int sessionExpireLength;
-        private static int itemMinOwnershipLength;
-        private static Hashtable sessionRewards;
+    private static int sessionLength;
+    private static int sessionExpireLength;
+    private static int itemMinOwnershipLength;
+    private static Dictionary<int, int> sessionRewards = new();
         public static string setupString;
         /// <summary>
         /// Initializes the item Recycler, determining the state and creating the setup string.
@@ -29,7 +26,7 @@ namespace Holo.Managers
                 sessionLength = int.Parse(Config.getTableEntry("recycler_session_length"));
                 sessionExpireLength = int.Parse(Config.getTableEntry("recycler_session_expirelength"));
                 itemMinOwnershipLength = int.Parse(Config.getTableEntry("recycler_minownertime"));
-                sessionRewards = new Hashtable();
+                sessionRewards = new Dictionary<int, int>();
 
                 setupString = "I" + Encoding.encodeVL64(itemMinOwnershipLength) + Encoding.encodeVL64(sessionLength) + Encoding.encodeVL64(sessionExpireLength) + Encoding.encodeVL64(rclrCosts.Length);
                 for (int i = 0; i < rclrCosts.Length; i++)
@@ -67,7 +64,7 @@ namespace Holo.Managers
         /// <param name="itemCount">The amount of items the user brought in.</param>
         public static void createSession(int userID, int itemCount)
         {
-            int rewardTemplateID = ((int)sessionRewards[itemCount]);
+            int rewardTemplateID = sessionRewards[itemCount];
             DB.runQuery("INSERT INTO users_recycler(userid,session_started,session_reward) VALUES ('" + userID + "','" + DateTime.Now.ToString() + "','" + rewardTemplateID + "')");
         }
         /// <summary>
@@ -162,4 +159,3 @@ namespace Holo.Managers
         }
         #endregion
     }
-}

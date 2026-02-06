@@ -1,19 +1,16 @@
-﻿using System;
 using System.Text;
-using System.Threading;
-using System.Collections;
 
 using Holo.Protocol;
 using Holo.Virtual.Users;
 
-namespace Holo.Managers
+namespace Holo.Managers;
+
+/// <summary>
+/// Provides management for logged in users, aswell for retrieving details such as ID/name and vice versa from the database.
+/// </summary>
+public static class userManager
 {
-    /// <summary>
-    /// Provides management for logged in users, aswell for retrieving details such as ID/name and vice versa from the database.
-    /// </summary>
-    public static class userManager
-    {
-        public static Hashtable _Users = new Hashtable();
+    private static Dictionary<int, virtualUser> _Users = new();
         private static Thread pingChecker;
         private static int _peakUserCount;
         /// <summary>
@@ -35,12 +32,10 @@ namespace Holo.Managers
         /// <param name="User">The virtualUser class of this user.</param>
         public static void addUser(int userID, virtualUser User)
         {
-            if (_Users.ContainsKey(userID))
+            if (_Users.TryGetValue(userID, out var oldUser))
             {
-                virtualUser oldUser = ((virtualUser)_Users[userID]);
                 oldUser.Disconnect();
-                if (_Users.ContainsKey(userID))
-                    _Users.Remove(userID);
+                _Users.Remove(userID);
             }
 
             if (User.connectionRemoteIP == DB.runRead("SELECT ipaddress_last FROM users WHERE name = '" + User._Username + "'"))
@@ -143,29 +138,26 @@ namespace Holo.Managers
         {
             try
             {
-                ArrayList idBuilder = new ArrayList();
+                var idBuilder = new List<int>();
                 int[] friendIDs = DB.runReadColumn("SELECT friendid FROM messenger_friendships WHERE userid = '" + userID + "'", 0, null);
-                for (int i = 0; i < friendIDs.Length; i++)
-                    idBuilder.Add(friendIDs[i]);
+                idBuilder.AddRange(friendIDs);
                 friendIDs = DB.runReadColumn("SELECT userid FROM messenger_friendships WHERE friendid = '" + userID + "'", 0, null);
-                for (int i = 0; i < friendIDs.Length; i++)
-                    idBuilder.Add(friendIDs[i]);
+                idBuilder.AddRange(friendIDs);
 
-                return (int[])idBuilder.ToArray(typeof(int));
+                return idBuilder.ToArray();
             }
             catch
             {
-                return new int[0];
+                return Array.Empty<int>();
             }
         }
         /// <summary>
         /// Returns a virtualUser class for a certain user
         /// </summary>
         /// <param name="userID">The ID of the user.</param>
-        public static virtualUser getUser(int userID)
+        public static virtualUser? getUser(int userID)
         {
-            try { return (virtualUser)_Users[userID]; }
-            catch { return null; }
+            return _Users.TryGetValue(userID, out var user) ? user : null;
         }
         /// <summary>
         /// Returns a virtualUser class for a certain user.
@@ -235,9 +227,8 @@ namespace Holo.Managers
                 Info.Append(stringManager.getString("common_email") + ": " + userDetails[5] + "\r"); // Append email address
                 Info.Append(stringManager.getString("common_ip") + ": " + userDetails[8] + "\r\r"); // Append user's last used IP address
 
-                if (_Users.ContainsKey(userID)) // User online
+                if (_Users.TryGetValue(userID, out var User)) // User online
                 {
-                    virtualUser User = (virtualUser)_Users[userID];
                     string Location = "";
                     if (User._roomID == 0)
                         Location = stringManager.getString("common_hotelview");
@@ -263,9 +254,8 @@ namespace Holo.Managers
             DB.runQuery("DELETE FROM users_bans WHERE userid = '" + userID + "' LIMIT 1"); // Delete previous bans
             DB.runQuery("INSERT INTO users_bans (userid,date_expire,descr) VALUES ('" + userID + "','" + Expires + "','" + DB.Stripslash(Reason) + "')");
 
-            if (_Users.ContainsKey(userID))
+            if (_Users.TryGetValue(userID, out var User))
             {
-                virtualUser User = ((virtualUser)_Users[userID]);
                 User.sendData(new HabboPacketBuilder("@c").Append(Reason).Build());
                 User.Disconnect(1000);
             }
@@ -305,9 +295,8 @@ namespace Holo.Managers
             int[] userIDs = DB.runReadColumn("SELECT id FROM users WHERE ipaddress_last = '" + IP + "'", 0, null);
             for (int i = 0; i < userIDs.Length; i++)
             {
-                if (_Users.ContainsKey(userIDs[i]))
+                if (_Users.TryGetValue(userIDs[i], out var User))
                 {
-                    virtualUser User = ((virtualUser)_Users[userIDs[i]]);
                     User.sendData(new HabboPacketBuilder("@c").Append(Reason).Build());
                     User.Disconnect(1000);
                 }
@@ -419,7 +408,7 @@ namespace Holo.Managers
         {
             while (true)
             {
-                foreach (virtualUser User in ((Hashtable)_Users.Clone()).Values)
+                foreach (var User in _Users.Values.ToArray())
                 {
                     if (User.pingOK)
                     {
@@ -430,11 +419,9 @@ namespace Holo.Managers
                     {
                         Holo.Out.WriteLine(User._Username + " timed out.");
                         User.Disconnect();
-
                     }
                 }
                 Thread.Sleep(60000);
             }
         }
     }
-}
